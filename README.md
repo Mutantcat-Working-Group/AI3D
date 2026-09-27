@@ -5,6 +5,13 @@
 
 **Point at the model. Let the Agent read what you meant.**
 
+https://github.com/user-attachments/assets/711ffa94-dab0-44b6-90ce-c6df4dd65614
+
+<sub>43 seconds, with sound. It is an animation, rendered from code with Remotion,
+and the drone frame in it was made for the film; the recording below is the
+application itself. A Chinese cut (中文版) is in the
+[announcement](https://github.com/lzyling/meshcue/discussions/9).</sub>
+
 ![A reviewer turns a bracket with the right mouse button, drops lettered pins A and B on two surfaces, fills a face with the paint bucket, and presses Send to Agent](docs/media/demo.gif)
 
 <sub>Recorded from the application by `scripts/record-demo.mjs` — a real server, a
