@@ -128,7 +128,7 @@ openclaw plugins install ./tmp/candidate/package
 For any MCP client, install a tagged commit and point the client at it:
 
 ```sh
-npm i -g "github:lzyling/meshcue#v1.3.1"
+npm i -g "github:lzyling/meshcue#v1.3.2"
 ```
 
 ```toml
@@ -141,7 +141,7 @@ Or start it without installing, at the cost of a fetch and a build each time:
 ```toml
 [mcp_servers.meshcue]
 command = "npx"
-args = ["-p", "github:lzyling/meshcue#v1.3.1", "meshcue-mcp"]
+args = ["-p", "github:lzyling/meshcue#v1.3.2", "meshcue-mcp"]
 ```
 
 Pin the tag. Without one, npm takes whatever the default branch holds at that
