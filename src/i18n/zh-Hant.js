@@ -287,6 +287,8 @@ export default {
   "gen.styleStylized": "風格化",
   "gen.color": "顏色",
   "gen.colorReset": "重置",
+  "gen.seed": "隨機種子",
+  "gen.seedPlaceholder": "留空使用隨機種子",
   "gen.previewError": "預覽失敗",
   "gen.generate": "產生",
   "gen.generating": "產生中...",

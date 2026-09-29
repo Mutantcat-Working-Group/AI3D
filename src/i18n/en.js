@@ -312,6 +312,8 @@ export default {
   "gen.styleStylized": "Stylized",
   "gen.color": "Color",
   "gen.colorReset": "Reset",
+  "gen.seed": "Seed",
+  "gen.seedPlaceholder": "Leave empty for random",
   "gen.previewError": "Preview failed",
   "gen.generate": "Generate",
   "gen.generating": "Generating...",

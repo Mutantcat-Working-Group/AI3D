@@ -287,6 +287,8 @@ export default {
   "gen.styleStylized": "风格化",
   "gen.color": "颜色",
   "gen.colorReset": "重置",
+  "gen.seed": "随机种子",
+  "gen.seedPlaceholder": "留空使用随机种子",
   "gen.previewError": "预览失败",
   "gen.generate": "生成",
   "gen.generating": "生成中...",

@@ -22,6 +22,13 @@ import {
   paintIndex,
   addPatches,
 } from "./annotation-edits.js";
+import {
+  generateAsset as generateThreeAsset,
+  exportGLB,
+  exportOBJ,
+  countTriangles,
+  renderAssetThumbnail,
+} from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
    the reviewer's own preferences have been read. Correcting it here is what
@@ -194,6 +201,11 @@ app.innerHTML = `${SPRITE}
       <div class="gen-color-row">
         <input type="color" id="gen-color" value="#808080">
         <button type="button" id="gen-color-reset" class="quiet">${T("gen.colorReset")}</button>
+      </div>
+      <label>${T("gen.seed")}</label>
+      <div class="gen-color-row">
+        <input type="number" id="gen-seed" min="0" step="1" placeholder="${T("gen.seedPlaceholder")}">
+        <button type="button" id="gen-seed-reset" class="quiet">${T("gen.colorReset")}</button>
       </div>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
@@ -2211,18 +2223,21 @@ async function generateAsset() {
   }
   const style = $("#gen-style").value;
   const color = $("#gen-color").value;
+  const seedInput = $("#gen-seed").value.trim();
+  const seed = seedInput === "" ? null : Math.max(0, Math.floor(Number(seedInput) || 0));
   genState.generating = true;
   setGenStatus(t("gen.generating"), "info");
   setGenActions(false);
   try {
     const assetType = parseAssetPrompt(prompt, style);
-    const model = generateAsset(assetType.type, {
+    const model = generateThreeAsset(assetType.type, {
       size: assetType.size,
       segments: assetType.segments,
       style: assetType.style,
       color: color,
+      seed,
     });
-    genState.model = { ...assetType, threeObject: model };
+    genState.model = { ...assetType, threeObject: model, color, seed };
     const triCount = countTriangles(model);
     setGenStatus(`${t("gen.applied")} (${triCount} ${t("gen.triangles")})`, "ok");
     setGenActions(true);
@@ -2248,6 +2263,19 @@ function parseAssetPrompt(prompt, style) {
     { keys: ["house", "house"], type: "house" },
     { keys: ["car", "car"], type: "car" },
     { keys: ["character", "character"], type: "character" },
+    { keys: ["shield", "shield"], type: "shield" },
+    { keys: ["potion", "potion"], type: "potion" },
+    { keys: ["chest", "chest"], type: "chest" },
+    { keys: ["key", "key"], type: "key" },
+    { keys: ["gem", "gem"], type: "gem" },
+    { keys: ["barrel", "barrel"], type: "barrel" },
+    { keys: ["crate", "crate"], type: "crate" },
+    { keys: ["tower", "tower"], type: "tower" },
+    { keys: ["flag", "flag"], type: "flag" },
+    { keys: ["torch", "torch"], type: "torch" },
+    { keys: ["fence", "fence"], type: "fence" },
+    { keys: ["bridge", "bridge"], type: "bridge" },
+    { keys: ["fountain", "fountain"], type: "fountain" },
   ];
   for (const kw of keywords) {
     if (kw.keys.some((k) => lower.includes(k))) {
@@ -2356,6 +2384,9 @@ $("#gen-download").addEventListener("click", downloadGenModel);
 $("#gen-color-reset").addEventListener("click", () => {
   $("#gen-color").value = "#808080";
 });
+$("#gen-seed-reset").addEventListener("click", () => {
+  $("#gen-seed").value = "";
+});
 
 // --- Asset Library UI ---
 function renderAssetLibrary() {
@@ -2396,26 +2427,28 @@ function renderAssetPreview(asset) {
   const container = document.querySelector(`[data-preview="${asset.id}"]`);
   if (!container) return;
   try {
-    const model = generateAsset(asset.type, {
+    const model = generateThreeAsset(asset.type, {
       size: asset.size,
       segments: Math.min(asset.segments || 8, 8), // Low segments for preview
       style: asset.style,
       color: asset.color || null,
+      seed: asset.seed ?? null,
     });
-    // Create a simple preview using a canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = 120;
-    canvas.height = 90;
-    canvas.className = "gen-asset-thumbnail";
-    const ctx = canvas.getContext("2d");
-    // Draw a simple representation
-    ctx.fillStyle = asset.color || "#808080";
-    ctx.fillRect(10, 10, 100, 70);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "10px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(asset.type, 60, 50);
-    container.appendChild(canvas);
+    const dataUrl = renderAssetThumbnail(model, 120, 90);
+    if (dataUrl) {
+      const img = document.createElement("img");
+      img.src = dataUrl;
+      img.alt = asset.type;
+      img.className = "gen-asset-thumbnail";
+      container.appendChild(img);
+    } else {
+      // Fallback when WebGL is unavailable: a labelled swatch.
+      const swatch = document.createElement("div");
+      swatch.className = "gen-asset-thumbnail";
+      swatch.style.background = asset.color || "#808080";
+      swatch.textContent = asset.type;
+      container.appendChild(swatch);
+    }
   } catch {
     container.innerHTML = `<div class="gen-asset-preview-placeholder">${t("gen.previewError")}</div>`;
   }
@@ -2437,11 +2470,12 @@ function saveCurrentAsset() {
 function loadAsset(id) {
   const asset = assetLibrary.assets.find((a) => a.id === id);
   if (!asset) return;
-  const model = generateAsset(asset.type, {
+  const model = generateThreeAsset(asset.type, {
     size: asset.size,
     segments: asset.segments,
     style: asset.style,
     color: asset.color || null,
+    seed: asset.seed ?? null,
   });
   genState.model = { ...asset, threeObject: model };
   setGenStatus(t("gen.applied"), "ok");
@@ -2475,10 +2509,12 @@ async function batchExportAssets() {
   try {
     for (let i = 0; i < assets.length; i++) {
       const asset = assets[i];
-      const model = generateAsset(asset.type, {
+      const model = generateThreeAsset(asset.type, {
         size: asset.size,
         segments: asset.segments,
         style: asset.style,
+        color: asset.color || null,
+        seed: asset.seed ?? null,
       });
       let blob;
       let extension = format;

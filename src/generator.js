@@ -18,6 +18,12 @@ const ASSET_TYPES = {
   gem: { name: "Gem", parts: ["body"] },
   barrel: { name: "Barrel", parts: ["body", "hoops"] },
   crate: { name: "Crate", parts: ["body"] },
+  tower: { name: "Tower", parts: ["base", "body", "roof", "door", "window"] },
+  flag: { name: "Flag", parts: ["pole", "cloth"] },
+  torch: { name: "Torch", parts: ["pole", "holder", "flame"] },
+  fence: { name: "Fence", parts: ["posts", "rails"] },
+  bridge: { name: "Bridge", parts: ["deck", "rails", "legs"] },
+  fountain: { name: "Fountain", parts: ["basin", "water", "pillar", "bowl", "jet"] },
 };
 
 // Material presets for different styles
@@ -39,6 +45,17 @@ const STYLE_MATERIALS = {
   },
 };
 
+/** Deterministic PRNG so the same seed always produces the same asset. */
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /**
  * Generate a 3D asset based on type and parameters.
  * Returns a THREE.Group containing the generated model.
@@ -48,57 +65,80 @@ const STYLE_MATERIALS = {
  * @param {number} options.segments - Number of segments
  * @param {string} options.style - Material style
  * @param {string} options.color - Hex color string (e.g. "#ff0000")
+ * @param {number} options.seed - Deterministic variation seed
  */
-export function generateAsset(type, { size = 1, segments = 16, style = "lowpoly", color = null } = {}) {
+export function generateAsset(
+  type,
+  { size = 1, segments = 16, style = "lowpoly", color = null, seed = null } = {},
+) {
   const group = new THREE.Group();
   group.name = `asset-${type}`;
 
   const matStyle = STYLE_MATERIALS[style] || STYLE_MATERIALS.lowpoly;
-  const segments = Math.max(4, Math.min(32, segments));
+  segments = Math.max(4, Math.min(32, segments));
   const customColor = color ? new THREE.Color(color) : null;
+  const rng = seed !== null ? mulberry32(seed) : Math.random;
 
   switch (type) {
     case "sword":
-      buildSword(group, size, segments, matStyle, customColor);
+      buildSword(group, size, segments, matStyle, customColor, rng);
       break;
     case "tree":
-      buildTree(group, size, segments, matStyle, customColor);
+      buildTree(group, size, segments, matStyle, customColor, rng);
       break;
     case "rock":
-      buildRock(group, size, segments, matStyle, customColor);
+      buildRock(group, size, segments, matStyle, customColor, rng);
       break;
     case "house":
-      buildHouse(group, size, segments, matStyle, customColor);
+      buildHouse(group, size, segments, matStyle, customColor, rng);
       break;
     case "car":
-      buildCar(group, size, segments, matStyle, customColor);
+      buildCar(group, size, segments, matStyle, customColor, rng);
       break;
     case "character":
-      buildCharacter(group, size, segments, matStyle, customColor);
+      buildCharacter(group, size, segments, matStyle, customColor, rng);
       break;
     case "shield":
-      buildShield(group, size, segments, matStyle, customColor);
+      buildShield(group, size, segments, matStyle, customColor, rng);
       break;
     case "potion":
-      buildPotion(group, size, segments, matStyle, customColor);
+      buildPotion(group, size, segments, matStyle, customColor, rng);
       break;
     case "chest":
-      buildChest(group, size, segments, matStyle, customColor);
+      buildChest(group, size, segments, matStyle, customColor, rng);
       break;
     case "key":
-      buildKey(group, size, segments, matStyle, customColor);
+      buildKey(group, size, segments, matStyle, customColor, rng);
       break;
     case "gem":
-      buildGem(group, size, segments, matStyle, customColor);
+      buildGem(group, size, segments, matStyle, customColor, rng);
       break;
     case "barrel":
-      buildBarrel(group, size, segments, matStyle, customColor);
+      buildBarrel(group, size, segments, matStyle, customColor, rng);
       break;
     case "crate":
-      buildCrate(group, size, segments, matStyle, customColor);
+      buildCrate(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "tower":
+      buildTower(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "flag":
+      buildFlag(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "torch":
+      buildTorch(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "fence":
+      buildFence(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bridge":
+      buildBridge(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "fountain":
+      buildFountain(group, size, segments, matStyle, customColor, rng);
       break;
     default:
-      buildCube(group, size, segments, matStyle, customColor);
+      buildCube(group, size, segments, matStyle, customColor, rng);
   }
 
   // Center and scale the model
@@ -123,7 +163,7 @@ function createMaterial(color, style) {
   });
 }
 
-function buildSword(group, size, segments, style, customColor = null) {
+function buildSword(group, size, segments, style, customColor = null, rng = Math.random) {
   const bladeMat = createMaterial(customColor || 0xc0c0c0, style);
   const guardMat = createMaterial(0x8b4513, style);
   const handleMat = createMaterial(0x4a3728, style);
@@ -165,7 +205,7 @@ function buildSword(group, size, segments, style, customColor = null) {
   group.add(pommel);
 }
 
-function buildTree(group, size, segments, style, customColor = null) {
+function buildTree(group, size, segments, style, customColor = null, rng = Math.random) {
   const trunkMat = createMaterial(0x8b4513, style);
   const foliageMat = createMaterial(customColor || 0x228b22, style);
 
@@ -189,7 +229,7 @@ function buildTree(group, size, segments, style, customColor = null) {
   }
 }
 
-function buildRock(group, size, segments, style, customColor = null) {
+function buildRock(group, size, segments, style, customColor = null, rng = Math.random) {
   const rockMat = createMaterial(customColor || 0x808080, style);
 
   // Main body with noise displacement
@@ -199,7 +239,7 @@ function buildRock(group, size, segments, style, customColor = null) {
     const x = positions.getX(i);
     const y = positions.getY(i);
     const z = positions.getZ(i);
-    const noise = 0.8 + Math.random() * 0.4;
+    const noise = 0.8 + rng() * 0.4;
     positions.setXYZ(i, x * noise, y * noise * 0.7, z * noise);
   }
   rockGeo.computeVertexNormals();
@@ -208,7 +248,7 @@ function buildRock(group, size, segments, style, customColor = null) {
   group.add(rock);
 }
 
-function buildHouse(group, size, segments, style, customColor = null) {
+function buildHouse(group, size, segments, style, customColor = null, rng = Math.random) {
   const wallMat = createMaterial(customColor || 0xf5f5dc, style);
   const roofMat = createMaterial(0xb22222, style);
   const doorMat = createMaterial(0x8b4513, style);
@@ -249,7 +289,7 @@ function buildHouse(group, size, segments, style, customColor = null) {
   group.add(windowRight);
 }
 
-function buildCar(group, size, segments, style, customColor = null) {
+function buildCar(group, size, segments, style, customColor = null, rng = Math.random) {
   const bodyMat = createMaterial(customColor || 0xff0000, style);
   const wheelMat = createMaterial(0x333333, style);
   const windowMat = createMaterial(0x87ceeb, style);
@@ -292,7 +332,7 @@ function buildCar(group, size, segments, style, customColor = null) {
   });
 }
 
-function buildCharacter(group, size, segments, style, customColor = null) {
+function buildCharacter(group, size, segments, style, customColor = null, rng = Math.random) {
   const skinMat = createMaterial(0xffdbac, style);
   const shirtMat = createMaterial(customColor || 0x4169e1, style);
   const pantsMat = createMaterial(0x2f4f4f, style);
@@ -338,7 +378,7 @@ function buildCharacter(group, size, segments, style, customColor = null) {
   group.add(rightLeg);
 }
 
-function buildCube(group, size, segments, style, customColor = null) {
+function buildCube(group, size, segments, style, customColor = null, rng = Math.random) {
   const mat = createMaterial(customColor || 0x808080, style);
   const geo = new THREE.BoxGeometry(size, size, size);
   const cube = new THREE.Mesh(geo, mat);
@@ -346,7 +386,7 @@ function buildCube(group, size, segments, style, customColor = null) {
   group.add(cube);
 }
 
-function buildShield(group, size, segments, style, customColor = null) {
+function buildShield(group, size, segments, style, customColor = null, rng = Math.random) {
   const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const bossMat = createMaterial(0xffd700, style);
   const rimMat = createMaterial(0xc0c0c0, style);
@@ -372,7 +412,7 @@ function buildShield(group, size, segments, style, customColor = null) {
   group.add(rim);
 }
 
-function buildPotion(group, size, segments, style, customColor = null) {
+function buildPotion(group, size, segments, style, customColor = null, rng = Math.random) {
   const bodyMat = createMaterial(customColor || 0x87ceeb, style);
   const neckMat = createMaterial(customColor || 0x87ceeb, style);
   const corkMat = createMaterial(0x8b4513, style);
@@ -399,7 +439,7 @@ function buildPotion(group, size, segments, style, customColor = null) {
   group.add(cork);
 }
 
-function buildChest(group, size, segments, style, customColor = null) {
+function buildChest(group, size, segments, style, customColor = null, rng = Math.random) {
   const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const lidMat = createMaterial(customColor || 0x8b4513, style);
   const lockMat = createMaterial(0xffd700, style);
@@ -426,7 +466,7 @@ function buildChest(group, size, segments, style, customColor = null) {
   group.add(lock);
 }
 
-function buildKey(group, size, segments, style, customColor = null) {
+function buildKey(group, size, segments, style, customColor = null, rng = Math.random) {
   const mat = createMaterial(customColor || 0xffd700, style);
 
   // Bow
@@ -451,7 +491,7 @@ function buildKey(group, size, segments, style, customColor = null) {
   group.add(bit);
 }
 
-function buildGem(group, size, segments, style, customColor = null) {
+function buildGem(group, size, segments, style, customColor = null, rng = Math.random) {
   const mat = createMaterial(customColor || 0xff00ff, style);
   const geo = new THREE.OctahedronGeometry(size, 0);
   const gem = new THREE.Mesh(geo, mat);
@@ -459,7 +499,7 @@ function buildGem(group, size, segments, style, customColor = null) {
   group.add(gem);
 }
 
-function buildBarrel(group, size, segments, style, customColor = null) {
+function buildBarrel(group, size, segments, style, customColor = null, rng = Math.random) {
   const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const hoopMat = createMaterial(0x333333, style);
 
@@ -481,12 +521,188 @@ function buildBarrel(group, size, segments, style, customColor = null) {
   });
 }
 
-function buildCrate(group, size, segments, style, customColor = null) {
+function buildCrate(group, size, segments, style, customColor = null, rng = Math.random) {
   const mat = createMaterial(customColor || 0x8b4513, style);
   const geo = new THREE.BoxGeometry(size, size, size);
   const crate = new THREE.Mesh(geo, mat);
   crate.name = "body";
   group.add(crate);
+}
+
+function buildTower(group, size, segments, style, customColor = null, rng = Math.random) {
+  const stoneMat = createMaterial(customColor || 0x9e9e9e, style);
+  const roofMat = createMaterial(0x7f3f2f, style);
+  const windowMat = createMaterial(0xffd27f, style);
+  const tall = 2.5 + rng() * 0.8;
+
+  const shaftGeo = new THREE.CylinderGeometry(0.45 * size, 0.6 * size, tall * size, segments);
+  const shaft = new THREE.Mesh(shaftGeo, stoneMat);
+  shaft.position.y = (tall / 2) * size;
+  shaft.name = "shaft";
+  group.add(shaft);
+
+  const roofGeo = new THREE.ConeGeometry(0.75 * size, 1.1 * size, segments);
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.y = (tall + 0.55) * size;
+  roof.name = "roof";
+  group.add(roof);
+
+  const windowGeo = new THREE.BoxGeometry(0.18 * size, 0.32 * size, 0.05 * size);
+  for (let i = 0; i < 3; i++) {
+    const win = new THREE.Mesh(windowGeo, windowMat);
+    const wy = (0.45 + i * 0.62) * size;
+    win.position.set(0, wy, 0.46 * size);
+    win.name = `window-${i}`;
+    group.add(win);
+  }
+}
+
+function buildFlag(group, size, segments, style, customColor = null, rng = Math.random) {
+  const poleMat = createMaterial(0x8d6e63, style);
+  const clothMat = createMaterial(customColor || 0xd32f2f, style);
+  const tall = 3 + rng() * 0.8;
+
+  const poleGeo = new THREE.CylinderGeometry(0.04 * size, 0.05 * size, tall * size, segments);
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.y = (tall / 2) * size;
+  pole.name = "pole";
+  group.add(pole);
+
+  const flagGeo = new THREE.BoxGeometry(1.1 * size, 0.55 * size, 0.05 * size);
+  const flagMesh = new THREE.Mesh(flagGeo, clothMat);
+  flagMesh.position.set(0.55 * size, (tall - 0.3) * size, 0);
+  flagMesh.rotation.z = -0.06 + rng() * 0.12;
+  flagMesh.name = "cloth";
+  group.add(flagMesh);
+
+  // Tail notch
+  const notchGeo = new THREE.BoxGeometry(0.3 * size, 0.4 * size, 0.06 * size);
+  const notch = new THREE.Mesh(notchGeo, clothMat);
+  notch.position.set(1.05 * size, (tall - 0.55) * size, 0);
+  notch.name = "tail";
+  group.add(notch);
+}
+
+function buildTorch(group, size, segments, style, customColor = null, rng = Math.random) {
+  const handleMat = createMaterial(0x6d4c41, style);
+  const metalMat = createMaterial(0x757575, style);
+  const flameMat = createMaterial(0xff9800, style);
+
+  const handleGeo = new THREE.CylinderGeometry(0.06 * size, 0.08 * size, 2.2 * size, segments);
+  const handle = new THREE.Mesh(handleGeo, handleMat);
+  handle.position.y = 1.1 * size;
+  handle.name = "handle";
+  group.add(handle);
+
+  const cupGeo = new THREE.CylinderGeometry(0.14 * size, 0.1 * size, 0.3 * size, segments, 1, true);
+  const cup = new THREE.Mesh(cupGeo, metalMat);
+  cup.position.y = 2.2 * size;
+  cup.name = "cup";
+  group.add(cup);
+
+  const flameGeo = new THREE.ConeGeometry(0.16 + rng() * 0.05 * size, 0.55 * size, segments);
+  const flame = new THREE.Mesh(flameGeo, flameMat);
+  flame.position.y = 2.55 * size;
+  flame.name = "flame";
+  group.add(flame);
+}
+
+function buildFence(group, size, segments, style, customColor = null, rng = Math.random) {
+  const woodMat = createMaterial(customColor || 0x8d6e63, style);
+  const railingMat = createMaterial(0xa1887f, style);
+  const posts = 4 + Math.floor(rng() * 3);
+  const width = 3.5 * size;
+
+  for (let i = 0; i < posts; i++) {
+    const postGeo = new THREE.BoxGeometry(0.12 * size, 1.2 * size, 0.12 * size);
+    const post = new THREE.Mesh(postGeo, woodMat);
+    post.position.set(-width / 2 + (i / (posts - 1)) * width, 0.6 * size, 0);
+    post.rotation.y = (rng() - 0.5) * 0.04;
+    post.name = `post-${i}`;
+    group.add(post);
+  }
+
+  const railGeo = new THREE.BoxGeometry(width + 0.2 * size, 0.14 * size, 0.06 * size);
+  for (const ry of [0.85, 0.4]) {
+    const rail = new THREE.Mesh(railGeo, railingMat);
+    rail.position.y = ry * size;
+    rail.name = `rail-${ry}`;
+    group.add(rail);
+  }
+}
+
+function buildBridge(group, size, segments, style, customColor = null, rng = Math.random) {
+  const deckMat = createMaterial(customColor || 0x8d6e63, style);
+  const railMat = createMaterial(0xa1887f, style);
+  const stoneMat = createMaterial(0x757575, style);
+  const length = 4.5 * size;
+
+  const deckGeo = new THREE.BoxGeometry(length, 0.35 * size, 1.6 * size);
+  const deck = new THREE.Mesh(deckGeo, deckMat);
+  deck.position.y = 0.35 * size;
+  deck.name = "deck";
+  group.add(deck);
+
+  for (const side of [-1, 1]) {
+    const postGeo = new THREE.BoxGeometry(0.08 * size, 0.55 * size, 0.08 * size);
+    for (let i = 0; i < 5; i++) {
+      const post = new THREE.Mesh(postGeo, railMat);
+      post.position.set(-length / 2 + (i / 4) * length, 0.75 * size, side * 0.8 * size);
+      post.name = `rail-post-${side}-${i}`;
+      group.add(post);
+    }
+
+    const railGeo = new THREE.BoxGeometry(length, 0.08 * size, 0.05 * size);
+    const rail = new THREE.Mesh(railGeo, railMat);
+    rail.position.set(0, 1.0 * size, side * 0.8 * size);
+    rail.name = `rail-${side}`;
+    group.add(rail);
+  }
+
+  // Pier legs
+  const legGeo = new THREE.BoxGeometry(0.5 * size, 0.6 * size, 1.1 * size);
+  for (const lx of [-length / 4, length / 4]) {
+    const leg = new THREE.Mesh(legGeo, stoneMat);
+    leg.position.set(lx, -0.3 * size, 0);
+    leg.name = `leg-${lx}`;
+    group.add(leg);
+  }
+}
+
+function buildFountain(group, size, segments, style, customColor = null, rng = Math.random) {
+  const stoneMat = createMaterial(customColor || 0x90a4ae, style);
+  const waterMat = createMaterial(0x4fc3f7, style);
+  const metric = 2.2 * size;
+
+  const basinGeo = new THREE.CylinderGeometry(metric, metric * 1.05, 0.45 * size, segments);
+  const basin = new THREE.Mesh(basinGeo, stoneMat);
+  basin.position.y = 0.225 * size;
+  basin.name = "basin";
+  group.add(basin);
+
+  const waterGeo = new THREE.CylinderGeometry(metric * 0.88, metric * 0.88, 0.12 * size, segments);
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.position.y = 0.42 * size;
+  water.name = "water";
+  group.add(water);
+
+  const pillarGeo = new THREE.CylinderGeometry(0.22 * size, 0.35 * size, 1.4 * size, segments);
+  const pillar = new THREE.Mesh(pillarGeo, stoneMat);
+  pillar.position.y = 1.1 * size;
+  pillar.name = "pillar";
+  group.add(pillar);
+
+  const bowlGeo = new THREE.CylinderGeometry(0.65 * size, 0.3 * size, 0.35 * size, segments);
+  const bowl = new THREE.Mesh(bowlGeo, stoneMat);
+  bowl.position.y = 1.85 * size;
+  bowl.name = "bowl";
+  group.add(bowl);
+
+  const jetGeo = new THREE.CylinderGeometry(0.12 * size, 0.12 * size, 0.7 * size, segments);
+  const jet = new THREE.Mesh(jetGeo, waterMat);
+  jet.position.y = 2.3 * size;
+  jet.name = "jet";
+  group.add(jet);
 }
 
 /**
@@ -594,6 +810,64 @@ export function countTriangles(object) {
     }
   });
   return Math.floor(count);
+}
+
+/**
+ * Render a small WebGL thumbnail of a model to a PNG data URL.
+ * Returns null when WebGL is unavailable so callers can fall back.
+ */
+export function renderAssetThumbnail(model, width = 120, height = 90) {
+  try {
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+    });
+    renderer.setSize(width, height);
+    renderer.setClearColor(0x000000, 0);
+
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.7);
+    keyLight.position.set(1.5, 2.2, 2.6);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    fillLight.position.set(-2.2, 0.6, -1.8);
+    scene.add(fillLight);
+
+    const camera = new THREE.PerspectiveCamera(32, width / height, 0.01, 20);
+    const box = new THREE.Box3().setFromObject(model);
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const radius = Math.max(sphere.radius, 0.001);
+    camera.position.set(
+      sphere.center.x + radius * 1.35,
+      sphere.center.y + radius * 0.7,
+      sphere.center.z + radius * 2.1,
+    );
+    camera.near = Math.max(0.001, radius * 0.05);
+    camera.far = radius * 20;
+    camera.lookAt(sphere.center);
+
+    const preview = model.clone();
+    scene.add(preview);
+    renderer.render(scene, camera);
+    const dataUrl = renderer.domElement.toDataURL("image/png");
+
+    preview.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry?.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          child.material?.dispose();
+        }
+      }
+    });
+    renderer.dispose();
+    return dataUrl;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -309,6 +309,8 @@ export default {
   "gen.styleStylized": "スタイライズド",
   "gen.color": "色",
   "gen.colorReset": "リセット",
+  "gen.seed": "シード",
+  "gen.seedPlaceholder": "空欄でランダム",
   "gen.previewError": "プレビュー失敗",
   "gen.generate": "生成",
   "gen.generating": "生成中...",
