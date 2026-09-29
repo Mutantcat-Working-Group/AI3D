@@ -451,4 +451,10 @@ export default {
   "gen.variantsReady": "{count} Varianten bereit",
   "gen.variantsEmpty":
     "Generiere eine Charge, um Seed-Varianten zu vergleichen",
+  "gen.manifest": "Asset-Manifest",
+  "gen.manifestExport": "Manifest exportieren",
+  "gen.manifestFormat": "Manifest-Format",
+  "gen.manifestJson": "JSON",
+  "gen.manifestCsv": "CSV",
+  "gen.manifestEmpty": "Keine Assets zum Exportieren",
 };

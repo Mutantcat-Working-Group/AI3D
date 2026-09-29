@@ -12,6 +12,7 @@ import {
   countVertices,
   getAssetStats,
   generateVariantSet,
+  exportAssetManifest,
   composeGameKit,
   getGameKits,
   exportGLB,
@@ -352,4 +353,63 @@ test("generateVariantSet produces distinct takes for seeded shapes", () => {
   });
   const fingerprints = variants.map((v) => modelFingerprint(v.model));
   assert.equal(new Set(fingerprints).size, fingerprints.length);
+});
+
+test("exportAssetManifest produces valid JSON with all asset fields", () => {
+  const assets = [
+    {
+      id: "test-1",
+      type: "sword",
+      seed: 42,
+      size: 1.5,
+      segments: 12,
+      style: "lowpoly",
+      color: "#ff0000",
+      material: { roughness: 0.5, metalness: 0.3, emissive: null },
+      stats: { triangles: 100, vertices: 50, parts: 3, drawCalls: 3 },
+    },
+    {
+      id: "test-2",
+      type: "tree",
+      seed: null,
+      size: 2,
+      segments: 8,
+      style: "realistic",
+      color: null,
+      material: null,
+      stats: { triangles: 200, vertices: 100, parts: 5, drawCalls: 5 },
+    },
+  ];
+  const json = exportAssetManifest(assets, "json");
+  const parsed = JSON.parse(json);
+  assert.equal(parsed.version, "1.0");
+  assert.equal(parsed.count, 2);
+  assert.equal(parsed.assets.length, 2);
+  assert.equal(parsed.assets[0].type, "sword");
+  assert.equal(parsed.assets[0].seed, 42);
+  assert.equal(parsed.assets[0].triangles, 100);
+  assert.equal(parsed.assets[1].type, "tree");
+  assert.equal(parsed.assets[1].seed, null);
+});
+
+test("exportAssetManifest produces valid CSV with headers and rows", () => {
+  const assets = [
+    {
+      id: "test-1",
+      type: "sword",
+      seed: 42,
+      size: 1.5,
+      segments: 12,
+      style: "lowpoly",
+      color: "#ff0000",
+      material: { roughness: 0.5, metalness: 0.3, emissive: null },
+      stats: { triangles: 100, vertices: 50, parts: 3, drawCalls: 3 },
+    },
+  ];
+  const csv = exportAssetManifest(assets, "csv");
+  const lines = csv.split("\n");
+  assert.equal(lines.length, 2);
+  assert.ok(lines[0].includes("id,type,seed,size,segments,style"));
+  assert.ok(lines[1].includes("test-1,sword,42,1.5,12,lowpoly"));
+  assert.ok(lines[1].includes("100,50,3"));
 });

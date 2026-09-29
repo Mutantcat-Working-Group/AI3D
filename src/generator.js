@@ -2281,3 +2281,67 @@ export function getAssetTypeInfo(type) {
 export function getAssetTypes() {
   return Object.keys(ASSET_TYPES);
 }
+
+/**
+ * Export an asset manifest for game engine import.
+ * JSON format includes full metadata; CSV is a flat table for spreadsheets.
+ * @param {Array} assets - Asset records from the library or variant batch
+ * @param {string} format - "json" or "csv"
+ * @returns {string} Manifest content
+ */
+export function exportAssetManifest(assets, format = "json") {
+  const records = assets.map((asset, index) => ({
+    id: asset.id || `asset-${index}`,
+    type: asset.type,
+    seed: asset.seed ?? null,
+    size: asset.size ?? 1,
+    segments: asset.segments ?? 16,
+    style: asset.style ?? "lowpoly",
+    color: asset.color || null,
+    roughness: asset.material?.roughness ?? null,
+    metalness: asset.material?.metalness ?? null,
+    emissive: asset.material?.emissive ?? null,
+    triangles: asset.stats?.triangles ?? null,
+    vertices: asset.stats?.vertices ?? null,
+    parts: asset.stats?.parts ?? null,
+  }));
+
+  if (format === "csv") {
+    const headers = [
+      "id",
+      "type",
+      "seed",
+      "size",
+      "segments",
+      "style",
+      "color",
+      "roughness",
+      "metalness",
+      "emissive",
+      "triangles",
+      "vertices",
+      "parts",
+    ];
+    const escape = (value) => {
+      if (value === null || value === undefined) return "";
+      const str = String(value);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    const rows = records.map((r) => headers.map((h) => escape(r[h])).join(","));
+    return [headers.join(","), ...rows].join("\n");
+  }
+
+  return JSON.stringify(
+    {
+      version: "1.0",
+      exportedAt: new Date().toISOString(),
+      count: records.length,
+      assets: records,
+    },
+    null,
+    2,
+  );
+}

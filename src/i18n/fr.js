@@ -447,4 +447,10 @@ export default {
   "gen.variantsSaveAll": "Tout enregistrer",
   "gen.variantsReady": "{count} variantes prêtes",
   "gen.variantsEmpty": "Générez un lot pour comparer les variantes de graines",
+  "gen.manifest": "Manifeste d'assets",
+  "gen.manifestExport": "Exporter le manifeste",
+  "gen.manifestFormat": "Format du manifeste",
+  "gen.manifestJson": "JSON",
+  "gen.manifestCsv": "CSV",
+  "gen.manifestEmpty": "Aucun asset à exporter",
 };

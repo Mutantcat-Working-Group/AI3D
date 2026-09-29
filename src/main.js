@@ -26,6 +26,7 @@ import {
 import {
   generateAsset as generateThreeAsset,
   generateVariantSet,
+  exportAssetManifest,
   composeGameKit,
   getGameKits,
   exportGLB,
@@ -255,6 +256,11 @@ app.innerHTML = `${SPRITE}
     <div class="gen-library-header">
       <input id="gen-search" placeholder="${t("gen.promptPlaceholder")}">
       <button id="gen-save" class="quiet">${t("mcp.save")}</button>
+      <select id="gen-manifest-format" class="gen-manifest-format" aria-label="${T("gen.manifestFormat")}">
+        <option value="json">${T("gen.manifestJson")}</option>
+        <option value="csv">${T("gen.manifestCsv")}</option>
+      </select>
+      <button id="gen-manifest-export" class="quiet" title="${T("gen.manifest")}">${T("gen.manifestExport")}</button>
     </div>
     <div id="gen-library" class="gen-library"></div>
     <div class="gen-actions" id="gen-actions" hidden>
@@ -3058,6 +3064,29 @@ async function batchExportAssets() {
 }
 
 $("#gen-batch-export").addEventListener("click", batchExportAssets);
+
+// --- Asset Manifest Export ---
+function exportManifest() {
+  const assets = assetLibrary.assets;
+  if (assets.length === 0) {
+    setGenStatus(t("gen.manifestEmpty"), "warn");
+    return;
+  }
+  const format = $("#gen-manifest-format").value;
+  const content = exportAssetManifest(assets, format);
+  const blob = new Blob([content], {
+    type: format === "csv" ? "text/csv" : "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ai3d-manifest-${new Date().toISOString().slice(0, 10)}.${format}`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+$("#gen-manifest-export").addEventListener("click", exportManifest);
 
 renderGenTypeChips();
 renderGenKitChips();

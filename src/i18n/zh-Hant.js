@@ -411,4 +411,10 @@ export default {
   "gen.variantsSaveAll": "全部儲存",
   "gen.variantsReady": "{count} 個變體已就緒",
   "gen.variantsEmpty": "產生一批變體以對比不同種子效果",
+  "gen.manifest": "資產清單",
+  "gen.manifestExport": "匯出清單",
+  "gen.manifestFormat": "清單格式",
+  "gen.manifestJson": "JSON",
+  "gen.manifestCsv": "CSV",
+  "gen.manifestEmpty": "沒有可匯出的資產",
 };

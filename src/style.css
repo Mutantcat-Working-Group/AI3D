@@ -2095,6 +2095,18 @@ dialog .muted {
   font-size: 12px;
   font-family: inherit;
 }
+.gen-manifest-format {
+  width: 70px;
+  padding: 5px 6px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-manifest-format:hover {
+  border-color: var(--accent);
+}
 .gen-library {
   padding: 0 12px 12px;
   max-height: 200px;

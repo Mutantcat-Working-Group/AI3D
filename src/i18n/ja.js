@@ -436,4 +436,10 @@ export default {
   "gen.variantsSaveAll": "すべて保存",
   "gen.variantsReady": "{count} 個のバリアントを準備しました",
   "gen.variantsEmpty": "一括生成してシード別の候補を比較してください",
+  "gen.manifest": "アセットマニフェスト",
+  "gen.manifestExport": "マニフェストをエクスポート",
+  "gen.manifestFormat": "マニフェスト形式",
+  "gen.manifestJson": "JSON",
+  "gen.manifestCsv": "CSV",
+  "gen.manifestEmpty": "エクスポートするアセットがありません",
 };

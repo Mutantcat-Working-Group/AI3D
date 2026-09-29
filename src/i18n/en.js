@@ -437,4 +437,10 @@ export default {
   "gen.variantsSaveAll": "Save All",
   "gen.variantsReady": "{count} variants ready",
   "gen.variantsEmpty": "Generate a batch to compare seed takes",
+  "gen.manifest": "Asset Manifest",
+  "gen.manifestExport": "Export Manifest",
+  "gen.manifestFormat": "Manifest Format",
+  "gen.manifestJson": "JSON",
+  "gen.manifestCsv": "CSV",
+  "gen.manifestEmpty": "No assets to export",
 };
