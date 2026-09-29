@@ -94,7 +94,7 @@ From a clone, for development:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 232 unit and integration tests
+npm test             # 241 unit and integration tests
 npm run test:browser # 76 real-Chromium tests
 ```
 
@@ -112,7 +112,7 @@ openclaw plugins install ./tmp/candidate/package
 For any MCP client, install a tagged commit and point the client at it:
 
 ```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.3.2"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"
 ```
 
 ```toml
@@ -125,7 +125,7 @@ Or start it without installing:
 ```toml
 [mcp_servers.ai3d]
 command = "npx"
-args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.3.2", "ai3d-mcp"]
+args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20260929", "ai3d-mcp"]
 ```
 
 Pin the tag. Without one, npm takes whatever the default branch holds at that

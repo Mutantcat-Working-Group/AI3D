@@ -66,7 +66,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 232 unit and integration tests
+npm test             # 241 unit and integration tests
 npm run test:browser # 76 real-Chromium tests
 ```
 
@@ -82,7 +82,7 @@ openclaw plugins install ./tmp/candidate/package
 任何 MCP 客户端安装指定 tag：
 
 ```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.3.2"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"
 ```
 
 ```toml
@@ -95,7 +95,7 @@ command = "ai3d-mcp"
 ```toml
 [mcp_servers.ai3d]
 command = "npx"
-args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.3.2", "ai3d-mcp"]
+args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20260929", "ai3d-mcp"]
 ```
 
 务必固定 tag。没有 tag 时，npm 会安装默认分支当时的内容并运行其中的 `prepare` 脚本。本仓库未发布到 npm registry，仓库内包名为 `org.mutantcat.ai3d`；安装命令用 npm 作为包管理器，而不是把 npm registry 当作来源。

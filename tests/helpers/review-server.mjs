@@ -45,7 +45,10 @@ export async function startReview(
         REVIEW_DATA_DIR: dir,
         ...(workspace ? { REVIEW_WORKSPACE: workspace } : {}),
         REVIEW_MEDIA_DIR: path.join(dir, "models"),
-        REVIEW_SESSION_KEY: origin ? "" : "test-internal-http-session",
+        // A test that passes no origin gets none: giving a string here would
+        // invent a webchat route, which changes "no origin" into "an origin
+        // whose bridge happens to be reachable." Absence is the honest shape.
+        ...(origin ? { REVIEW_SESSION_KEY: "" } : {}),
         REVIEW_BRIDGE: "on",
         REVIEW_OUTBOX_MS: "1000",
         // Absent means the 24-hour default, which no test can sit through; a

@@ -1,7 +1,7 @@
 {
   "id": "ai3d",
   "name": "AI3D",
-  "version": "1.3.2",
+  "version": "1.0.20260929",
   "description": "3D model review, annotation and model iteration in the originating conversation",
   "activation": {
     "onStartup": true

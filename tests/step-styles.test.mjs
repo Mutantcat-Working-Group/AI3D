@@ -3,13 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { convertStep } from "../server/step.mjs";
 import { applyDeclaredStyles } from "../server/step-styles.mjs";
 
-const repo = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "..",
-);
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const linear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
 const close = (a, b) =>
   a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 1e-4);

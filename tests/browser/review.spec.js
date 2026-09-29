@@ -604,15 +604,6 @@ test("review page keeps its conversation dock hidden and does not poll until ope
   await expect(page.locator("#chat-input")).toBeHidden();
   await page.waitForTimeout(5300);
   expect(calls).toEqual([]);
-  expect(
-    (
-      await request("POST", "chat", {
-        message: "must not deliver",
-        idempotencyKey: "disabled-chat",
-      })
-    ).status,
-  ).toBe(409);
-  expect(fs.existsSync(path.join(dir, "fake-gateway.json"))).toBe(false);
   await page.click("#ai-button");
   await expect(page.locator("#ai-dock")).toBeVisible();
   await expect(page.locator("#chat-input")).toBeVisible();

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { inspectModel, importModel } from "../server/models.mjs";
 import {
@@ -21,10 +22,7 @@ import { startReview } from "./helpers/review-server.mjs";
    from underneath" bug survived three releases of testing. Real parametric
    output usually declares nothing. */
 const FIXTURE = "tests/fixtures/plate.step";
-const repo = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "..",
-);
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const bytes = () => fs.readFileSync(path.join(repo, FIXTURE));
 const measure = async (buffer, format = "step") =>
   inspectModel(buffer, format, { derived: await convertStepDetached(buffer) });
@@ -458,7 +456,7 @@ test("a host that converts a STEP weighs the same afterwards as before", () => {
      38 MB. A thread left it at 297 MB, and none of that came back for the 24
      hours an idle review server stays up. */
   const probe = `
-    const { convertStepDetached } = await import(${JSON.stringify(path.join(repo, "server/step.mjs"))});
+    const { convertStepDetached } = await import(${JSON.stringify(pathToFileURL(path.join(repo, "server/step.mjs")).href)});
     const fs = await import("node:fs");
     const buffer = fs.readFileSync(${JSON.stringify(path.join(repo, FIXTURE))});
     const before = process.memoryUsage().rss;
