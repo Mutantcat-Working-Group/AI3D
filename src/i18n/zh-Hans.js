@@ -405,4 +405,10 @@ export default {
   "gen.coordinateSystem": "坐标系",
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
+  "gen.variants": "变体批量",
+  "gen.variantCount": "变体数量",
+  "gen.variantsGenerate": "生成变体",
+  "gen.variantsSaveAll": "全部保存",
+  "gen.variantsReady": "{count} 个变体已就绪",
+  "gen.variantsEmpty": "生成一批变体以对比不同种子效果",
 };

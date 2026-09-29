@@ -431,4 +431,10 @@ export default {
   "gen.coordinateSystem": "Coordinate System",
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
+  "gen.variants": "Variant Batch",
+  "gen.variantCount": "Variants",
+  "gen.variantsGenerate": "Generate Variants",
+  "gen.variantsSaveAll": "Save All",
+  "gen.variantsReady": "{count} variants ready",
+  "gen.variantsEmpty": "Generate a batch to compare seed takes",
 };

@@ -25,6 +25,7 @@ import {
 } from "./annotation-edits.js";
 import {
   generateAsset as generateThreeAsset,
+  generateVariantSet,
   composeGameKit,
   getGameKits,
   exportGLB,
@@ -237,6 +238,18 @@ app.innerHTML = `${SPRITE}
         <button type="button" id="gen-seed-random" class="quiet">${T("gen.randomSeed")}</button>
       </div>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
+    </div>
+    <div class="gen-variants">
+      <div class="gen-variants-tools">
+        <label for="gen-variant-count">${T("gen.variants")}</label>
+        <select id="gen-variant-count" aria-label="${T("gen.variantCount")}">
+          <option value="4">4</option>
+          <option value="9">9</option>
+        </select>
+        <button id="gen-variants-generate" class="quiet">${T("gen.variantsGenerate")}</button>
+        <button id="gen-variants-save-all" class="quiet" hidden>${T("gen.variantsSaveAll")}</button>
+      </div>
+      <div id="gen-variants" class="gen-variants-grid" aria-live="polite"></div>
     </div>
     <div id="gen-status" class="gen-status"></div>
     <div class="gen-library-header">
@@ -2220,6 +2233,7 @@ const genState = {
   originalModel: null,
   lods: [],
   activeLod: 0,
+  variants: [],
 };
 let selectedGenKit = "dungeon";
 
@@ -2432,6 +2446,129 @@ async function generateAsset() {
   } finally {
     genState.generating = false;
   }
+}
+
+function generateVariants() {
+  if (genState.generating) return;
+  const prompt = $("#gen-prompt").value.trim();
+  if (!prompt) {
+    setGenStatus(t("gen.empty"), "warn");
+    return;
+  }
+  const style = $("#gen-style").value;
+  const color = $("#gen-color").value;
+  const material = readMaterialSettings();
+  const seedInput = $("#gen-seed").value.trim();
+  const baseSeed =
+    seedInput === ""
+      ? Math.floor(Math.random() * 1_000_000)
+      : Math.max(0, Math.floor(Number(seedInput) || 0));
+  const count = Math.max(
+    1,
+    Math.min(12, Number($("#gen-variant-count").value) || 4),
+  );
+  genState.generating = true;
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const assetType = parseAssetPrompt(prompt, style);
+    const variants = generateVariantSet(assetType.type, {
+      size: assetType.size,
+      segments: assetType.segments,
+      style: assetType.style,
+      color,
+      material,
+      count,
+      baseSeed,
+    });
+    genState.variants = variants.map((variant) => ({
+      ...assetType,
+      seed: variant.seed,
+      stats: variant.stats,
+      threeObject: variant.model,
+      color,
+      material,
+    }));
+    renderVariantGrid();
+    setGenStatus(
+      t("gen.variantsReady", { count: String(genState.variants.length) }),
+      "ok",
+    );
+  } catch {
+    setGenStatus(t("gen.error"), "error");
+  } finally {
+    genState.generating = false;
+  }
+}
+
+function renderVariantGrid() {
+  const container = $("#gen-variants");
+  if (!container) return;
+  const saveAll = $("#gen-variants-save-all");
+  saveAll.hidden = genState.variants.length === 0;
+  if (genState.variants.length === 0) {
+    container.innerHTML = `<div class="gen-library-empty">${t("gen.variantsEmpty")}</div>`;
+    return;
+  }
+  container.innerHTML = genState.variants
+    .map(
+      (variant, index) => `
+    <div class="gen-variant-card" data-index="${index}" title="${esc(variant.type)} #${esc(String(variant.seed))}">
+      <div class="gen-asset-preview" data-preview="variant-${index}"></div>
+      <div class="gen-variant-meta">
+        <strong>#${esc(String(variant.seed))}</strong>
+        <small>${variant.stats.triangles} ${t("gen.triangles")}</small>
+      </div>
+      <div class="gen-variant-actions">
+        <button type="button" class="quiet" data-variant-save="${index}">${t("mcp.save")}</button>
+        <button type="button" class="quiet" data-variant-load="${index}">${t("gen.import")}</button>
+      </div>
+    </div>
+  `,
+    )
+    .join("");
+  genState.variants.forEach((variant, index) =>
+    renderAssetPreview({ ...variant, id: `variant-${index}` }),
+  );
+}
+
+function saveVariant(index) {
+  const variant = genState.variants[index];
+  if (!variant) return;
+  assetLibrary.add({
+    ...variant,
+    threeObject: null,
+  });
+  renderAssetLibrary();
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+function saveAllVariants() {
+  if (genState.variants.length === 0) {
+    setGenStatus(t("gen.variantsEmpty"), "warn");
+    return;
+  }
+  genState.variants.forEach((variant) => {
+    assetLibrary.add({
+      ...variant,
+      threeObject: null,
+    });
+  });
+  renderAssetLibrary();
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+function loadVariant(index) {
+  const variant = genState.variants[index];
+  if (!variant) return;
+  const model = cloneModelDeep(variant.threeObject);
+  genState.model = { ...variant, threeObject: model };
+  genState.originalModel = cloneModelDeep(model);
+  genState.lods = [];
+  genState.activeLod = 0;
+  setGenOptimizePanel(false);
+  setGenExportPanel(false);
+  setGenActions(true);
+  setGenStatus(t("gen.applied"), "ok");
 }
 
 function readMaterialSettings() {
@@ -2713,6 +2850,20 @@ $("#gen-seed-random").addEventListener("click", () => {
   $("#gen-seed").value = String(Math.floor(Math.random() * 1_000_000));
   if ($("#gen-prompt").value.trim()) generateAsset();
 });
+$("#gen-variants-generate").addEventListener("click", generateVariants);
+$("#gen-variants-save-all").addEventListener("click", saveAllVariants);
+$("#gen-variants").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (btn) {
+    if (btn.dataset.variantSave !== undefined)
+      saveVariant(Number(btn.dataset.variantSave));
+    else if (btn.dataset.variantLoad !== undefined)
+      loadVariant(Number(btn.dataset.variantLoad));
+    return;
+  }
+  const card = e.target.closest(".gen-variant-card");
+  if (card) loadVariant(Number(card.dataset.index));
+});
 $("#gen-emissive-reset").addEventListener("click", () => {
   $("#gen-emissive").value = "#000000";
 });
@@ -2911,6 +3062,7 @@ $("#gen-batch-export").addEventListener("click", batchExportAssets);
 renderGenTypeChips();
 renderGenKitChips();
 renderAssetLibrary();
+renderVariantGrid();
 
 initAiDock();
 loadMcpConnections();

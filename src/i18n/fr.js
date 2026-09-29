@@ -441,4 +441,10 @@ export default {
   "gen.coordinateSystem": "Système de coordonnées",
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
+  "gen.variants": "Lot de variantes",
+  "gen.variantCount": "Nombre de variantes",
+  "gen.variantsGenerate": "Générer les variantes",
+  "gen.variantsSaveAll": "Tout enregistrer",
+  "gen.variantsReady": "{count} variantes prêtes",
+  "gen.variantsEmpty": "Générez un lot pour comparer les variantes de graines",
 };

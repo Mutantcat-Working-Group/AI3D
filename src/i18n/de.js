@@ -444,4 +444,11 @@ export default {
   "gen.coordinateSystem": "Koordinatensystem",
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
+  "gen.variants": "Varianten-Chargen",
+  "gen.variantCount": "Anzahl Varianten",
+  "gen.variantsGenerate": "Varianten generieren",
+  "gen.variantsSaveAll": "Alle speichern",
+  "gen.variantsReady": "{count} Varianten bereit",
+  "gen.variantsEmpty":
+    "Generiere eine Charge, um Seed-Varianten zu vergleichen",
 };

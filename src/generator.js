@@ -237,6 +237,46 @@ export function generateAsset(
 }
 
 /**
+ * Generate a deterministic batch of seed variants for one asset type.
+ * Game teams can quickly produce several takes on a prop and compare them
+ * before deciding which one to keep.
+ * @param {string} type - Asset type
+ * @param {object} options - Generation options shared by every variant
+ * @param {number} options.count - Number of variants (clamped to 1..12)
+ * @param {number} options.baseSeed - First seed in the batch
+ * @returns {Array<{seed: number, index: number, model: THREE.Group, stats: object}>}
+ */
+export function generateVariantSet(
+  type,
+  {
+    size = 1,
+    segments = 16,
+    style = "lowpoly",
+    color = null,
+    material = null,
+    count = 4,
+    baseSeed = 0,
+  } = {},
+) {
+  const total = Math.max(1, Math.min(12, Math.floor(count || 1)));
+  const start = Math.max(0, Math.floor(baseSeed || 0));
+  const variants = [];
+  for (let index = 0; index < total; index++) {
+    const seed = start + index;
+    const model = generateAsset(type, {
+      size,
+      segments,
+      style,
+      color,
+      seed,
+      material,
+    });
+    variants.push({ seed, index, model, stats: getAssetStats(model) });
+  }
+  return variants;
+}
+
+/**
  * Apply user-facing material overrides to every mesh in an object.
  * Runs after the generator builds its materials so style presets stay intact
  * where the user did not choose a replacement.

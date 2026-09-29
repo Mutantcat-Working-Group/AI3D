@@ -430,4 +430,10 @@ export default {
   "gen.coordinateSystem": "座標系",
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
+  "gen.variants": "バリアント一括生成",
+  "gen.variantCount": "バリアント数",
+  "gen.variantsGenerate": "バリアントを生成",
+  "gen.variantsSaveAll": "すべて保存",
+  "gen.variantsReady": "{count} 個のバリアントを準備しました",
+  "gen.variantsEmpty": "一括生成してシード別の候補を比較してください",
 };

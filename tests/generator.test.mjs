@@ -11,6 +11,7 @@ import {
   getAssetTypeInfo,
   countVertices,
   getAssetStats,
+  generateVariantSet,
   composeGameKit,
   getGameKits,
   exportGLB,
@@ -313,4 +314,42 @@ test("scene export options wrap without mutating the original", async () => {
     before,
     "export leaves the scene alone",
   );
+});
+
+test("generateVariantSet returns the requested batch with matching stats", () => {
+  const variants = generateVariantSet("tower", {
+    size: 1.2,
+    segments: 10,
+    style: "lowpoly",
+    count: 4,
+    baseSeed: 100,
+  });
+  assert.equal(variants.length, 4);
+  assert.deepEqual(
+    variants.map((v) => v.seed),
+    [100, 101, 102, 103],
+  );
+  for (const variant of variants) {
+    assert.ok(meshCount(variant.model) > 0);
+    assert.deepEqual(variant.stats, getAssetStats(variant.model));
+  }
+});
+
+test("generateVariantSet is deterministic per base seed", () => {
+  const a = generateVariantSet("statue", { count: 4, baseSeed: 77 });
+  const b = generateVariantSet("statue", { count: 4, baseSeed: 77 });
+  assert.deepEqual(
+    a.map((v) => modelFingerprint(v.model)),
+    b.map((v) => modelFingerprint(v.model)),
+  );
+});
+
+test("generateVariantSet produces distinct takes for seeded shapes", () => {
+  const variants = generateVariantSet("rock", {
+    count: 4,
+    baseSeed: 20,
+    segments: 8,
+  });
+  const fingerprints = variants.map((v) => modelFingerprint(v.model));
+  assert.equal(new Set(fingerprints).size, fingerprints.length);
 });

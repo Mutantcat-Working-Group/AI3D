@@ -1858,6 +1858,87 @@ dialog .muted {
 .gen-form .primary-button {
   margin-top: 4px;
 }
+.gen-variants {
+  padding: 10px 12px 10px;
+  border-top: 1px solid var(--line-1);
+}
+.gen-variants-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gen-variants-tools label {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-right: auto;
+}
+.gen-variants-tools select,
+.gen-variants-tools button {
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-variants-tools select {
+  width: 60px;
+}
+.gen-variants-tools button {
+  cursor: pointer;
+}
+.gen-variants-tools button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gen-variants-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.gen-variant-card {
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  overflow: hidden;
+  cursor: pointer;
+}
+.gen-variant-card:hover {
+  border-color: var(--accent-line);
+}
+.gen-variant-card .gen-asset-preview {
+  height: 62px;
+  margin-bottom: 0;
+  border-radius: 0;
+}
+.gen-variant-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+  padding: 5px 6px 3px;
+}
+.gen-variant-meta strong {
+  font-size: 11px;
+  color: var(--text-1);
+}
+.gen-variant-meta small {
+  font-size: 10px;
+  color: var(--text-2);
+}
+.gen-variant-actions {
+  display: flex;
+  gap: 4px;
+  padding: 0 6px 6px;
+}
+.gen-variant-actions .quiet {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font-size: 10px;
+}
 .gen-color-row {
   display: flex;
   gap: 8px;
