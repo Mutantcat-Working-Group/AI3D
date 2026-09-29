@@ -66,7 +66,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 249 unit and integration tests
+npm test             # 252 unit and integration tests
 npm run test:browser # 76 real-Chromium tests
 ```
 
@@ -124,6 +124,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **1.6** — 按设计显示 GLB：动画姿势、LOD 集合、材质变体。
 - **1.7** — 面向游戏资产的审阅辅助：UV 和棋盘格视图、分通道贴图视图、按网格三角面数、带可见性的节点树。
 - **1.8** — 游戏资产道具库扩展：火盆、符文石、尖刺陷阱等地牢道具，炮塔、无人机、通信天线等科幻道具；每个资产输出三角形、顶点与部件数量，方便直接对照引擎预算。
+- **1.9** — 场景套装：地牢、营地、前哨站三种预设场景，按种子确定性摆放九件道具，支持整场景导出并保留道具命名。
 - **2.0** — 动画播放：可以播放并逐帧查看绑骨动画。
 
 ### 九、文档

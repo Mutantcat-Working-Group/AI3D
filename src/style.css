@@ -1811,6 +1811,23 @@ dialog .muted {
   border-color: var(--accent);
   color: var(--accent);
 }
+.gen-type-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.gen-kit {
+  padding: 0 12px 10px;
+}
+.gen-kit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gen-kit .primary-button {
+  margin-top: 2px;
+}
 .gen-form {
   padding: 0 12px 10px;
   display: flex;

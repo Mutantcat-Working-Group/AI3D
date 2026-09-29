@@ -250,6 +250,160 @@ function createMaterial(color, style) {
   });
 }
 
+// Preset game-scene kits. Props are placed on a fixed grid and given small
+// seeded jitter so the same kit and seed always produce the same scene.
+const GAME_KITS = {
+  dungeon: {
+    name: "Dungeon",
+    groundColor: 0x6b625a,
+    props: [
+      { type: "brazier", size: 1.1 },
+      { type: "runestone", size: 1.05 },
+      { type: "crate", size: 0.9 },
+      { type: "torch", size: 1 },
+      { type: "trap", size: 1.1 },
+      { type: "barrel", size: 0.85 },
+      { type: "fence", size: 1.2 },
+      { type: "chest", size: 0.95 },
+      { type: "tower", size: 0.9 },
+    ],
+  },
+  camp: {
+    name: "Camp",
+    groundColor: 0x7d8a6a,
+    props: [
+      { type: "house", size: 1.15 },
+      { type: "torch", size: 1 },
+      { type: "brazier", size: 1.05 },
+      { type: "tree", size: 1.1 },
+      { type: "rock", size: 0.85 },
+      { type: "fence", size: 1.2 },
+      { type: "crate", size: 0.85 },
+      { type: "barrel", size: 0.8 },
+      { type: "flag", size: 0.95 },
+    ],
+  },
+  outpost: {
+    name: "Outpost",
+    groundColor: 0x54606e,
+    props: [
+      { type: "turret", size: 1.2 },
+      { type: "antenna", size: 1.1 },
+      { type: "drone", size: 1 },
+      { type: "crate", size: 0.9 },
+      { type: "barrel", size: 0.85 },
+      { type: "fountain", size: 1 },
+      { type: "bridge", size: 1.2 },
+      { type: "car", size: 1.05 },
+      { type: "flag", size: 0.9 },
+    ],
+  },
+};
+
+const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
+
+/**
+ * Compose a preset game scene from generated props. The returned group is
+ * centered, stands on a themed ground, and names every prop instance so game
+ * engines can pick them up by name.
+ * @param {string} kit - Kit id from GAME_KITS
+ * @param {object} options - Composition options
+ * @param {number} options.seed - Deterministic arrangement seed
+ * @param {number} options.segments - Mesh segment budget shared by props
+ * @param {number} options.quality - 1 places 3x3 props, 2 adds a wider ground
+ */
+export function composeGameKit(
+  kit,
+  { seed = 1, segments = 12, quality = 1 } = {},
+) {
+  const def = GAME_KITS[kit];
+  if (!def) throw new Error(`Unknown game kit: ${kit}`);
+  const rng = mulberry32(seed);
+  const group = new THREE.Group();
+  group.name = `kit-${kit}`;
+  group.userData.kit = kit;
+
+  const grid = 3;
+  const cell = 2.4;
+  const slot = cell / grid;
+  const positions = [];
+  const groundW = cell + 1.2;
+  const groundD = cell + 1.2;
+
+  // Ground pavers with a deterministic per-tile tint so the floor reads as
+  // built terrain instead of a flat colour.
+  const tiles = Math.max(2, 2 * quality);
+  for (let i = 0; i < tiles; i++) {
+    for (let j = 0; j < tiles; j++) {
+      const tile = new THREE.Mesh(
+        new THREE.BoxGeometry(groundW / tiles, 0.06, groundD / tiles),
+        new THREE.MeshStandardMaterial({
+          color: new THREE.Color(def.groundColor).offsetHSL(
+            0,
+            0,
+            (rng() - 0.5) * 0.06,
+          ),
+          ...KIT_STYLE,
+        }),
+      );
+      tile.name = "ground";
+      tile.position.set(
+        -groundW / 2 + groundW / tiles / 2 + i * (groundW / tiles),
+        0.03,
+        -groundD / 2 + groundD / tiles / 2 + j * (groundD / tiles),
+      );
+      group.add(tile);
+    }
+  }
+
+  def.props.forEach((prop, index) => {
+    const row = Math.floor(index / grid);
+    const col = index % grid;
+    const baseX = (col - (grid - 1) / 2) * slot;
+    const baseZ = (row - (grid - 1) / 2) * slot;
+    const jitter = 0.16 * cell;
+    const x = baseX + (rng() - 0.5) * jitter;
+    const z = baseZ + (rng() - 0.5) * jitter;
+    const model = generateAsset(prop.type, {
+      size: prop.size,
+      segments,
+      style: "lowpoly",
+      seed: Math.floor(rng() * 100000),
+    });
+    model.name = `${kit}-${prop.type}-${index + 1}`;
+    model.traverse((child) => {
+      if (child.isMesh) child.name = `${model.name}-${child.name}`;
+    });
+    // Generated assets are centered on their origin, so lift each prop until
+    // its lowest vertex rests on the ground instead of sinking into it.
+    const propBox = new THREE.Box3().setFromObject(model);
+    const groundLift = 0.06 - propBox.min.y;
+    model.position.set(x, model.position.y + groundLift, z);
+    model.rotation.y = Math.floor(rng() * 8) * (Math.PI / 4);
+    group.add(model);
+    positions.push({ index, x, z });
+  });
+
+  // Center the whole kit after the ground and props settle.
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  group.position.sub(center);
+  group.userData.props = positions.length;
+  group.userData.extent = {
+    width: box.max.x - box.min.x,
+    depth: box.max.z - box.min.z,
+    height: box.max.y - box.min.y,
+  };
+  return group;
+}
+
+export function getGameKits() {
+  return Object.entries(GAME_KITS).map(([id, def]) => ({
+    id,
+    name: def.name,
+  }));
+}
+
 function buildSword(
   group,
   size,
@@ -1498,15 +1652,20 @@ export function generateLOD(group, levels = 3) {
 
 /**
  * Export a Three.js object to GLB format.
+ * @param {object} options - { upAxis: "Y" | "Z", scale: number }
  */
-export function exportGLB(object) {
+export function exportGLB(object, options = {}) {
+  const { upAxis = "Y", scale = 1 } = options;
+  // GLTFExporter converts the up axis itself; only the scale needs a wrapper.
+  const wrapped = scale !== 1 ? wrapForExport(object, options, false) : object;
+  ensureNodeFileReader();
   return new Promise((resolve, reject) => {
     const exporter = new GLTFExporter();
     exporter.parse(
-      object,
+      wrapped,
       (result) => resolve(result),
       (error) => reject(error),
-      { binary: true },
+      { binary: true, upAxis },
     );
   });
 }
@@ -1514,9 +1673,52 @@ export function exportGLB(object) {
 /**
  * Export a Three.js object to OBJ format.
  */
-export function exportOBJ(object) {
+export function exportOBJ(object, options = {}) {
+  // OBJ has no axis metadata, so rotate the wrapper for Z-up engines.
+  const wrapped = wrapForExport(object, options, true);
   const exporter = new OBJExporter();
-  return exporter.parse(object);
+  return exporter.parse(wrapped);
+}
+
+/**
+ * Wrap a model for export without mutating it: apply the requested scale and
+ * rotate the whole graph so a Z-up engine reads it upright.
+ */
+function wrapForExport(
+  object,
+  { upAxis = "Y", scale = 1 } = {},
+  rotateZup = false,
+) {
+  if (scale === 1 && (!rotateZup || upAxis === "Y")) return object;
+  const wrapper = new THREE.Group();
+  wrapper.name = `${object.name || "model"}-export`;
+  wrapper.add(object);
+  wrapper.scale.setScalar(scale);
+  if (rotateZup && upAxis === "Z") wrapper.rotation.x = -Math.PI / 2;
+  return wrapper;
+}
+
+/**
+ * GLTFExporter reads Blobs through the browser FileReader API. Node has Blob
+ * but no FileReader, so install a tiny polyfill that keeps binary export
+ * working for CLI tests and server-side pipelines.
+ */
+function ensureNodeFileReader() {
+  if (typeof globalThis.FileReader !== "undefined") return;
+  class BlobFileReader {
+    constructor() {
+      this.result = null;
+      this.onloadend = null;
+    }
+
+    readAsArrayBuffer(blob) {
+      blob.arrayBuffer().then((buffer) => {
+        this.result = buffer;
+        this.onloadend?.();
+      });
+    }
+  }
+  globalThis.FileReader = BlobFileReader;
 }
 
 /**

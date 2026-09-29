@@ -11,6 +11,10 @@ import {
   getAssetTypeInfo,
   countVertices,
   getAssetStats,
+  composeGameKit,
+  getGameKits,
+  exportGLB,
+  exportOBJ,
 } from "../src/generator.js";
 
 function sampleModel() {
@@ -86,6 +90,8 @@ function modelBounds(object) {
       box.max.z - box.min.z,
     ),
     center: box.getCenter(new THREE.Vector3()),
+    min: box.min.clone(),
+    max: box.max.clone(),
   };
 }
 
@@ -248,4 +254,63 @@ test("getAssetStats reports the mesh budget for game engines", () => {
 test("countVertices counts every mesh buffer", () => {
   const model = sampleModel();
   assert.ok(countVertices(model) > 0);
+});
+
+test("game kits compose a named, centred scene on a ground", () => {
+  const kits = getGameKits();
+  assert.ok(kits.length >= 3);
+  for (const kit of kits) {
+    const scene = composeGameKit(kit.id, { seed: 7 });
+    assert.ok(meshCount(scene) > 9, `${kit.id} has ground plus props`);
+    assert.ok(nodeNames(scene).has("ground"), `${kit.id} has a ground`);
+    const propNodes = scene.children.filter((child) =>
+      child.name.startsWith(`${kit.id}-`),
+    );
+    assert.equal(propNodes.length, 9, `${kit.id} places every prop`);
+    const bounds = modelBounds(scene);
+    assert.ok(bounds.center.length() < 1e-5, `${kit.id} is centred`);
+    const groundTile = firstMesh(scene);
+    const groundBox = new THREE.Box3().setFromObject(groundTile);
+    const propBottom = Math.min(
+      ...scene.children
+        .filter((child) => child.name.startsWith(`${kit.id}-`))
+        .map((prop) => new THREE.Box3().setFromObject(prop).min.y),
+    );
+    assert.ok(
+      Math.abs(propBottom - groundBox.max.y) < 1e-4,
+      `${kit.id} props sit on the ground`,
+    );
+  }
+});
+
+test("game kits are deterministic per seed and vary with it", () => {
+  for (const kit of getGameKits()) {
+    const a = composeGameKit(kit.id, { seed: 11 });
+    const b = composeGameKit(kit.id, { seed: 11 });
+    const c = composeGameKit(kit.id, { seed: 12 });
+    assert.equal(
+      modelFingerprint(a),
+      modelFingerprint(b),
+      `${kit.id} is stable`,
+    );
+    assert.notEqual(
+      modelFingerprint(a),
+      modelFingerprint(c),
+      `${kit.id} varies`,
+    );
+  }
+});
+
+test("scene export options wrap without mutating the original", async () => {
+  const scene = composeGameKit("camp", { seed: 3 });
+  const before = modelFingerprint(scene);
+  const glb = await exportGLB(scene, { upAxis: "Z", scale: 2 });
+  const obj = exportOBJ(scene, { upAxis: "Z", scale: 2 });
+  assert.ok(glb.byteLength > 0);
+  assert.ok(obj.includes("camp-house"));
+  assert.equal(
+    modelFingerprint(scene),
+    before,
+    "export leaves the scene alone",
+  );
 });

@@ -25,6 +25,8 @@ import {
 } from "./annotation-edits.js";
 import {
   generateAsset as generateThreeAsset,
+  composeGameKit,
+  getGameKits,
   exportGLB,
   exportOBJ,
   countTriangles,
@@ -89,6 +91,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-plug" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></g>
 <g id="mc-play" fill="currentColor" stroke="none"><path d="M7 4.8v14.4c0 .9 1 1.5 1.8 1L20 13a1.2 1.2 0 0 0 0-2L8.8 3.8c-.8-.5-1.8.1-1.8 1z"/></g>
 <g id="mc-gen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9l-9 5-9-5v-9z"/><path d="M12 2.5v19M3 7.5l9 5 9-5"/><path d="M7.5 5l9 5" opacity=".5"/></g>
+<g id="mc-scene" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -197,6 +200,11 @@ app.innerHTML = `${SPRITE}
     <div class="gen-types">
       <div class="gen-types-title">${T("gen.types")}</div>
       <div id="gen-types" class="gen-type-chips"></div>
+    </div>
+    <div class="gen-kit">
+      <div class="gen-types-title">${T("gen.kit")}</div>
+      <div id="gen-kits" class="gen-kit-chips"></div>
+      <button id="gen-compose" class="primary-button">${icon("scene")}<span>${T("gen.compose")}</span></button>
     </div>
     <div class="gen-form">
       <label>${T("gen.prompt")}</label>
@@ -2213,6 +2221,7 @@ const genState = {
   lods: [],
   activeLod: 0,
 };
+let selectedGenKit = "dungeon";
 
 /* i18n catalogues carry the template labels and prompt aliases. The catalogue
    keys themselves are written out here so the i18n checker can see every
@@ -2273,6 +2282,12 @@ const GEN_ALIAS_KEYS = {
   turret: "gen.alias.turret",
   drone: "gen.alias.drone",
   antenna: "gen.alias.antenna",
+};
+
+const GEN_KIT_KEYS = {
+  dungeon: "gen.kit.dungeon",
+  camp: "gen.kit.camp",
+  outpost: "gen.kit.outpost",
 };
 
 /* Prompt matching is intentionally multilingual: an AI3D user may describe an
@@ -2565,15 +2580,24 @@ async function downloadGenModel() {
     let blob;
     let extension = format;
     if (format === "glb") {
-      const result = await exportGLB(genState.model.threeObject);
+      const result = await exportGLB(genState.model.threeObject, {
+        upAxis: coord === "zup" ? "Z" : "Y",
+        scale,
+      });
       blob = new Blob([result], { type: "application/octet-stream" });
     } else if (format === "obj") {
-      const result = exportOBJ(genState.model.threeObject);
+      const result = exportOBJ(genState.model.threeObject, {
+        upAxis: coord === "zup" ? "Z" : "Y",
+        scale,
+      });
       blob = new Blob([result], { type: "text/plain" });
       extension = "obj";
     } else {
       // Default to GLB
-      const result = await exportGLB(genState.model.threeObject);
+      const result = await exportGLB(genState.model.threeObject, {
+        upAxis: coord === "zup" ? "Z" : "Y",
+        scale,
+      });
       blob = new Blob([result], { type: "application/octet-stream" });
       extension = "glb";
     }
@@ -2598,6 +2622,55 @@ function renderGenTypeChips() {
         `<button type="button" class="gen-type-chip" data-type="${esc(type)}">${esc(t(GEN_TYPE_KEYS[type]))}</button>`,
     )
     .join("");
+}
+
+function renderGenKitChips() {
+  const container = $("#gen-kits");
+  if (!container) return;
+  container.innerHTML = getGameKits()
+    .map(
+      (kit) =>
+        `<button type="button" class="gen-type-chip${kit.id === selectedGenKit ? " active" : ""}" data-kit="${esc(kit.id)}">${esc(t(GEN_KIT_KEYS[kit.id]))}</button>`,
+    )
+    .join("");
+}
+
+function composeGameKitScene(kitId) {
+  if (genState.generating) return;
+  genState.generating = true;
+  setGenActions(false);
+  setGenStatus(t("gen.composing"), "info");
+  try {
+    const seedInput = $("#gen-seed").value.trim();
+    const seed =
+      seedInput === ""
+        ? Math.floor(Math.random() * 1_000_000)
+        : Math.max(0, Math.floor(Number(seedInput) || 0));
+    const scene = composeGameKit(kitId, { seed });
+    const stats = getAssetStats(scene);
+    genState.model = {
+      type: kitId,
+      kind: "scene",
+      threeObject: scene,
+      color: null,
+      seed,
+      material: null,
+    };
+    genState.originalModel = null;
+    genState.lods = [];
+    genState.activeLod = 0;
+    setGenOptimizePanel(false);
+    setGenExportPanel(false);
+    setGenActions(true);
+    setGenStatus(
+      `${t("gen.sceneReady")} (${scene.userData.props} ${t("gen.parts")} · ${stats.triangles} ${t("gen.triangles")})`,
+      "ok",
+    );
+  } catch {
+    setGenStatus(t("gen.error"), "error");
+  } finally {
+    genState.generating = false;
+  }
 }
 
 $("#gen-generate").addEventListener("click", generateAsset);
@@ -2641,6 +2714,15 @@ $("#gen-types").addEventListener("click", (e) => {
   $("#gen-prompt").value = t(GEN_TYPE_KEYS[btn.dataset.type]);
   generateAsset();
 });
+$("#gen-kits").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-kit]");
+  if (!btn) return;
+  selectedGenKit = btn.dataset.kit;
+  renderGenKitChips();
+});
+$("#gen-compose").addEventListener("click", () =>
+  composeGameKitScene(selectedGenKit),
+);
 
 // --- Asset Library UI ---
 function renderAssetLibrary() {
@@ -2809,6 +2891,7 @@ async function batchExportAssets() {
 $("#gen-batch-export").addEventListener("click", batchExportAssets);
 
 renderGenTypeChips();
+renderGenKitChips();
 renderAssetLibrary();
 
 initAiDock();
