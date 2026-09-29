@@ -608,10 +608,10 @@ test("review page keeps its conversation dock hidden and does not poll until ope
     (
       await request("POST", "chat", {
         message: "must not deliver",
-        messageId: "disabled-chat",
+        idempotencyKey: "disabled-chat",
       })
     ).status,
-  ).toBe(410);
+  ).toBe(409);
   expect(fs.existsSync(path.join(dir, "fake-gateway.json"))).toBe(false);
   await page.click("#ai-button");
   await expect(page.locator("#ai-dock")).toBeVisible();
