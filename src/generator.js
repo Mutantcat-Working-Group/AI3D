@@ -69,6 +69,10 @@ function mulberry32(a) {
  * @param {string} options.style - Material style
  * @param {string} options.color - Hex color string (e.g. "#ff0000")
  * @param {number} options.seed - Deterministic variation seed
+ * @param {object} options.material - Material overrides
+ * @param {number} options.material.roughness - Surface roughness 0..1
+ * @param {number} options.material.metalness - Metallness 0..1
+ * @param {string} options.material.emissive - Hex emissive color or null
  */
 export function generateAsset(
   type,
@@ -78,6 +82,7 @@ export function generateAsset(
     style = "lowpoly",
     color = null,
     seed = null,
+    material = null,
   } = {},
 ) {
   const group = new THREE.Group();
@@ -150,6 +155,8 @@ export function generateAsset(
       buildCube(group, size, segments, matStyle, customColor, rng);
   }
 
+  applyMaterialOverrides(group, material);
+
   // Center and scale the model
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
@@ -165,6 +172,43 @@ export function generateAsset(
   }
 
   return group;
+}
+
+/**
+ * Apply user-facing material overrides to every mesh in an object.
+ * Runs after the generator builds its materials so style presets stay intact
+ * where the user did not choose a replacement.
+ */
+function applyMaterialOverrides(object, overrides = null) {
+  if (!overrides) return;
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    const mats = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    for (const mat of mats) {
+      if (!mat?.isMaterial) continue;
+      if (overrides.roughness != null)
+        mat.roughness = THREE.MathUtils.clamp(
+          Number(overrides.roughness) || 0,
+          0,
+          1,
+        );
+      if (overrides.metalness != null)
+        mat.metalness = THREE.MathUtils.clamp(
+          Number(overrides.metalness) || 0,
+          0,
+          1,
+        );
+      if (overrides.emissive) {
+        mat.emissive = new THREE.Color(overrides.emissive);
+        mat.emissiveIntensity = overrides.emissiveIntensity ?? 0.8;
+      } else {
+        mat.emissive = new THREE.Color(0x000000);
+        mat.emissiveIntensity = 1;
+      }
+    }
+  });
 }
 
 function createMaterial(color, style) {

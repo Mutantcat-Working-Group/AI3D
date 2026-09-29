@@ -1784,6 +1784,33 @@ dialog .muted {
   padding: 10px 12px 6px;
   font-size: 13px;
 }
+.gen-types {
+  padding: 0 12px 8px;
+}
+.gen-types-title {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.gen-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gen-type-chip {
+  padding: 5px 9px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.gen-type-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .gen-form {
   padding: 0 12px 10px;
   display: flex;
@@ -1832,6 +1859,24 @@ dialog .muted {
   flex: 1;
   padding: 6px 12px;
   font-size: 11px;
+}
+.gen-material-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.gen-material-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.gen-material-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
 }
 .gen-status {
   padding: 6px 12px;

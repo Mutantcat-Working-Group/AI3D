@@ -9,6 +9,7 @@ import {
   setLocale,
   LOCALES,
   localeName,
+  CATALOGUES,
 } from "./i18n/index.js";
 import {
   readThemeChoice,
@@ -28,6 +29,7 @@ import {
   exportOBJ,
   countTriangles,
   renderAssetThumbnail,
+  getAssetTypes,
 } from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
@@ -188,6 +190,10 @@ app.innerHTML = `${SPRITE}
   </div>
   <div class="ai-pane" data-ai-pane="gen" hidden>
     <div class="gen-header"><strong>${T("gen.title")}</strong></div>
+    <div class="gen-types">
+      <div class="gen-types-title">${T("gen.types")}</div>
+      <div id="gen-types" class="gen-type-chips"></div>
+    </div>
     <div class="gen-form">
       <label>${T("gen.prompt")}</label>
       <textarea id="gen-prompt" placeholder="${T("gen.promptPlaceholder")}" rows="3"></textarea>
@@ -202,10 +208,21 @@ app.innerHTML = `${SPRITE}
         <input type="color" id="gen-color" value="#808080">
         <button type="button" id="gen-color-reset" class="quiet">${T("gen.colorReset")}</button>
       </div>
+      <label>${T("gen.materials")}</label>
+      <div class="gen-material-row">
+        <label>${T("gen.roughness")} <input type="range" id="gen-roughness" min="0" max="1" step="0.05" value="0.8"></label>
+        <label>${T("gen.metalness")} <input type="range" id="gen-metalness" min="0" max="1" step="0.05" value="0.1"></label>
+      </div>
+      <label>${T("gen.emissive")}</label>
+      <div class="gen-color-row">
+        <input type="color" id="gen-emissive" value="#000000">
+        <button type="button" id="gen-emissive-reset" class="quiet">${T("gen.colorReset")}</button>
+      </div>
       <label>${T("gen.seed")}</label>
       <div class="gen-color-row">
         <input type="number" id="gen-seed" min="0" step="1" placeholder="${T("gen.seedPlaceholder")}">
         <button type="button" id="gen-seed-reset" class="quiet">${T("gen.colorReset")}</button>
+        <button type="button" id="gen-seed-random" class="quiet">${T("gen.randomSeed")}</button>
       </div>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
@@ -2174,6 +2191,70 @@ const genState = {
   optimizing: false,
 };
 
+/* i18n catalogues carry the template labels and prompt aliases. The catalogue
+   keys themselves are written out here so the i18n checker can see every
+   translation is reachable from the code. */
+const GEN_TYPE_KEYS = {
+  cube: "gen.type.cube",
+  sword: "gen.type.sword",
+  tree: "gen.type.tree",
+  rock: "gen.type.rock",
+  house: "gen.type.house",
+  car: "gen.type.car",
+  character: "gen.type.character",
+  shield: "gen.type.shield",
+  potion: "gen.type.potion",
+  chest: "gen.type.chest",
+  key: "gen.type.key",
+  gem: "gen.type.gem",
+  barrel: "gen.type.barrel",
+  crate: "gen.type.crate",
+  tower: "gen.type.tower",
+  flag: "gen.type.flag",
+  torch: "gen.type.torch",
+  fence: "gen.type.fence",
+  bridge: "gen.type.bridge",
+  fountain: "gen.type.fountain",
+};
+
+const GEN_ALIAS_KEYS = {
+  cube: "gen.alias.cube",
+  sword: "gen.alias.sword",
+  tree: "gen.alias.tree",
+  rock: "gen.alias.rock",
+  house: "gen.alias.house",
+  car: "gen.alias.car",
+  character: "gen.alias.character",
+  shield: "gen.alias.shield",
+  potion: "gen.alias.potion",
+  chest: "gen.alias.chest",
+  key: "gen.alias.key",
+  gem: "gen.alias.gem",
+  barrel: "gen.alias.barrel",
+  crate: "gen.alias.crate",
+  tower: "gen.alias.tower",
+  flag: "gen.alias.flag",
+  torch: "gen.alias.torch",
+  fence: "gen.alias.fence",
+  bridge: "gen.alias.bridge",
+  fountain: "gen.alias.fountain",
+};
+
+/* Prompt matching is intentionally multilingual: an AI3D user may describe an
+   asset in any of the six shipped languages. Longest aliases are tried first
+   so "板条箱" beats the shorter "箱子" that also appears in it. */
+const PROMPT_ALIASES = [];
+for (const table of Object.values(CATALOGUES)) {
+  for (const [type, key] of Object.entries(GEN_ALIAS_KEYS)) {
+    for (const alias of String(table[key] || "").split(",")) {
+      const clean = alias.trim().toLowerCase();
+      if (!clean) continue;
+      PROMPT_ALIASES.push({ alias: clean, type });
+    }
+  }
+}
+PROMPT_ALIASES.sort((a, b) => b.alias.length - a.alias.length);
+
 // --- Asset Library ---
 const assetLibrary = {
   assets: [],
@@ -2244,6 +2325,7 @@ async function generateAsset() {
   }
   const style = $("#gen-style").value;
   const color = $("#gen-color").value;
+  const material = readMaterialSettings();
   const seedInput = $("#gen-seed").value.trim();
   const seed =
     seedInput === "" ? null : Math.max(0, Math.floor(Number(seedInput) || 0));
@@ -2258,8 +2340,15 @@ async function generateAsset() {
       style: assetType.style,
       color: color,
       seed,
+      material,
     });
-    genState.model = { ...assetType, threeObject: model, color, seed };
+    genState.model = {
+      ...assetType,
+      threeObject: model,
+      color,
+      seed,
+      material,
+    };
     const triCount = countTriangles(model);
     setGenStatus(
       `${t("gen.applied")} (${triCount} ${t("gen.triangles")})`,
@@ -2273,38 +2362,24 @@ async function generateAsset() {
   }
 }
 
+function readMaterialSettings() {
+  const emissive = $("#gen-emissive").value;
+  return {
+    roughness: parseFloat($("#gen-roughness").value),
+    metalness: parseFloat($("#gen-metalness").value),
+    emissive: emissive === "#000000" ? null : emissive,
+  };
+}
+
 function parseAssetPrompt(prompt, style) {
-  // Simple keyword-based asset generation
   const lower = prompt.toLowerCase();
   let type = "cube";
   let size = 1;
   let segments = 16;
 
-  // Keyword matching uses i18n keys to avoid hard-coded interface text
-  const keywords = [
-    { keys: ["sword", "sword"], type: "sword" },
-    { keys: ["tree", "tree"], type: "tree" },
-    { keys: ["rock", "rock"], type: "rock" },
-    { keys: ["house", "house"], type: "house" },
-    { keys: ["car", "car"], type: "car" },
-    { keys: ["character", "character"], type: "character" },
-    { keys: ["shield", "shield"], type: "shield" },
-    { keys: ["potion", "potion"], type: "potion" },
-    { keys: ["chest", "chest"], type: "chest" },
-    { keys: ["key", "key"], type: "key" },
-    { keys: ["gem", "gem"], type: "gem" },
-    { keys: ["barrel", "barrel"], type: "barrel" },
-    { keys: ["crate", "crate"], type: "crate" },
-    { keys: ["tower", "tower"], type: "tower" },
-    { keys: ["flag", "flag"], type: "flag" },
-    { keys: ["torch", "torch"], type: "torch" },
-    { keys: ["fence", "fence"], type: "fence" },
-    { keys: ["bridge", "bridge"], type: "bridge" },
-    { keys: ["fountain", "fountain"], type: "fountain" },
-  ];
-  for (const kw of keywords) {
-    if (kw.keys.some((k) => lower.includes(k))) {
-      type = kw.type;
+  for (const { alias, type: matched } of PROMPT_ALIASES) {
+    if (lower.includes(alias)) {
+      type = matched;
       break;
     }
   }
@@ -2403,6 +2478,17 @@ async function downloadGenModel() {
   }
 }
 
+function renderGenTypeChips() {
+  const container = $("#gen-types");
+  if (!container) return;
+  container.innerHTML = getAssetTypes()
+    .map(
+      (type) =>
+        `<button type="button" class="gen-type-chip" data-type="${esc(type)}">${esc(t(GEN_TYPE_KEYS[type]))}</button>`,
+    )
+    .join("");
+}
+
 $("#gen-generate").addEventListener("click", generateAsset);
 $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
@@ -2413,6 +2499,29 @@ $("#gen-color-reset").addEventListener("click", () => {
 });
 $("#gen-seed-reset").addEventListener("click", () => {
   $("#gen-seed").value = "";
+});
+$("#gen-seed-random").addEventListener("click", () => {
+  $("#gen-seed").value = String(Math.floor(Math.random() * 1_000_000));
+  if ($("#gen-prompt").value.trim()) generateAsset();
+});
+$("#gen-emissive-reset").addEventListener("click", () => {
+  $("#gen-emissive").value = "#000000";
+});
+$("#gen-style").addEventListener("change", (e) => {
+  const presets = {
+    lowpoly: { roughness: 0.8, metalness: 0.1 },
+    realistic: { roughness: 0.3, metalness: 0.6 },
+    stylized: { roughness: 0.5, metalness: 0.2 },
+  };
+  const next = presets[e.target.value] || presets.lowpoly;
+  $("#gen-roughness").value = String(next.roughness);
+  $("#gen-metalness").value = String(next.metalness);
+});
+$("#gen-types").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  $("#gen-prompt").value = t(GEN_TYPE_KEYS[btn.dataset.type]);
+  generateAsset();
 });
 
 // --- Asset Library UI ---
@@ -2460,6 +2569,7 @@ function renderAssetPreview(asset) {
       style: asset.style,
       color: asset.color || null,
       seed: asset.seed ?? null,
+      material: asset.material || null,
     });
     const dataUrl = renderAssetThumbnail(model, 120, 90);
     if (dataUrl) {
@@ -2503,6 +2613,7 @@ function loadAsset(id) {
     style: asset.style,
     color: asset.color || null,
     seed: asset.seed ?? null,
+    material: asset.material || null,
   });
   genState.model = { ...asset, threeObject: model };
   setGenStatus(t("gen.applied"), "ok");
@@ -2542,6 +2653,7 @@ async function batchExportAssets() {
         style: asset.style,
         color: asset.color || null,
         seed: asset.seed ?? null,
+        material: asset.material || null,
       });
       let blob;
       let extension = format;
@@ -2574,6 +2686,7 @@ async function batchExportAssets() {
 
 $("#gen-batch-export").addEventListener("click", batchExportAssets);
 
+renderGenTypeChips();
 renderAssetLibrary();
 
 initAiDock();
