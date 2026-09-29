@@ -38,6 +38,7 @@ import {
   decimateMesh,
   generateLOD,
   getAssetStats,
+  getAssetTags,
 } from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
@@ -2436,6 +2437,7 @@ async function generateAsset() {
       color,
       seed,
       material,
+      tags: getAssetTags(assetType.type),
     };
     genState.originalModel = cloneModelDeep(model);
     genState.lods = [];
@@ -2918,6 +2920,7 @@ function renderAssetLibrary() {
         <strong>${a.type}</strong>
         <span>${a.prompt.slice(0, 50)}${a.prompt.length > 50 ? "..." : ""}</span>
         <small>${new Date(a.createdAt).toLocaleDateString()}</small>
+        <div class="gen-asset-tags">${(a.tags || []).map((tag) => `<span class="gen-tag">${tag}</span>`).join("")}</div>
       </div>
       <div class="gen-asset-actions">
         <button class="gen-asset-load" data-id="${a.id}">${t("gen.import")}</button>

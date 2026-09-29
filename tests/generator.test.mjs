@@ -17,6 +17,7 @@ import {
   getGameKits,
   exportGLB,
   exportOBJ,
+  getAssetTags,
 } from "../src/generator.js";
 
 function sampleModel() {
@@ -410,6 +411,52 @@ test("exportAssetManifest produces valid CSV with headers and rows", () => {
   const lines = csv.split("\n");
   assert.equal(lines.length, 2);
   assert.ok(lines[0].includes("id,type,seed,size,segments,style"));
+  assert.ok(lines[0].includes("tags"));
+  assert.ok(lines[0].includes("lodLevels"));
   assert.ok(lines[1].includes("test-1,sword,42,1.5,12,lowpoly"));
   assert.ok(lines[1].includes("100,50,3"));
+  assert.ok(lines[1].includes("weapon"));
+});
+
+test("getAssetTags returns correct category tags for asset types", () => {
+  assert.deepEqual(getAssetTags("sword"), ["weapon", "melee", "metal"]);
+  assert.deepEqual(getAssetTags("tree"), ["nature", "vegetation", "outdoor"]);
+  assert.deepEqual(getAssetTags("house"), ["building", "structure", "indoor"]);
+  assert.deepEqual(getAssetTags("turret"), ["scifi", "defense", "metal"]);
+  assert.deepEqual(getAssetTags("character"), ["creature", "character", "animated"]);
+  assert.deepEqual(getAssetTags("car"), ["vehicle", "transport", "outdoor"]);
+});
+
+test("exportAssetManifest includes tags and lodLevels when present", () => {
+  const assets = [
+    {
+      id: "lod-test",
+      type: "rock",
+      seed: 99,
+      stats: { triangles: 500, vertices: 250, parts: 1 },
+      lodLevels: [
+        { level: 0, triangles: 500 },
+        { level: 1, triangles: 120 },
+        { level: 2, triangles: 30 },
+      ],
+    },
+  ];
+
+  const json = exportAssetManifest(assets, "json");
+  const manifest = JSON.parse(json);
+  assert.equal(manifest.count, 1);
+  assert.equal(manifest.assets[0].tags.length, 3);
+  assert.equal(manifest.assets[0].tags[0], "nature");
+  assert.equal(manifest.assets[0].lodLevels.length, 3);
+  assert.equal(manifest.assets[0].lodLevels[0].triangles, 500);
+  assert.equal(manifest.assets[0].lodLevels[2].triangles, 30);
+});
+
+test("exportAssetManifest handles missing lodLevels gracefully", () => {
+  const assets = [
+    { id: "no-lod", type: "cube", seed: 1, stats: { triangles: 24, vertices: 8, parts: 1 } },
+  ];
+  const json = exportAssetManifest(assets, "json");
+  const manifest = JSON.parse(json);
+  assert.equal(manifest.assets[0].lodLevels, null);
 });

@@ -2143,6 +2143,23 @@ dialog .muted {
   font-size: 10px;
   color: var(--text-3);
 }
+.gen-asset-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+.gen-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--bg-2);
+  border: 1px solid var(--line-1);
+  border-radius: 3px;
+  line-height: 1.4;
+}
 .gen-asset-actions {
   display: flex;
   gap: 4px;

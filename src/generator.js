@@ -46,6 +46,53 @@ const ASSET_TYPES = {
   well: { name: "Well", parts: ["rim", "posts", "roof", "bucket"] },
 };
 
+// Asset category tags for game engine classification
+const ASSET_TAGS = {
+  sword: ["weapon", "melee", "metal"],
+  axe: ["weapon", "melee", "metal"],
+  bow: ["weapon", "ranged", "wood"],
+  hammer: ["weapon", "melee", "metal"],
+  spear: ["weapon", "melee", "wood"],
+  shield: ["weapon", "defense", "metal"],
+  tree: ["nature", "vegetation", "outdoor"],
+  rock: ["nature", "terrain", "outdoor"],
+  gem: ["nature", "mineral", "collectible"],
+  house: ["building", "structure", "indoor"],
+  tower: ["building", "structure", "defense"],
+  tent: ["building", "structure", "outdoor"],
+  statue: ["building", "decoration", "indoor"],
+  pillar: ["building", "structure", "indoor"],
+  well: ["building", "structure", "outdoor"],
+  fountain: ["building", "decoration", "outdoor"],
+  bridge: ["building", "structure", "outdoor"],
+  fence: ["building", "structure", "outdoor"],
+  car: ["vehicle", "transport", "outdoor"],
+  character: ["creature", "character", "animated"],
+  cube: ["primitive", "basic", "indoor"],
+  potion: ["item", "consumable", "indoor"],
+  chest: ["item", "container", "indoor"],
+  key: ["item", "tool", "indoor"],
+  barrel: ["item", "container", "outdoor"],
+  crate: ["item", "container", "outdoor"],
+  flag: ["item", "decoration", "outdoor"],
+  torch: ["item", "light", "outdoor"],
+  brazier: ["item", "light", "outdoor"],
+  runestone: ["item", "magic", "outdoor"],
+  trap: ["item", "hazard", "outdoor"],
+  turret: ["scifi", "defense", "metal"],
+  drone: ["scifi", "vehicle", "metal"],
+  antenna: ["scifi", "structure", "metal"],
+};
+
+/**
+ * Get category tags for an asset type.
+ * @param {string} type - Asset type key
+ * @returns {string[]} Array of tag strings
+ */
+export function getAssetTags(type) {
+  return ASSET_TAGS[type] || ["misc"];
+}
+
 // Material presets for different styles
 const STYLE_MATERIALS = {
   lowpoly: {
@@ -2304,6 +2351,13 @@ export function exportAssetManifest(assets, format = "json") {
     triangles: asset.stats?.triangles ?? null,
     vertices: asset.stats?.vertices ?? null,
     parts: asset.stats?.parts ?? null,
+    tags: getAssetTags(asset.type),
+    lodLevels: asset.lodLevels
+      ? asset.lodLevels.map((l) => ({
+          level: l.level,
+          triangles: l.triangles,
+        }))
+      : null,
   }));
 
   if (format === "csv") {
@@ -2321,6 +2375,8 @@ export function exportAssetManifest(assets, format = "json") {
       "triangles",
       "vertices",
       "parts",
+      "tags",
+      "lodLevels",
     ];
     const escape = (value) => {
       if (value === null || value === undefined) return "";
