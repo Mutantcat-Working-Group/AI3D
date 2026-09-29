@@ -150,11 +150,15 @@ npm run desktop:dev                   # open the desktop window in dev mode
 npm run desktop:build:installer       # build the NSIS installer (Windows)
 ```
 
-Installer output lands in `src-tauri/target/release/bundle/nsis/`. The
-application identifier is `org.mutantcat.ai3d`; the window title is AI3D and
-the icon is the repository's `icon.png`. Desktop data - review state and
-published models - lives in the OS application data directory, and the bundled
-service only listens on the local loopback address.
+Installer output lands in `src-tauri/target/release/bundle/nsis/`. Pushing a
+`v*` tag makes GitHub Actions build and attach the following installers to the
+release: a Linux x64 AppImage, Intel and Apple Silicon macOS DMGs (ad-hoc
+signed, with an Applications drag link), and x64 and ARM64 Windows NSIS
+installers (self-signed, with Simplified Chinese, Traditional Chinese and
+English installer UI). The application identifier is `org.mutantcat.ai3d`; the
+window title is AI3D and the icon is the repository's `icon.png`. Desktop data
+- review state and published models - lives in the OS application data
+directory, and the bundled service only listens on the local loopback address.
 
 ### 8. Roadmap
 

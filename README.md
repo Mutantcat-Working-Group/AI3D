@@ -110,10 +110,10 @@ AI3D 同时提供 Tauri 桌面客户端，把同一个工作台放进独立窗�
 npm ci
 npm run desktop:build                 # 打包内置服务与前端到 tmp/desktop-package
 npm run desktop:dev                   # 以开发模式启动桌面窗口
-npm run desktop:build:installer       # 构建 NSIS 安装包（Windows）
+npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 ```
 
-安装包输出在 `src-tauri/target/release/bundle/nsis/`；应用标识为 `org.mutantcat.ai3d`，窗口标题为 AI3D，图标与仓库根目录的 `icon.png` 一致。桌面端数据（审阅状态、已发布模型）保存在系统应用数据目录，默认只在本机 loopback 地址上运行内置服务。
+本地安装包输出在 `src-tauri/target/release/bundle/nsis/`。推送 `v*` 标签时，GitHub Actions 会构建并附加到对应 Release：Linux x64 AppImage，macOS Intel 与 Apple Silicon 两个 DMG（ad-hoc 签名，内含 Applications 拖放快捷方式），以及 Windows x64 与 ARM64 两个 NSIS 安装包（自签名，安装界面提供简体中文、繁体中文与英文）。应用标识为 `org.mutantcat.ai3d`，窗口标题为 AI3D，图标与仓库根目录的 `icon.png` 一致。桌面端数据（审阅状态、已发布模型）保存在系统应用数据目录，默认只在本机 loopback 地址上运行内置服务。
 
 ### 八、开发进度
 

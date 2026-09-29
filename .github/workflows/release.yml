@@ -57,3 +57,121 @@ jobs:
             --title "AI3D ${tag#v}" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --verify-tag
+
+  package:
+    name: package ${{ matrix.name }}
+    needs: release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64-appimage
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage
+          - name: macos-x64-dmg
+            os: macos-13
+            target: x86_64-apple-darwin
+            bundles: dmg
+          - name: macos-arm64-dmg
+            os: macos-14
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - name: windows-x64-nsis
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - name: windows-arm64-nsis
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            bundles: nsis
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+      - name: install stable Rust and the target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add "${{ matrix.target }}"
+      - name: install Linux bundle dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libfuse2
+      - run: npm ci
+      - name: create a Windows self-signed code-signing certificate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=AI3D, O=Mutantcat Working Group" `
+            -KeyExportPolicy Exportable `
+            -KeySpec Signature `
+            -KeyUsage DigitalSignature `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -NotAfter (Get-Date).AddMonths(24)
+          "AI3D_SIGNING_THUMBPRINT=$($cert.Thumbprint)" |
+            Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: write the Tauri Windows signing config
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          @{
+            bundle = @{
+              windows = @{
+                digestAlgorithm = "sha256"
+                certificateThumbprint = $env:AI3D_SIGNING_THUMBPRINT
+              }
+            }
+          } |
+            ConvertTo-Json -Depth 5 |
+            Set-Content -Encoding utf8 "$env:RUNNER_TEMP/tauri-signing.json"
+      - name: build the Windows NSIS bundle (self-signed)
+        if: runner.os == 'Windows'
+        run: npx tauri build --ci --bundles nsis --target "${{ matrix.target }}" --config "$env:RUNNER_TEMP/tauri-signing.json"
+      - name: build the ${{ matrix.bundles }} bundle
+        if: runner.os != 'Windows'
+        run: npx tauri build --ci --bundles "${{ matrix.bundles }}" --target "${{ matrix.target }}"
+      - name: attach the bundle to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          roots=()
+          for root in \
+            "src-tauri/target/release/bundle" \
+            "src-tauri/target/${{ matrix.target }}/release/bundle"; do
+            if [ -d "$root" ]; then
+              roots+=("$root")
+            fi
+          done
+          if [ "${#roots[@]}" -eq 0 ]; then
+            echo "::error::no bundle output directory was found"
+            exit 1
+          fi
+          mapfile -t files < <(
+            find "${roots[@]}" -maxdepth 2 -type f \
+              \( -name "*.AppImage" -o -name "*.dmg" -o -name "*-setup.exe" \) |
+              sort
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::no installable bundle was produced"
+            exit 1
+          fi
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
