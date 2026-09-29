@@ -2107,6 +2107,18 @@ dialog .muted {
 .gen-manifest-format:hover {
   border-color: var(--accent);
 }
+.gen-tag-filter {
+  width: 100px;
+  padding: 5px 6px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-tag-filter:hover {
+  border-color: var(--accent);
+}
 .gen-library {
   padding: 0 12px 12px;
   max-height: 200px;

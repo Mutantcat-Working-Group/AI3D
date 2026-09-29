@@ -256,6 +256,9 @@ app.innerHTML = `${SPRITE}
     <div id="gen-status" class="gen-status"></div>
     <div class="gen-library-header">
       <input id="gen-search" placeholder="${t("gen.promptPlaceholder")}">
+      <select id="gen-tag-filter" class="gen-tag-filter" aria-label="Filter by tag">
+        <option value="">All tags</option>
+      </select>
       <button id="gen-save" class="quiet">${t("mcp.save")}</button>
       <select id="gen-manifest-format" class="gen-manifest-format" aria-label="${T("gen.manifestFormat")}">
         <option value="json">${T("gen.manifestJson")}</option>
@@ -2387,6 +2390,17 @@ const assetLibrary = {
         a.style.toLowerCase().includes(q),
     );
   },
+  searchByTag(tag) {
+    if (!tag) return this.assets;
+    return this.assets.filter((a) => a.tags && a.tags.includes(tag));
+  },
+  getAllTags() {
+    const tags = new Set();
+    this.assets.forEach((a) => {
+      if (a.tags) a.tags.forEach((t) => tags.add(t));
+    });
+    return Array.from(tags).sort();
+  },
 };
 
 assetLibrary.load();
@@ -2905,8 +2919,13 @@ $("#gen-compose").addEventListener("click", () =>
 function renderAssetLibrary() {
   const container = $("#gen-library");
   if (!container) return;
+  populateTagFilter();
   const query = $("#gen-search").value.trim();
-  const assets = query ? assetLibrary.search(query) : assetLibrary.assets;
+  const tagFilter = $("#gen-tag-filter")?.value || "";
+  let assets = query ? assetLibrary.search(query) : assetLibrary.assets;
+  if (tagFilter) {
+    assets = assets.filter((a) => a.tags && a.tags.includes(tagFilter));
+  }
   if (assets.length === 0) {
     container.innerHTML = `<div class="gen-library-empty">${t("gen.empty")}</div>`;
     return;
@@ -2932,6 +2951,21 @@ function renderAssetLibrary() {
     .join("");
   // Render thumbnails for each asset
   assets.forEach((a) => renderAssetPreview(a));
+}
+
+function populateTagFilter() {
+  const select = $("#gen-tag-filter");
+  if (!select) return;
+  const tags = assetLibrary.getAllTags();
+  const currentValue = select.value;
+  select.innerHTML = '<option value="">All tags</option>';
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    select.appendChild(option);
+  });
+  select.value = currentValue;
 }
 
 /**
@@ -3009,6 +3043,7 @@ function deleteAsset(id) {
 
 $("#gen-save").addEventListener("click", saveCurrentAsset);
 $("#gen-search").addEventListener("input", renderAssetLibrary);
+$("#gen-tag-filter").addEventListener("change", renderAssetLibrary);
 $("#gen-library").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
