@@ -18,7 +18,12 @@ import {
   exportGLB,
   exportOBJ,
   getAssetTags,
+  getEnginePresets,
+  getEnginePreset,
+  buildGamePackFiles,
+  exportGamePack,
 } from "../src/generator.js";
+import { unzipSync } from "fflate";
 
 function sampleModel() {
   const group = new THREE.Group();
@@ -95,6 +100,23 @@ function modelBounds(object) {
     center: box.getCenter(new THREE.Vector3()),
     min: box.min.clone(),
     max: box.max.clone(),
+  };
+}
+
+function samplePackAsset(overrides = {}) {
+  return {
+    id: "sword-test-1",
+    name: "Sword Test",
+    type: "sword",
+    size: 1,
+    segments: 16,
+    style: "lowpoly",
+    color: "#ff0000",
+    seed: 42,
+    stats: { triangles: 120, vertices: 60, parts: 2, drawCalls: 2 },
+    glbBytes: new Uint8Array([0x67, 0x6c, 0x62, 0x01]),
+    thumbnailBytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    ...overrides,
   };
 }
 
@@ -561,4 +583,109 @@ test("exportAssetManifest includes names and favorite flags", () => {
   assert.equal(manifest.assets[0].favorite, true);
   assert.equal(manifest.assets[1].name, null);
   assert.equal(manifest.assets[1].favorite, false);
+});
+
+test("engine presets resolve Unity conventions by default", () => {
+  const presets = getEnginePresets();
+  assert.deepEqual(
+    presets.map((p) => p.id),
+    ["unity", "godot", "unreal"],
+  );
+  assert.equal(getEnginePreset("unity").upAxis, "Y");
+  assert.equal(getEnginePreset("unity").scale, 1);
+  assert.equal(getEnginePreset("godot").upAxis, "Y");
+  assert.equal(getEnginePreset("unreal").upAxis, "Z");
+  assert.equal(getEnginePreset("unreal").scale, 100);
+  assert.equal(getEnginePreset("missing").id, "unity");
+});
+
+test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
+  const zip = buildGamePackFiles({
+    assets: [samplePackAsset()],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  assert.ok(zip instanceof Uint8Array);
+  const files = unzipSync(zip);
+
+  assert.ok(files["models/sword-test-1/LOD0.glb"]);
+  assert.equal(files["models/sword-test-1/LOD0.glb"].length, 4);
+  assert.ok(files["thumbnails/sword-test-1.png"]);
+  assert.ok(files["README.md"]);
+
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  assert.equal(manifest.schema, "ai3d-game-pack");
+  assert.equal(manifest.engine.id, "unity");
+  assert.equal(manifest.engine.upAxis, "Y");
+  assert.equal(manifest.engine.scale, 1);
+  assert.equal(manifest.assets[0].name, "Sword Test");
+  assert.equal(manifest.assets[0].stats.triangles, 120);
+  assert.equal(manifest.assets[0].files.model, "models/sword-test-1/LOD0.glb");
+});
+
+test("game packs carry Unreal conventions and LOD files", () => {
+  const lod = [
+    {
+      level: 0,
+      triangles: 120,
+      glbBytes: new Uint8Array([0x01, 0x02, 0x03, 0x04]),
+    },
+    {
+      level: 1,
+      triangles: 60,
+      glbBytes: new Uint8Array([0x11, 0x12, 0x13, 0x14]),
+    },
+  ];
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        id: "rock-7",
+        type: "rock",
+        lodLevels: lod,
+        glbBytes: lod[0].glbBytes,
+      }),
+    ],
+    engine: "unreal",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.equal(manifest.engine.id, "unreal");
+  assert.equal(manifest.engine.upAxis, "Z");
+  assert.equal(manifest.engine.scale, 100);
+  assert.equal(manifest.engine.units, "centimeters");
+  assert.equal(manifest.assets[0].lodLevels.length, 2);
+  assert.deepEqual(
+    manifest.assets[0].lodLevels.map((l) => l.file),
+    ["models/rock-7/LOD0.glb", "models/rock-7/LOD1.glb"],
+  );
+  assert.ok(files["models/rock-7/LOD0.glb"]);
+  assert.ok(files["models/rock-7/LOD1.glb"]);
+});
+
+test("exportGamePack exports a real GLB at the preset scale", async () => {
+  const source = generateAsset("tower", {
+    size: 1.2,
+    segments: 10,
+    style: "lowpoly",
+    seed: 3,
+  });
+  const zip = await exportGamePack({
+    model: source,
+    asset: { id: "tower-pack", type: "tower", seed: 3 },
+    engine: "unreal",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const glb = files["models/tower-pack/LOD0.glb"];
+
+  assert.equal(manifest.engine.id, "unreal");
+  assert.equal(manifest.engine.scale, 100);
+  assert.equal(
+    manifest.assets[0].stats.triangles,
+    getAssetStats(source).triangles,
+  );
+  assert.equal(String.fromCharCode(...glb.slice(0, 4)), "glTF");
 });

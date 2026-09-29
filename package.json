@@ -53,6 +53,7 @@
   "dependencies": {
     "@noble/hashes": "2.4.0",
     "express": "^5.1.0",
+    "fflate": "^0.8.3",
     "image-size": "^2.0.4",
     "occt-import-js": "^0.0.23",
     "three": "^0.180.0",

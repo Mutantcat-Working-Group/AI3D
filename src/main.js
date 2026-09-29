@@ -39,6 +39,9 @@ import {
   generateLOD,
   getAssetStats,
   getAssetTags,
+  getEnginePresets,
+  exportGamePack,
+  buildGamePackFiles,
 } from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
@@ -267,6 +270,7 @@ app.innerHTML = `${SPRITE}
         <option value="csv">${T("gen.manifestCsv")}</option>
       </select>
       <button id="gen-manifest-export" class="quiet" title="${T("gen.manifest")}">${T("gen.manifestExport")}</button>
+      <button id="gen-library-pack" class="quiet" title="${T("gen.exportLibraryPack")}">${T("gen.exportLibraryPack")}</button>
     </div>
     <div id="gen-library" class="gen-library"></div>
     <div class="gen-actions" id="gen-actions" hidden>
@@ -311,7 +315,14 @@ app.innerHTML = `${SPRITE}
         <option value="zup">${T("gen.zUp")}</option>
       </select>
       <label class="gen-check"><input type="checkbox" id="gen-export-lod" checked>${T("gen.exportLod")}</label>
+      <label>${T("gen.engine")}</label>
+      <select id="gen-engine">
+        <option value="unity">${T("gen.engineUnity")}</option>
+        <option value="godot">${T("gen.engineGodot")}</option>
+        <option value="unreal">${T("gen.engineUnreal")}</option>
+      </select>
       <button id="gen-download" class="primary-button">${T("gen.download")}</button>
+      <button id="gen-pack-download" class="primary-button">${T("gen.exportPack")}</button>
     </div>
   </div>
   <div class="ai-pane" data-ai-pane="mcp" hidden>
@@ -2828,6 +2839,63 @@ async function downloadGenModel() {
   }
 }
 
+function downloadBytesAsFile(bytes, filename) {
+  const blob = new Blob([bytes], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadGenPack() {
+  if (!genState.model || !genState.model.threeObject) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  const engine = $("#gen-engine")?.value || "unity";
+  const withLod = $("#gen-export-lod")?.checked || false;
+  const source = genState.originalModel || genState.model.threeObject;
+  const asset = {
+    id: genState.model.id || `${genState.model.type}-${Date.now()}`,
+    name: genState.model.name || null,
+    type: genState.model.type,
+    favorite: genState.model.favorite ?? false,
+    seed: genState.model.seed ?? null,
+    size: genState.model.size ?? 1,
+    segments: genState.model.segments ?? 16,
+    style: genState.model.style ?? "lowpoly",
+    color: genState.model.color || null,
+    material: genState.model.material || null,
+  };
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const thumbnailDataUrl = renderAssetThumbnail(source, 256, 192);
+    const pack = await exportGamePack({
+      model: source,
+      asset,
+      engine,
+      withLod,
+      thumbnailDataUrl,
+    });
+    downloadBytesAsFile(pack, `ai3d-pack-${assetSlugForUi(asset.id)}.zip`);
+    setGenStatus(t("gen.packReady"), "ok");
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+function assetSlugForUi(value) {
+  return (
+    String(value || "asset")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "asset"
+  );
+}
+
 function renderGenTypeChips() {
   const container = $("#gen-types");
   if (!container) return;
@@ -2900,6 +2968,7 @@ $("#gen-lod-row").addEventListener("click", (e) => {
 });
 $("#gen-export").addEventListener("click", exportGenModel);
 $("#gen-download").addEventListener("click", downloadGenModel);
+$("#gen-pack-download").addEventListener("click", downloadGenPack);
 $("#gen-color-reset").addEventListener("click", () => {
   $("#gen-color").value = "#808080";
 });
@@ -3182,6 +3251,73 @@ function exportManifest() {
 }
 
 $("#gen-manifest-export").addEventListener("click", exportManifest);
+
+// --- Library Game Pack Export ---
+async function exportLibraryPack() {
+  const assets = assetLibrary.assets;
+  if (assets.length === 0) {
+    setGenStatus(t("gen.empty"), "warn");
+    return;
+  }
+  const engine = $("#gen-engine")?.value || "unity";
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const packAssets = await Promise.all(
+      assets.map(async (asset) => {
+        const model = generateThreeAsset(asset.type, {
+          size: asset.size,
+          segments: asset.segments,
+          style: asset.style,
+          color: asset.color || null,
+          seed: asset.seed ?? null,
+          material: asset.material || null,
+        });
+        const glbBytes = new Uint8Array(
+          await exportGLB(
+            model,
+            getEnginePresets().find((p) => p.id === engine) || {
+              upAxis: "Y",
+              scale: 1,
+            },
+          ),
+        );
+        const thumbnailDataUrl = renderAssetThumbnail(model, 256, 192);
+        const thumbnailBytes = thumbnailDataUrl
+          ? await dataUrlToBytes(thumbnailDataUrl)
+          : null;
+        return {
+          ...asset,
+          stats: getAssetStats(model),
+          glbBytes,
+          thumbnailBytes,
+        };
+      }),
+    );
+    const pack = buildGamePackFiles({
+      assets: packAssets,
+      engine,
+    });
+    downloadBytesAsFile(
+      pack,
+      `ai3d-library-pack-${new Date().toISOString().slice(0, 10)}.zip`,
+    );
+    setGenStatus(t("gen.packReady"), "ok");
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+async function dataUrlToBytes(dataUrl) {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return null;
+  const base64 = dataUrl.slice(comma + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+$("#gen-library-pack").addEventListener("click", exportLibraryPack);
 
 renderGenTypeChips();
 renderGenKitChips();

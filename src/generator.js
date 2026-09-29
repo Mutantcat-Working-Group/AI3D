@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
+import { zipSync } from "fflate";
 
 // Asset type definitions with generation parameters
 const ASSET_TYPES = {
@@ -137,6 +138,52 @@ const STYLE_MATERIALS = {
     metalness: 0.2,
   },
 };
+
+// Import presets for the game engines AI3D ships against. Unity and Godot
+// work Y-up in meters; Unreal is Z-up in centimeters, so the pack scales by
+// 100 to keep one generated unit reading as one meter there.
+const ENGINE_PRESETS = {
+  unity: {
+    id: "unity",
+    name: "Unity",
+    upAxis: "Y",
+    scale: 1,
+    units: "meters",
+  },
+  godot: {
+    id: "godot",
+    name: "Godot",
+    upAxis: "Y",
+    scale: 1,
+    units: "meters",
+  },
+  unreal: {
+    id: "unreal",
+    name: "Unreal",
+    upAxis: "Z",
+    scale: 100,
+    units: "centimeters",
+  },
+};
+
+/**
+ * List the engine presets a game pack can target.
+ * @returns {Array<{id: string, name: string, upAxis: string, scale: number}>}
+ */
+export function getEnginePresets() {
+  return Object.entries(ENGINE_PRESETS).map(([id, preset]) => ({
+    id,
+    ...preset,
+  }));
+}
+
+/**
+ * Resolve one engine preset, falling back to the Unity conventions when the
+ * id is unknown so a stale selection still exports a usable pack.
+ */
+export function getEnginePreset(id) {
+  return ENGINE_PRESETS[id] || ENGINE_PRESETS.unity;
+}
 
 /** Deterministic PRNG so the same seed always produces the same asset. */
 function mulberry32(a) {
@@ -3126,6 +3173,237 @@ export function getAssetTypeInfo(type) {
  */
 export function getAssetTypes() {
   return Object.keys(ASSET_TYPES);
+}
+
+/**
+ * Normalise an asset id/type into a filesystem-safe slug for pack paths.
+ */
+function assetSlug(value) {
+  const slug = String(value || "asset")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || "asset";
+}
+
+/**
+ * Turn a PNG data URL into raw bytes, or null when no thumbnail was given.
+ */
+function pngDataUrlToBytes(dataUrl) {
+  if (!dataUrl) return null;
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) return null;
+  const base64 = dataUrl.slice(comma + 1);
+  if (typeof Buffer !== "undefined") {
+    return new Uint8Array(Buffer.from(base64, "base64"));
+  }
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function sanitiseAssetName(name, fallback) {
+  if (!name) return fallback;
+  const cleaned = String(name)
+    .replace(/[\\/:*?"<>|]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+  return cleaned || fallback;
+}
+
+function engineReadme(preset, count) {
+  const heading =
+    "# AI3D game engine pack\n" +
+    "\u8fd9\u4e2a\u5305\u5305\u542b\u53ef\u76f4\u63a5\u5bfc\u5165\u4e3b\u6d41\u6e38\u620f\u5f15\u64ce\u7684\u6a21\u578b\u3001\u7f29\u7565\u56fe\u548c\u6e05\u5355\u3002\n" +
+    "\n" +
+    `Engine preset: ${preset.name} (${preset.upAxis}-up, ${preset.scale}x, ${preset.units})\n` +
+    `Assets: ${count}\n`;
+
+  const unity =
+    "\n## Unity\n" +
+    "1. Open your project and drag `models/` into the Project window, or use Assets > Import New Asset.\n" +
+    "2. Select each imported GLB and set Scale Factor to 1; the pack is already in meters, Y-up.\n" +
+    "3. LOD0 is the highest quality and LOD3 the lowest; add the GLBs to a LOD Group if present.\n";
+  const godot =
+    "\n## Godot\n" +
+    "1. Drag `models/` into the FileSystem dock; Godot imports GLB as a scene.\n" +
+    "2. Instances are Y-up meters, matching the default 3D scene.\n" +
+    "3. Use the generated thumbnail in `thumbnails/` for custom editor icons.\n";
+  const unreal =
+    "\n## Unreal\n" +
+    "1. Drag `models/` into the Content Browser; Unreal imports GLB as a static mesh asset.\n" +
+    "2. The pack is Z-up with a 100x scale so one generated unit reads as one centimeter.\n" +
+    "3. Set the World Transform scale to 1 and verify the pivot before placing it in a level.\n";
+
+  const china =
+    "\n---\n" +
+    "\u8fd9\u4e2a\u5305\u7531 AI3D \u751f\u6210\uff0c\u4e3b\u6d41\u6e38\u620f\u5f15\u64ce\u5747\u53ef\u76f4\u63a5\u5bfc\u5165\u3002";
+
+  if (preset.id === "unreal") return `${heading}${unreal}${china}`;
+  if (preset.id === "godot") return `${heading}${godot}${china}`;
+  return `${heading}${unity}${china}`;
+}
+
+/**
+ * Assemble a game engine import pack from already-converted files. The GLB
+ * conversion is separate so tests and CLI pipelines can hand in bytes without
+ * needing WebGL; callers that want thumbnails should pass PNG data URLs.
+ * @param {object} options
+ * @returns {Uint8Array} zipped pack contents
+ */
+export function buildGamePackFiles({
+  assets,
+  engine = "unity",
+  exportedAt = new Date().toISOString(),
+}) {
+  const preset = getEnginePreset(engine);
+  const records = assets.map((asset) => {
+    const slug = assetSlug(asset.id || asset.type);
+    const name = sanitiseAssetName(asset.name, slug);
+    const stats = asset.stats || {
+      triangles: 0,
+      vertices: 0,
+      parts: 0,
+      drawCalls: 0,
+    };
+    return {
+      id: asset.id || `${asset.type}-${slug}`,
+      name,
+      type: asset.type,
+      favorite: asset.favorite ?? false,
+      seed: asset.seed ?? null,
+      size: asset.size ?? 1,
+      segments: asset.segments ?? 16,
+      style: asset.style ?? "lowpoly",
+      color: asset.color || null,
+      material: asset.material || null,
+      tags: getAssetTags(asset.type),
+      stats,
+      lodLevels: asset.lodLevels
+        ? asset.lodLevels.map((lod) => ({
+            level: lod.level,
+            triangles: lod.triangles,
+            file: `models/${slug}/LOD${lod.level}.glb`,
+          }))
+        : null,
+      engine: {
+        id: preset.id,
+        name: preset.name,
+        upAxis: preset.upAxis,
+        scale: preset.scale,
+        units: preset.units,
+      },
+      files: {
+        model: `models/${slug}/LOD0.glb`,
+        lod: (asset.lodLevels || []).map((lod) => ({
+          level: lod.level,
+          triangles: lod.triangles,
+          file: `models/${slug}/LOD${lod.level}.glb`,
+        })),
+        thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
+      },
+    };
+  });
+
+  const files = {};
+  const encoder = new TextEncoder();
+  files["manifest.json"] = encoder.encode(
+    JSON.stringify(
+      {
+        schema: "ai3d-game-pack",
+        version: "1.0",
+        exportedAt,
+        engine: {
+          id: preset.id,
+          name: preset.name,
+          upAxis: preset.upAxis,
+          scale: preset.scale,
+          units: preset.units,
+        },
+        count: records.length,
+        assets: records,
+      },
+      null,
+      2,
+    ),
+  );
+  files["README.md"] = encoder.encode(engineReadme(preset, records.length));
+
+  for (const asset of assets) {
+    const slug = assetSlug(asset.id || asset.type);
+    if (asset.glbBytes) files[`models/${slug}/LOD0.glb`] = asset.glbBytes;
+    for (const lod of asset.lodLevels || []) {
+      if (lod.glbBytes) {
+        files[`models/${slug}/LOD${lod.level}.glb`] = lod.glbBytes;
+      }
+    }
+    if (asset.thumbnailBytes) {
+      files[`thumbnails/${slug}.png`] = asset.thumbnailBytes;
+    }
+  }
+
+  return zipSync(files, { level: 6 });
+}
+
+/**
+ * Export one Three.js model as a game engine import pack. The GLB conversion
+ * reuses the engine preset (Unity/Godot: Y-up meters; Unreal: Z-up at 100x),
+ * so the model reads at the right scale and orientation on import.
+ * @param {object} options
+ * @returns {Promise<Uint8Array>} zipped pack contents
+ */
+export async function exportGamePack({
+  model,
+  asset,
+  engine = "unity",
+  withLod = false,
+  thumbnailDataUrl = null,
+  exportedAt = new Date().toISOString(),
+}) {
+  const preset = getEnginePreset(engine);
+  const options = { upAxis: preset.upAxis, scale: preset.scale };
+  const lodLevels = [];
+
+  if (withLod) {
+    const lods = generateLOD(model, 4);
+    for (const lod of lods) {
+      const glbBytes = new Uint8Array(await exportGLB(lod.mesh, options));
+      lodLevels.push({
+        level: lod.level,
+        triangles: lod.triangles,
+        glbBytes,
+      });
+    }
+  }
+
+  const glbBytes =
+    lodLevels.length > 0
+      ? lodLevels[0].glbBytes
+      : new Uint8Array(await exportGLB(model, options));
+  if (lodLevels.length === 0) {
+    lodLevels.push({
+      level: 0,
+      triangles: getAssetStats(model).triangles,
+      glbBytes,
+    });
+  }
+
+  const thumbnailBytes = pngDataUrlToBytes(thumbnailDataUrl);
+  const packAsset = {
+    ...asset,
+    stats: getAssetStats(model),
+    lodLevels,
+    glbBytes,
+    thumbnailBytes,
+  };
+  return buildGamePackFiles({
+    assets: [packAsset],
+    engine,
+    exportedAt,
+  });
 }
 
 /**
