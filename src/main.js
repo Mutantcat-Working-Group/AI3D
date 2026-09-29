@@ -2253,6 +2253,14 @@ const GEN_TYPE_KEYS = {
   turret: "gen.type.turret",
   drone: "gen.type.drone",
   antenna: "gen.type.antenna",
+  axe: "gen.type.axe",
+  bow: "gen.type.bow",
+  hammer: "gen.type.hammer",
+  spear: "gen.type.spear",
+  tent: "gen.type.tent",
+  statue: "gen.type.statue",
+  pillar: "gen.type.pillar",
+  well: "gen.type.well",
 };
 
 const GEN_ALIAS_KEYS = {
@@ -2282,12 +2290,22 @@ const GEN_ALIAS_KEYS = {
   turret: "gen.alias.turret",
   drone: "gen.alias.drone",
   antenna: "gen.alias.antenna",
+  axe: "gen.alias.axe",
+  bow: "gen.alias.bow",
+  hammer: "gen.alias.hammer",
+  spear: "gen.alias.spear",
+  tent: "gen.alias.tent",
+  statue: "gen.alias.statue",
+  pillar: "gen.alias.pillar",
+  well: "gen.alias.well",
 };
 
 const GEN_KIT_KEYS = {
   dungeon: "gen.kit.dungeon",
   camp: "gen.kit.camp",
   outpost: "gen.kit.outpost",
+  village: "gen.kit.village",
+  temple: "gen.kit.temple",
 };
 
 /* Prompt matching is intentionally multilingual: an AI3D user may describe an

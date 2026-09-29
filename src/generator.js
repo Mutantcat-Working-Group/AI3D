@@ -36,6 +36,14 @@ const ASSET_TYPES = {
   turret: { name: "Turret", parts: ["base", "body", "barrel", "eye"] },
   drone: { name: "Drone", parts: ["body", "rotors", "camera"] },
   antenna: { name: "Antenna", parts: ["mast", "dish", "arm", "light"] },
+  axe: { name: "Axe", parts: ["head", "handle", "wrap"] },
+  bow: { name: "Bow", parts: ["limb", "riser", "string"] },
+  hammer: { name: "Hammer", parts: ["head", "handle", "grip"] },
+  spear: { name: "Spear", parts: ["head", "shaft", "butt"] },
+  tent: { name: "Tent", parts: ["canopy", "pole", "floor"] },
+  statue: { name: "Statue", parts: ["base", "body", "head"] },
+  pillar: { name: "Pillar", parts: ["column", "capital", "base"] },
+  well: { name: "Well", parts: ["rim", "posts", "roof", "bucket"] },
 };
 
 // Material presets for different styles
@@ -178,6 +186,30 @@ export function generateAsset(
     case "antenna":
       buildAntenna(group, size, segments, matStyle, customColor, rng);
       break;
+    case "axe":
+      buildAxe(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bow":
+      buildBow(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "hammer":
+      buildHammer(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "spear":
+      buildSpear(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "tent":
+      buildTent(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "statue":
+      buildStatue(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "pillar":
+      buildPillar(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "well":
+      buildWell(group, size, segments, matStyle, customColor, rng);
+      break;
     default:
       buildCube(group, size, segments, matStyle, customColor, rng);
   }
@@ -296,6 +328,36 @@ const GAME_KITS = {
       { type: "bridge", size: 1.2 },
       { type: "car", size: 1.05 },
       { type: "flag", size: 0.9 },
+    ],
+  },
+  village: {
+    name: "Village",
+    groundColor: 0x9a8f6f,
+    props: [
+      { type: "house", size: 1.1 },
+      { type: "tent", size: 1 },
+      { type: "tree", size: 1.15 },
+      { type: "fence", size: 1.2 },
+      { type: "crate", size: 0.85 },
+      { type: "barrel", size: 0.8 },
+      { type: "flag", size: 0.9 },
+      { type: "torch", size: 1 },
+      { type: "bridge", size: 1.2 },
+    ],
+  },
+  temple: {
+    name: "Temple",
+    groundColor: 0x8d8577,
+    props: [
+      { type: "pillar", size: 1.05 },
+      { type: "statue", size: 1 },
+      { type: "fountain", size: 1 },
+      { type: "runestone", size: 1.05 },
+      { type: "brazier", size: 1.1 },
+      { type: "torch", size: 0.95 },
+      { type: "chest", size: 0.9 },
+      { type: "trap", size: 1.1 },
+      { type: "tower", size: 0.9 },
     ],
   },
 };
@@ -1553,6 +1615,340 @@ function buildAntenna(
   light.position.y = 3.4 * size;
   light.name = "light";
   group.add(light);
+}
+
+function buildAxe(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(0x6d4c2f, style);
+  const bladeMat = createMaterial(customColor || 0xb0bec5, style);
+  const wrapMat = createMaterial(0x4a3728, style);
+
+  const handleGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.07 * size,
+    1.6 * size,
+    segments,
+  );
+  const handle = new THREE.Mesh(handleGeo, woodMat);
+  handle.position.y = -0.1 * size;
+  handle.name = "handle";
+  group.add(handle);
+
+  const headGeo = new THREE.BoxGeometry(0.75 * size, 0.5 * size, 0.08 * size);
+  const head = new THREE.Mesh(headGeo, bladeMat);
+  head.position.set(0.32 * size, 0.72 * size, 0);
+  head.rotation.z = -0.22;
+  head.name = "head";
+  group.add(head);
+
+  const wrapGeo = new THREE.TorusGeometry(
+    0.075 * size,
+    0.035 * size,
+    segments,
+    segments,
+  );
+  const wrap = new THREE.Mesh(wrapGeo, wrapMat);
+  wrap.position.y = -0.6 * size;
+  wrap.rotation.x = Math.PI / 2;
+  wrap.name = "wrap";
+  group.add(wrap);
+}
+
+function buildBow(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const riserMat = createMaterial(0x8d6e63, style);
+  const limbMat = createMaterial(customColor || 0xa1887f, style);
+  const stringMat = createMaterial(0xe0e0e0, style);
+
+  const riserGeo = new THREE.BoxGeometry(0.22 * size, 0.9 * size, 0.12 * size);
+  const riser = new THREE.Mesh(riserGeo, riserMat);
+  riser.name = "riser";
+  group.add(riser);
+
+  const limbGeo = new THREE.BoxGeometry(0.12 * size, 1.1 * size, 0.1 * size);
+  const upper = new THREE.Mesh(limbGeo, limbMat);
+  upper.position.y = 0.95 * size;
+  upper.rotation.z = 0.42;
+  upper.name = "limb";
+  group.add(upper);
+
+  const lower = new THREE.Mesh(limbGeo, limbMat);
+  lower.position.y = -0.95 * size;
+  lower.rotation.z = -0.42;
+  lower.name = "limb";
+  group.add(lower);
+
+  const stringGeo = new THREE.CylinderGeometry(
+    0.015 * size,
+    0.015 * size,
+    2.9 * size,
+    4,
+  );
+  const string = new THREE.Mesh(stringGeo, stringMat);
+  string.name = "string";
+  group.add(string);
+}
+
+function buildHammer(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const handleMat = createMaterial(0x5d4037, style);
+  const headMat = createMaterial(customColor || 0x90a4ae, style);
+  const gripMat = createMaterial(0x3e2723, style);
+
+  const handleGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.08 * size,
+    1.5 * size,
+    segments,
+  );
+  const handle = new THREE.Mesh(handleGeo, handleMat);
+  handle.position.y = -0.1 * size;
+  handle.name = "handle";
+  group.add(handle);
+
+  const headGeo = new THREE.BoxGeometry(0.7 * size, 0.45 * size, 0.35 * size);
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 0.85 * size;
+  head.name = "head";
+  group.add(head);
+
+  const gripGeo = new THREE.TorusGeometry(
+    0.09 * size,
+    0.04 * size,
+    segments,
+    segments,
+  );
+  const grip = new THREE.Mesh(gripGeo, gripMat);
+  grip.position.y = -0.75 * size;
+  grip.rotation.x = Math.PI / 2;
+  grip.name = "grip";
+  group.add(grip);
+}
+
+function buildSpear(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const shaftMat = createMaterial(0x8d6e63, style);
+  const steelMat = createMaterial(customColor || 0xcfd8dc, style);
+
+  const shaftGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.07 * size,
+    2.2 * size,
+    segments,
+  );
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.name = "shaft";
+  group.add(shaft);
+
+  const tipGeo = new THREE.ConeGeometry(0.16 * size, 0.7 * size, segments);
+  const tip = new THREE.Mesh(tipGeo, steelMat);
+  tip.position.y = 1.45 * size;
+  tip.name = "head";
+  group.add(tip);
+
+  const socketGeo = new THREE.CylinderGeometry(
+    0.07 * size,
+    0.09 * size,
+    0.22 * size,
+    segments,
+  );
+  const socket = new THREE.Mesh(socketGeo, steelMat);
+  socket.position.y = 1.04 * size;
+  socket.name = "head";
+  group.add(socket);
+
+  const buttGeo = new THREE.ConeGeometry(0.06 * size, 0.24 * size, segments);
+  const butt = new THREE.Mesh(buttGeo, steelMat);
+  butt.position.y = -1.2 * size;
+  butt.rotation.x = Math.PI;
+  butt.name = "butt";
+  group.add(butt);
+}
+
+function buildTent(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const canvasMat = createMaterial(customColor || 0xc8a35a, style);
+  const poleMat = createMaterial(0x6d4c2f, style);
+  const floorMat = createMaterial(0x8b7355, style);
+
+  const floorGeo = new THREE.BoxGeometry(1.8 * size, 0.06 * size, 1.6 * size);
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.y = 0.03 * size;
+  floor.name = "floor";
+  group.add(floor);
+
+  const canopyGeo = new THREE.ConeGeometry(1.3 * size, 1.1 * size, 4);
+  const canopy = new THREE.Mesh(canopyGeo, canvasMat);
+  canopy.position.y = 0.62 * size;
+  canopy.rotation.y = Math.PI / 4;
+  canopy.name = "canopy";
+  group.add(canopy);
+
+  const poleGeo = new THREE.CylinderGeometry(
+    0.03 * size,
+    0.04 * size,
+    0.7 * size,
+    segments,
+  );
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.set(0.72 * size, 0.38 * size, 0.65 * size);
+  pole.rotation.z = 0.28;
+  pole.name = "pole";
+  group.add(pole);
+}
+
+function buildStatue(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stoneMat = createMaterial(customColor || 0xbdbdbd, style);
+
+  const baseGeo = new THREE.BoxGeometry(1.2 * size, 0.35 * size, 1.2 * size);
+  const base = new THREE.Mesh(baseGeo, stoneMat);
+  base.position.y = 0.175 * size;
+  base.name = "base";
+  group.add(base);
+
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.28 * size,
+    0.42 * size,
+    1.1 * size,
+    segments,
+  );
+  const body = new THREE.Mesh(bodyGeo, stoneMat);
+  body.position.y = 0.9 * size;
+  body.name = "body";
+  group.add(body);
+
+  const headGeo = new THREE.SphereGeometry(0.24 * size, segments, segments);
+  const head = new THREE.Mesh(headGeo, stoneMat);
+  head.position.y = 1.58 * size;
+  head.name = "head";
+  group.add(head);
+}
+
+function buildPillar(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stoneMat = createMaterial(customColor || 0xb0a78e, style);
+
+  const baseGeo = new THREE.BoxGeometry(0.8 * size, 0.3 * size, 0.8 * size);
+  const base = new THREE.Mesh(baseGeo, stoneMat);
+  base.position.y = 0.15 * size;
+  base.name = "base";
+  group.add(base);
+
+  const columnGeo = new THREE.CylinderGeometry(
+    0.32 * size,
+    0.38 * size,
+    1.9 * size,
+    segments,
+  );
+  const column = new THREE.Mesh(columnGeo, stoneMat);
+  column.position.y = 1.1 * size;
+  column.name = "column";
+  group.add(column);
+
+  const capitalGeo = new THREE.BoxGeometry(0.8 * size, 0.25 * size, 0.8 * size);
+  const capital = new THREE.Mesh(capitalGeo, stoneMat);
+  capital.position.y = 2.15 * size;
+  capital.name = "capital";
+  group.add(capital);
+}
+
+function buildWell(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stoneMat = createMaterial(customColor || 0x8d8d8d, style);
+  const woodMat = createMaterial(0x6d4c2f, style);
+  const roofMat = createMaterial(0x7f3f2f, style);
+
+  const rimGeo = new THREE.TorusGeometry(
+    0.55 * size,
+    0.14 * size,
+    segments,
+    segments,
+  );
+  const rim = new THREE.Mesh(rimGeo, stoneMat);
+  rim.position.y = 0.2 * size;
+  rim.rotation.x = Math.PI / 2;
+  rim.name = "rim";
+  group.add(rim);
+
+  const postGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.06 * size,
+    1.7 * size,
+    segments,
+  );
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(postGeo, woodMat);
+    post.position.set(side * 0.52 * size, 1.05 * size, 0);
+    post.name = "posts";
+    group.add(post);
+  }
+
+  const roofGeo = new THREE.ConeGeometry(0.62 * size, 0.5 * size, 4);
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.y = 2.3 * size;
+  roof.rotation.y = Math.PI / 4;
+  roof.name = "roof";
+  group.add(roof);
+
+  const bucketGeo = new THREE.CylinderGeometry(
+    0.14 * size,
+    0.14 * size,
+    0.3 * size,
+    segments,
+  );
+  const bucket = new THREE.Mesh(bucketGeo, woodMat);
+  bucket.position.y = 1.05 * size;
+  bucket.name = "bucket";
+  group.add(bucket);
 }
 
 /**
