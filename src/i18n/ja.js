@@ -222,6 +222,12 @@ export default {
   "settings.themeSystem": "システムに従う",
   "settings.themeLight": "ライト",
   "settings.themeDark": "ダーク",
+  "settings.about": "情報",
+  "settings.aboutEyebrow": "設定 · 情報",
+  "settings.aboutTitle": "AI3D",
+  "settings.publisher": "発行者",
+  "settings.publisherName": "Mutantcat Working Group（mutantcat.org）",
+  "settings.homepage": "mutantcat.org を開く",
 
   "help.open": "使い方",
   "help.eyebrow": "クイックスタート",

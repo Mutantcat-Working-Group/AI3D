@@ -185,6 +185,19 @@ for (const reader of READERS) {
       );
     }
     await expect(page.locator(".setting:not([hidden]) > .icon")).toHaveCount(2);
+    /* The settings area opens an About dialog that states the publisher in the
+       reader's own language and the version currently running. */
+    expect(
+      await page.locator("#about-button").getAttribute("aria-label"),
+    ).toBeTruthy();
+    await page.locator("#about-button").click();
+    await expect(page.locator("#about-dialog")).toBeVisible();
+    await expect(page.locator("#about-dialog")).toContainText("mutantcat.org");
+    await expect(page.locator("#about-version")).toHaveText(
+      (await page.locator("#app-version").textContent()) ?? "",
+    );
+    await page.locator("#close-about").click();
+    await expect(page.locator("#about-dialog")).not.toBeVisible();
     const fits = () =>
       page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
     expect(await fits(), "the header pushed a horizontal scrollbar").toBe(true);

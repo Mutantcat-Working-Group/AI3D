@@ -200,6 +200,12 @@ export default {
   "settings.themeSystem": "跟隨系統",
   "settings.themeLight": "淺色",
   "settings.themeDark": "深色",
+  "settings.about": "關於",
+  "settings.aboutEyebrow": "設定 · 關於",
+  "settings.aboutTitle": "AI3D模型",
+  "settings.publisher": "發行者",
+  "settings.publisherName": "異貓工作群（mutantcat.org）",
+  "settings.homepage": "前往 mutantcat.org",
 
   "help.open": "使用說明",
   "help.eyebrow": "快速上手",

@@ -236,6 +236,12 @@ export default {
   "settings.themeSystem": "Dem System folgen",
   "settings.themeLight": "Hell",
   "settings.themeDark": "Dunkel",
+  "settings.about": "Info",
+  "settings.aboutEyebrow": "EINSTELLUNGEN · INFO",
+  "settings.aboutTitle": "AI3D",
+  "settings.publisher": "Herausgeber",
+  "settings.publisherName": "Mutantcat Working Group (mutantcat.org)",
+  "settings.homepage": "mutantcat.org besuchen",
 
   "help.open": "Anleitung",
   "help.eyebrow": "SCHNELLSTART",

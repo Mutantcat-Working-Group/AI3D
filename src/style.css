@@ -1019,6 +1019,37 @@ dialog p {
   margin-top: 14px;
   color: var(--ink-muted);
 }
+dialog .about-list {
+  display: grid;
+  margin-top: 4px;
+}
+dialog .about-list div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.7;
+}
+dialog .about-list dt {
+  color: var(--ink-faint);
+}
+dialog .about-list dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+dialog .about-homepage {
+  display: inline-flex;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--accent, var(--ink));
+  text-decoration: none;
+}
+dialog .about-homepage:hover {
+  text-decoration: underline;
+}
 dialog .muted {
   font-size: 10px;
   color: var(--ink-faint);

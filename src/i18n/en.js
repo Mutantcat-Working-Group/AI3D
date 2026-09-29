@@ -222,6 +222,12 @@ export default {
   "settings.themeSystem": "Follow the system",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
+  "settings.about": "About",
+  "settings.aboutEyebrow": "SETTINGS · ABOUT",
+  "settings.aboutTitle": "AI3D",
+  "settings.publisher": "Publisher",
+  "settings.publisherName": "Mutantcat Working Group (mutantcat.org)",
+  "settings.homepage": "Visit mutantcat.org",
 
   "help.open": "How to use",
   "help.eyebrow": "QUICK START",
