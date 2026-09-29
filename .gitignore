@@ -27,3 +27,4 @@ __pycache__/
 **/browser-access.json.*.tmp
 /test-results/
 /playwright-report/
+/test-output.txt

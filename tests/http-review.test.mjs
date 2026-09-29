@@ -781,3 +781,51 @@ test("a host with nowhere to push holds the batch for collection instead of fail
   const read = await f.ipc("/submissions/collected-batch");
   assert.equal(read.body.annotations.length, annotations.length);
 });
+
+test("chat API returns unavailable when no origin is configured", async (t) => {
+  const f = await startReview(t, {});
+  const res = await f.api("chat");
+  assert.equal(res.status, 200);
+  assert.equal(res.body.connected, false);
+  assert.equal(res.body.busy, false);
+  assert.deepEqual(res.body.messages, []);
+
+  const send = await f.api("chat", {
+    method: "POST",
+    body: { message: "hello" },
+  });
+  assert.equal(send.status, 409);
+  assert.equal(send.body.code, "CHAT_UNAVAILABLE");
+});
+
+test("MCP connections API lifecycle", async (t) => {
+  const f = await startReview(t, { origin });
+
+  const empty = await f.api("mcp/connections");
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body.connections, []);
+
+  const created = await f.api("mcp/connections", {
+    method: "POST",
+    body: { name: "test-server", command: "npx", args: ["-y", "some-server"] },
+  });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.connection.name, "test-server");
+  assert.equal(created.body.connection.command, "npx");
+  assert.deepEqual(created.body.connection.args, ["-y", "some-server"]);
+
+  const listed = await f.api("mcp/connections");
+  assert.equal(listed.body.connections.length, 1);
+  assert.equal(listed.body.connections[0].id, created.body.connection.id);
+  assert.equal(listed.body.connections[0].connected, false);
+
+  const removed = await f.api("mcp/connections/remove", {
+    method: "POST",
+    body: { id: created.body.connection.id },
+  });
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.removed, created.body.connection.id);
+
+  const after = await f.api("mcp/connections");
+  assert.deepEqual(after.body.connections, []);
+});

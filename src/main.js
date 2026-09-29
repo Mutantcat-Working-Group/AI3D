@@ -72,6 +72,9 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-plain" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8.4"/><path d="M12 3.6a8.4 8.4 0 0 0 0 16.8z" fill="currentColor" stroke="none"/></g>
 <g id="mc-language" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8.4"/><path d="M3.6 12h16.8"/><path d="M12 3.6a12.6 12.6 0 0 1 0 16.8a12.6 12.6 0 0 1 0-16.8z"/></g>
 <g id="mc-theme" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="4.6"/><path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></g>
+<g id="mc-chat" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.5L5 20.5v-4.5H6a2 2 0 0 1-2-2z"/></g>
+<g id="mc-plug" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></g>
+<g id="mc-play" fill="currentColor" stroke="none"><path d="M7 4.8v14.4c0 .9 1 1.5 1.8 1L20 13a1.2 1.2 0 0 0 0-2L8.8 3.8c-.8-.5-1.8.1-1.8 1z"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -123,7 +126,7 @@ const serverMessage = (json) =>
   json?.error ||
   t("conn.actionFailed");
 app.innerHTML = `${SPRITE}
-<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="about-button" aria-label="${T("settings.about")}" title="${T("settings.about")}">${icon("info")}</button><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button></div></header>
+<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="about-button" aria-label="${T("settings.about")}" title="${T("settings.about")}">${icon("info")}</button><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button><button class="quiet icon-only" id="ai-button" aria-label="${T("ai.open")}" aria-expanded="false" title="${T("ai.open")}">${icon("chat")}</button></div></header>
 <main class="workspace">
  <section class="review-panel" aria-label="${T("a11y.reviewPanel")}">
   <!-- The name arrived with the link, the tab strip carries the version, and a
@@ -161,7 +164,37 @@ app.innerHTML = `${SPRITE}
   <div id="outbox-banner" class="pending-banner warn" hidden><span id="outbox-text"></span></div>
   <div id="closing-banner" class="pending-banner warn" hidden><span id="closing-text"></span></div>
  </section>
-</main><div id="toast" role="status" hidden></div>
+</main><aside id="ai-dock" aria-label="${T("a11y.aiDock")}" hidden>
+  <div class="ai-tabs" role="tablist">
+    <button class="ai-tab active" data-ai-tab="chat" role="tab" aria-selected="true">${icon("chat")}<span>${T("ai.chat")}</span></button>
+    <button class="ai-tab" data-ai-tab="mcp" role="tab" aria-selected="false">${icon("plug")}<span>${T("ai.mcp")}</span></button>
+  </div>
+  <div class="ai-pane" data-ai-pane="chat">
+    <div id="chat-messages" class="chat-messages" aria-label="${T("a11y.chatMessages")}"></div>
+    <div id="chat-status" class="chat-status"></div>
+    <div class="chat-composer">
+      <textarea id="chat-input" placeholder="${T("chat.placeholder")}" rows="2"></textarea>
+      <button id="chat-send" class="primary-button">${icon("send")}<span>${T("chat.send")}</span></button>
+    </div>
+  </div>
+  <div class="ai-pane" data-ai-pane="mcp" hidden>
+    <div class="mcp-header"><strong>${T("mcp.title")}</strong></div>
+    <div id="mcp-connections" class="mcp-connections"></div>
+    <div class="mcp-add">
+      <input id="mcp-name" placeholder="${T("mcp.namePlaceholder")}">
+      <input id="mcp-command" placeholder="${T("mcp.commandPlaceholder")}">
+      <input id="mcp-args" placeholder="${T("mcp.argsPlaceholder")}">
+      <button id="mcp-save" class="primary-button">${T("mcp.save")}</button>
+    </div>
+    <div class="mcp-tools" id="mcp-tools" hidden>
+      <select id="mcp-server"></select>
+      <select id="mcp-tool"></select>
+      <textarea id="mcp-args-json" placeholder="${T("mcp.argsJsonPlaceholder")}" rows="3"></textarea>
+      <button id="mcp-call" class="primary-button">${icon("play")}<span>${T("mcp.call")}</span></button>
+      <pre id="mcp-result"></pre>
+    </div>
+  </div>
+</aside><div id="toast" role="status" hidden></div>
 <dialog id="help-dialog"><button id="close-help" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("help.eyebrow")}</span><h2>${T("help.title")}</h2><p>${T("help.p1")}</p><p>${T("help.p2")}</p><p>${T("help.p3")}</p><p>${T("help.p4")}</p><p>${T("help.p5")}</p><p>${T("help.p6")}</p><p>${T("help.p7")}</p><p>${T("help.p8")}</p><p class="muted">${T("help.p9")}</p></dialog>
 <dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog>`;
 
@@ -1730,6 +1763,325 @@ setInterval(() => {
     api("review/heartbeat", { clientId, versionId: loadedId }).catch(() => {});
 }, 10000);
 
+/* ---------------- AI dock: chat + MCP ---------------- */
+
+const chatMessages = new Map();
+let chatSince = 0;
+let chatConnected = false;
+let chatBusy = false;
+let chatPollTimer = null;
+let chatSending = false;
+let mcpConnections = [];
+let mcpCalling = false;
+let aiDockOpen = false;
+let aiActiveTab = "chat";
+
+function setAiDock(open) {
+  aiDockOpen = open;
+  const dock = $("#ai-dock");
+  dock.hidden = !open;
+  document.body.classList.toggle("ai-dock-open", open);
+  $("#ai-button").setAttribute("aria-expanded", String(open));
+  if (open) {
+    if (aiActiveTab === "chat") startChatPoll();
+    else stopChatPoll();
+  } else {
+    stopChatPoll();
+  }
+}
+
+function setAiTab(tab) {
+  aiActiveTab = tab;
+  document.querySelectorAll(".ai-tab").forEach((b) => {
+    const active = b.dataset.aiTab === tab;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll(".ai-pane").forEach((p) => {
+    p.hidden = p.dataset.aiPane !== tab;
+  });
+  if (aiDockOpen) {
+    if (tab === "chat") startChatPoll();
+    else stopChatPoll();
+  }
+}
+
+function startChatPoll() {
+  stopChatPoll();
+  chatPollTimer = setInterval(pollChat, 3000);
+  pollChat();
+}
+
+function stopChatPoll() {
+  if (chatPollTimer) {
+    clearInterval(chatPollTimer);
+    chatPollTimer = null;
+  }
+}
+
+async function pollChat() {
+  if (!aiDockOpen || aiActiveTab !== "chat") return;
+  const status = $("#chat-status");
+  status.textContent = T("chat.connecting");
+  try {
+    const res = await fetch(endpoint(`api/chat?since=${chatSince}`));
+    let json;
+    try { json = await res.json(); } catch { throw new Error(t("conn.dropped")); }
+    if (!res.ok) throw new Error(serverMessage(json));
+    chatConnected = !!json.connected;
+    chatBusy = !!json.busy;
+    if (json.messages) {
+      let maxTs = chatSince;
+      for (const m of json.messages) {
+        const ts = Number(m.timestamp) || Date.parse(m.timestamp) || 0;
+        if (ts > maxTs) maxTs = ts;
+        if (m.id != null) chatMessages.set(m.id, { ...m, _ts: ts });
+      }
+      chatSince = maxTs;
+    }
+    renderChat();
+  } catch {
+    chatConnected = false;
+    renderChat();
+  }
+}
+
+function renderChat() {
+  const box = $("#chat-messages");
+  const status = $("#chat-status");
+  if (!chatConnected) {
+    box.innerHTML = `<div class="chat-empty">${T("chat.unavailable")}</div>`;
+    status.textContent = "";
+    return;
+  }
+  if (chatMessages.size === 0) {
+    box.innerHTML = `<div class="chat-empty">${T("chat.empty")}</div>`;
+  } else {
+    const sorted = [...chatMessages.values()].sort((a, b) => a._ts - b._ts);
+    box.innerHTML = sorted.map((m) => {
+      const role = m.role === "user" ? "chat-you" : "chat-agent";
+      const who = m.role === "user" ? T("chat.you") : T("chat.agent");
+      return `<div class="chat-msg ${role}"><span class="chat-who">${who}</span><span class="chat-text">${esc(m.text)}</span></div>`;
+    }).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+  status.textContent = chatBusy ? T("chat.thinking") : "";
+}
+
+async function sendChat() {
+  if (chatSending) return;
+  const input = $("#chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+  chatSending = true;
+  const sendBtn = $("#chat-send");
+  sendBtn.disabled = true;
+  sendBtn.querySelector("span").textContent = T("chat.sending");
+  input.value = "";
+  try {
+    await api("chat", { message: text });
+    await pollChat();
+  } catch (err) {
+    toast(err.message || t("error.chatUnavailable"));
+  } finally {
+    chatSending = false;
+    sendBtn.disabled = false;
+    sendBtn.querySelector("span").textContent = T("chat.send");
+  }
+}
+
+async function loadMcpConnections() {
+  const box = $("#mcp-connections");
+  box.innerHTML = `<div class="mcp-empty">${T("mcp.loading")}</div>`;
+  try {
+    const data = await api("mcp/connections", undefined, "GET");
+    mcpConnections = data.connections || [];
+    renderMcpConnections();
+    renderMcpToolSelectors();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+function renderMcpConnections() {
+  const box = $("#mcp-connections");
+  if (mcpConnections.length === 0) {
+    box.innerHTML = `<div class="mcp-empty">${T("mcp.empty")}</div>`;
+    return;
+  }
+  box.innerHTML = mcpConnections.map((c) => {
+    const status = c.connected ? T("mcp.connected") : T("mcp.disconnected");
+    const toolCount = c.connected && c.tools ? T("mcp.toolCount", { count: c.tools.length }) : "";
+    return `<div class="mcp-connection" data-id="${esc(c.id)}">
+      <div class="mcp-conn-info">
+        <strong>${esc(c.name)}</strong>
+        <span class="mcp-conn-cmd">${esc(c.command)}</span>
+        <span class="mcp-conn-status ${c.connected ? "on" : "off"}">${status}</span>
+        ${toolCount ? `<span class="mcp-conn-tools">${toolCount}</span>` : ""}
+      </div>
+      <div class="mcp-conn-actions">
+        ${c.connected
+          ? `<button class="quiet mcp-disconnect" data-id="${esc(c.id)}">${T("mcp.disconnect")}</button>`
+          : `<button class="quiet mcp-connect" data-id="${esc(c.id)}">${T("mcp.connect")}</button>`}
+        <button class="quiet mcp-remove" data-id="${esc(c.id)}">${T("mcp.remove")}</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderMcpToolSelectors() {
+  const serverSel = $("#mcp-server");
+  const toolSel = $("#mcp-tool");
+  const connected = mcpConnections.filter((c) => c.connected);
+  if (connected.length === 0) {
+    $("#mcp-tools").hidden = true;
+    return;
+  }
+  $("#mcp-tools").hidden = false;
+  serverSel.innerHTML = connected.map((c) =>
+    `<option value="${esc(c.id)}">${esc(c.name)}</option>`
+  ).join("");
+  const first = connected[0];
+  toolSel.innerHTML = (first.tools || []).map((tool) =>
+    `<option value="${esc(tool.name)}">${esc(tool.name)}</option>`
+  ).join("");
+}
+
+async function saveMcpConnection() {
+  const name = $("#mcp-name").value.trim();
+  const command = $("#mcp-command").value.trim();
+  const args = $("#mcp-args").value.trim().split(/\s+/).filter(Boolean);
+  if (!command) {
+    toast(t("mcp.commandRequired"));
+    return;
+  }
+  try {
+    await api("mcp/connections", { name, command, args });
+    $("#mcp-name").value = "";
+    $("#mcp-command").value = "";
+    $("#mcp-args").value = "";
+    await loadMcpConnections();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function mcpConnect(id) {
+  try {
+    await api("mcp/connect", { id });
+    await loadMcpConnections();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function mcpDisconnect(id) {
+  try {
+    await api("mcp/disconnect", { id });
+    await loadMcpConnections();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function mcpRemove(id) {
+  if (!confirm(t("mcp.removeConfirm"))) return;
+  try {
+    await api("mcp/connections/remove", { id });
+    await loadMcpConnections();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function mcpCallTool() {
+  if (mcpCalling) return;
+  const serverId = $("#mcp-server").value;
+  const toolName = $("#mcp-tool").value;
+  const argsRaw = $("#mcp-args-json").value.trim();
+  if (!serverId || !toolName) return;
+  let args = {};
+  if (argsRaw) {
+    try {
+      args = JSON.parse(argsRaw);
+    } catch {
+      toast(t("mcp.invalidJson"));
+      return;
+    }
+  }
+  mcpCalling = true;
+  const callBtn = $("#mcp-call");
+  callBtn.disabled = true;
+  callBtn.querySelector("span").textContent = T("mcp.calling");
+  try {
+    const data = await api("mcp/tools/call", { id: serverId, name: toolName, args });
+    const result = data.result;
+    let text;
+    if (result?.content) {
+      text = result.content.map((c) => c.text || "").join("\n");
+    } else {
+      text = JSON.stringify(result, null, 2);
+    }
+    $("#mcp-result").textContent = text;
+  } catch (err) {
+    $("#mcp-result").textContent = `${t("mcp.error")}: ${err.message}`;
+  } finally {
+    mcpCalling = false;
+    callBtn.disabled = false;
+    callBtn.querySelector("span").textContent = T("mcp.call");
+  }
+}
+
+function initAiDock() {
+  $("#mcp-server").setAttribute("aria-label", t("mcp.chooseServer"));
+  $("#mcp-tool").setAttribute("aria-label", t("mcp.chooseTool"));
+  $("#mcp-args-json").setAttribute("aria-label", t("mcp.argsJson"));
+  $("#mcp-result").setAttribute("aria-label", t("mcp.result"));
+  $("#mcp-result").textContent = t("mcp.resultPlaceholder");
+  $("#mcp-name").setAttribute("aria-label", t("mcp.name"));
+  $("#mcp-command").setAttribute("aria-label", t("mcp.command"));
+  $("#mcp-args").setAttribute("aria-label", t("mcp.args"));
+  const addTitle = document.createElement("div");
+  addTitle.className = "mcp-section-title";
+  addTitle.textContent = t("mcp.add");
+  $("#mcp-connections").before(addTitle);
+  const toolsTitle = document.createElement("div");
+  toolsTitle.className = "mcp-section-title";
+  toolsTitle.textContent = t("mcp.tools");
+  $("#mcp-tools").before(toolsTitle);
+}
+
+$("#ai-button").addEventListener("click", () => setAiDock(!aiDockOpen));
+document.querySelectorAll(".ai-tab").forEach((b) =>
+  b.addEventListener("click", () => setAiTab(b.dataset.aiTab))
+);
+$("#chat-send").addEventListener("click", sendChat);
+$("#chat-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+$("#mcp-save").addEventListener("click", saveMcpConnection);
+$("#mcp-connections").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (btn.classList.contains("mcp-connect")) mcpConnect(id);
+  else if (btn.classList.contains("mcp-disconnect")) mcpDisconnect(id);
+  else if (btn.classList.contains("mcp-remove")) mcpRemove(id);
+});
+$("#mcp-server").addEventListener("change", (e) => {
+  const conn = mcpConnections.find((c) => c.id === e.target.value);
+  const toolSel = $("#mcp-tool");
+  toolSel.innerHTML = (conn?.tools || []).map((tool) =>
+    `<option value="${esc(tool.name)}">${esc(tool.name)}</option>`
+  ).join("");
+});
+$("#mcp-call").addEventListener("click", mcpCallTool);
+
+initAiDock();
+loadMcpConnections();
 // Read-only diagnostics for browser acceptance checks; never mutate review state.
 window.__reviewDiagnostics = () => ({
   versionId: loadedId,

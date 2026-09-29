@@ -11,6 +11,7 @@ import { claimLock, readLock, releaseLock, processAlive } from "./lockfile.mjs";
 import { importModel, MAX_TRIANGLES } from "./models.mjs";
 import { MAX_ROUND_BYTES, MARK_WHOLE_FACE_BYTES } from "./budget.mjs";
 import { notifierFor, notifierSummary } from "./notify.mjs";
+import { McpConnections } from "./mcp-client.mjs";
 import { IdleWatch, viewerUse, agentUse, idleMsFrom } from "./idle.mjs";
 import { originInput, normalizeOrigin } from "./origin.mjs";
 import { listenerConfig, privateIPv4 } from "./network.mjs";
@@ -592,6 +593,11 @@ const version = (() => {
     return "unknown";
   }
 })();
+const mcpConnections = new McpConnections(runtime, {
+  workspace,
+  clientName: "ai3d",
+  clientVersion: version,
+});
 /* Compared against what is installed, not against what is running. Those are
    two different questions and the other one already has an answer: an instance
    still serving an older build is what `serving` reports to the agent, and only
@@ -977,12 +983,112 @@ app.get("/api/download/:filename", (req, res) => {
     root: mediaDir,
   });
 });
-// Conversation history and input belong exclusively to the origin session.
-app.all("/api/chat", (req, res) =>
-  res
-    .status(410)
-    .json({ error: "Go back to the conversation this review came from." }),
-);
+// The workbench now carries its own chat surface. It is still the same
+// conversation the review came from: history is read from the origin session
+// and input is pushed into it through the same bridge the outbox uses, so
+// nothing here becomes a second, disconnected channel.
+app.get("/api/chat", async (req, res) => {
+  const notifier = notifierCached(store.state.reviewOrigin);
+  if (!notifier?.observe)
+    return res.json({ connected: false, busy: false, messages: [] });
+  const since = Number(req.query.since) || 0;
+  try {
+    const result = await notifier.observe(Number.isFinite(since) ? since : 0);
+    res.json({ ...result, connected: true });
+  } catch {
+    // The host is unreachable or refused the call. Report the chat as
+    // disconnected rather than surfacing a 500: the workbench polls this
+    // endpoint, and a transient host failure should not break the UI.
+    res.json({ connected: false, busy: false, messages: [] });
+  }
+});
+app.post("/api/chat", async (req, res) => {
+  const p = z
+    .object({
+      message: z.string().trim().min(1).max(8000),
+      idempotencyKey: z.string().min(1).max(200).optional(),
+    })
+    .strict()
+    .parse(req.body);
+  const notifier = notifierCached(store.state.reviewOrigin);
+  if (!notifier?.send)
+    throw new ReviewError(
+      "Chat is unavailable because this instance has no return route to a conversation.",
+      409,
+      "CHAT_UNAVAILABLE",
+    );
+  try {
+    const sent = await notifier.send(
+      p.message,
+      p.idempotencyKey || `chat-${crypto.randomUUID()}`,
+    );
+    res.json({ sent: true, runId: sent?.runId || null });
+  } catch {
+    // The host refused or could not reach the conversation. Report the chat
+    // as unavailable rather than surfacing a 500: the workbench polls this
+    // endpoint, and a transient host failure should not break the UI.
+    throw new ReviewError(
+      "Chat is unavailable because this instance has no return route to a conversation.",
+      409,
+      "CHAT_UNAVAILABLE",
+    );
+  }
+});
+
+const mcpId = z.string().min(1).max(100).regex(/^[a-zA-Z0-9._-]+$/);
+const mcpCommand = z
+  .string()
+  .trim()
+  .min(1)
+  .max(300)
+  .regex(/^[^\x00-\x1f\x7f]+$/);
+const mcpConnectionInput = z
+  .object({
+    id: mcpId.optional(),
+    name: z.string().trim().min(1).max(80).optional(),
+    command: mcpCommand,
+    args: z.array(z.string().max(300)).max(50).default([]),
+  })
+  .strict();
+
+// MCP operations are local launcher configuration. Every command was saved by
+// a user action on this service; the browser never passes a process to run.
+app.get("/api/mcp/connections", (req, res) => {
+  res.json({ connections: mcpConnections.list() });
+});
+app.post("/api/mcp/connections", (req, res) => {
+  const p = mcpConnectionInput.parse(req.body);
+  res.json({ connection: mcpConnections.upsert(p) });
+});
+app.post("/api/mcp/connections/remove", (req, res) => {
+  const { id } = z.object({ id: mcpId }).strict().parse(req.body);
+  mcpConnections.remove(id);
+  res.json({ removed: id });
+});
+app.post("/api/mcp/connect", async (req, res) => {
+  const { id } = z.object({ id: mcpId }).strict().parse(req.body);
+  const connection = await mcpConnections.connect(id);
+  res.json({ connection });
+});
+app.post("/api/mcp/disconnect", (req, res) => {
+  const { id } = z.object({ id: mcpId }).strict().parse(req.body);
+  res.json(mcpConnections.disconnect(id));
+});
+app.post("/api/mcp/tools/call", async (req, res) => {
+  const p = z
+    .object({
+      id: mcpId,
+      name: z.string().trim().min(1).max(100),
+      args: z
+        .record(z.string().min(1).max(200), z.unknown())
+        .max(100)
+        .optional(),
+    })
+    .strict()
+    .parse(req.body);
+  const result = await mcpConnections.callTool(p.id, p.name, p.args || {});
+  res.json({ id: p.id, tool: p.name, result });
+});
 
 // Browser routes intentionally cannot publish models. Agent control is local IPC only.
 const agentApp = express();
