@@ -44,6 +44,21 @@ const ASSET_TYPES = {
   statue: { name: "Statue", parts: ["base", "body", "head"] },
   pillar: { name: "Pillar", parts: ["column", "capital", "base"] },
   well: { name: "Well", parts: ["rim", "posts", "roof", "bucket"] },
+  monster: { name: "Monster", parts: ["body", "head", "arms", "legs", "tail"] },
+  dragon: { name: "Dragon", parts: ["body", "head", "wings", "legs", "tail"] },
+  boat: { name: "Boat", parts: ["hull", "mast", "sail", "deck"] },
+  plane: { name: "Plane", parts: ["fuselage", "wings", "tail", "engines"] },
+  bike: { name: "Bike", parts: ["frame", "wheels", "handlebars", "seat"] },
+  campfire: {
+    name: "Campfire",
+    base: "logs",
+    parts: ["logs", "stones", "flame"],
+  },
+  sign: { name: "Sign", parts: ["post", "board", "text"] },
+  barrel_variants: { name: "Barrel Variants", parts: ["body", "hoops", "lid"] },
+  crystal: { name: "Crystal", parts: ["base", "shard", "tip"] },
+  mushroom: { name: "Mushroom", parts: ["stem", "cap", "spots"] },
+  tree_stump: { name: "Tree Stump", parts: ["stump", "rings", "roots"] },
 };
 
 // Asset category tags for game engine classification
@@ -82,6 +97,17 @@ const ASSET_TAGS = {
   turret: ["scifi", "defense", "metal"],
   drone: ["scifi", "vehicle", "metal"],
   antenna: ["scifi", "structure", "metal"],
+  monster: ["creature", "monster", "animated"],
+  dragon: ["creature", "monster", "flying"],
+  boat: ["vehicle", "water", "outdoor"],
+  plane: ["vehicle", "flying", "metal"],
+  bike: ["vehicle", "transport", "outdoor"],
+  campfire: ["item", "light", "outdoor"],
+  sign: ["item", "decoration", "outdoor"],
+  barrel_variants: ["item", "container", "outdoor"],
+  crystal: ["nature", "mineral", "collectible"],
+  mushroom: ["nature", "vegetation", "collectible"],
+  tree_stump: ["nature", "terrain", "outdoor"],
 };
 
 /**
@@ -256,6 +282,39 @@ export function generateAsset(
       break;
     case "well":
       buildWell(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "monster":
+      buildMonster(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "dragon":
+      buildDragon(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "boat":
+      buildBoat(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "plane":
+      buildPlane(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bike":
+      buildBike(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "campfire":
+      buildCampfire(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "sign":
+      buildSign(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "crystal":
+      buildCrystal(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "mushroom":
+      buildMushroom(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "tree_stump":
+      buildTreeStump(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "barrel_variants":
+      buildBarrelVariants(group, size, segments, matStyle, customColor, rng);
       break;
     default:
       buildCube(group, size, segments, matStyle, customColor, rng);
@@ -853,6 +912,701 @@ function buildCharacter(
   rightLeg.name = "right-leg";
   legGroup.add(rightLeg);
   group.add(legGroup);
+}
+
+function buildMonster(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const bodyMat = createMaterial(customColor || 0x8b4513, style);
+  const accentMat = createMaterial(0x654321, style);
+
+  // Body
+  const bodyGeo = new THREE.SphereGeometry(0.5 * size, segments, segments);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.8 * size;
+  body.scale.set(1, 1.2, 0.8);
+  body.name = "body";
+  group.add(body);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.35 * size, segments, segments);
+  const head = new THREE.Mesh(headGeo, bodyMat);
+  head.position.set(0, 1.5 * size, 0.3 * size);
+  head.name = "head";
+  group.add(head);
+
+  // Eyes
+  const eyeGeo = new THREE.SphereGeometry(0.08 * size, 8, 8);
+  const eyeMat = createMaterial(0xff0000, style);
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.15 * size, 1.6 * size, 0.55 * size);
+  leftEye.name = "left-eye";
+  group.add(leftEye);
+
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.15 * size, 1.6 * size, 0.55 * size);
+  rightEye.name = "right-eye";
+  group.add(rightEye);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(
+    0.1 * size,
+    0.1 * size,
+    0.7 * size,
+    segments,
+  );
+  const armGroup = new THREE.Group();
+  armGroup.name = "arms";
+  const leftArm = new THREE.Mesh(armGeo, accentMat);
+  leftArm.position.set(-0.6 * size, 0.9 * size, 0);
+  leftArm.rotation.z = Math.PI / 4;
+  leftArm.name = "left-arm";
+  armGroup.add(leftArm);
+
+  const rightArm = new THREE.Mesh(armGeo, accentMat);
+  rightArm.position.set(0.6 * size, 0.9 * size, 0);
+  rightArm.rotation.z = -Math.PI / 4;
+  rightArm.name = "right-arm";
+  armGroup.add(rightArm);
+  group.add(armGroup);
+
+  // Legs
+  const legGeo = new THREE.CylinderGeometry(
+    0.12 * size,
+    0.12 * size,
+    0.5 * size,
+    segments,
+  );
+  const legGroup = new THREE.Group();
+  legGroup.name = "legs";
+  const leftLeg = new THREE.Mesh(legGeo, accentMat);
+  leftLeg.position.set(-0.25 * size, 0.25 * size, 0);
+  leftLeg.name = "left-leg";
+  legGroup.add(leftLeg);
+
+  const rightLeg = new THREE.Mesh(legGeo, accentMat);
+  rightLeg.position.set(0.25 * size, 0.25 * size, 0);
+  rightLeg.name = "right-leg";
+  legGroup.add(rightLeg);
+  group.add(legGroup);
+
+  // Tail
+  const tailGeo = new THREE.ConeGeometry(0.15 * size, 0.8 * size, segments);
+  const tail = new THREE.Mesh(tailGeo, accentMat);
+  tail.position.set(0, 0.6 * size, -0.5 * size);
+  tail.rotation.x = -Math.PI / 3;
+  tail.name = "tail";
+  group.add(tail);
+}
+
+function buildDragon(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const bodyMat = createMaterial(customColor || 0x228b22, style);
+  const wingMat = createMaterial(0x006400, style);
+  const bellyMat = createMaterial(0x90ee90, style);
+
+  // Body
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.4 * size,
+    1.2 * size,
+    segments,
+  );
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1 * size;
+  body.rotation.x = Math.PI / 2;
+  body.name = "body";
+  group.add(body);
+
+  // Belly
+  const bellyGeo = new THREE.CylinderGeometry(
+    0.25 * size,
+    0.35 * size,
+    1 * size,
+    segments,
+  );
+  const belly = new THREE.Mesh(bellyGeo, bellyMat);
+  belly.position.set(0, 0.85 * size, 0.1 * size);
+  belly.rotation.x = Math.PI / 2;
+  belly.name = "belly";
+  group.add(belly);
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.3 * size, segments, segments);
+  const head = new THREE.Mesh(headGeo, bodyMat);
+  head.position.set(0, 1.2 * size, 0.8 * size);
+  head.name = "head";
+  group.add(head);
+
+  // Snout
+  const snoutGeo = new THREE.ConeGeometry(0.15 * size, 0.4 * size, segments);
+  const snout = new THREE.Mesh(snoutGeo, bodyMat);
+  snout.position.set(0, 1.1 * size, 1.1 * size);
+  snout.rotation.x = Math.PI / 2;
+  snout.name = "snout";
+  group.add(snout);
+
+  // Wings
+  const wingGeo = new THREE.PlaneGeometry(0.8 * size, 0.5 * size);
+  const wingGroup = new THREE.Group();
+  wingGroup.name = "wings";
+  const leftWing = new THREE.Mesh(wingGeo, wingMat);
+  leftWing.position.set(-0.5 * size, 1.3 * size, 0);
+  leftWing.rotation.z = Math.PI / 6;
+  leftWing.name = "left-wing";
+  wingGroup.add(leftWing);
+
+  const rightWing = new THREE.Mesh(wingGeo, wingMat);
+  rightWing.position.set(0.5 * size, 1.3 * size, 0);
+  rightWing.rotation.z = -Math.PI / 6;
+  rightWing.name = "right-wing";
+  wingGroup.add(rightWing);
+  group.add(wingGroup);
+
+  // Legs
+  const legGeo = new THREE.CylinderGeometry(
+    0.08 * size,
+    0.08 * size,
+    0.4 * size,
+    segments,
+  );
+  const legGroup = new THREE.Group();
+  legGroup.name = "legs";
+  const positions = [
+    [-0.25 * size, 0.2 * size, 0.3 * size],
+    [0.25 * size, 0.2 * size, 0.3 * size],
+    [-0.25 * size, 0.2 * size, -0.3 * size],
+    [0.25 * size, 0.2 * size, -0.3 * size],
+  ];
+  positions.forEach((pos, i) => {
+    const leg = new THREE.Mesh(legGeo, bodyMat);
+    leg.position.set(...pos);
+    leg.name = `leg-${i}`;
+    legGroup.add(leg);
+  });
+  group.add(legGroup);
+
+  // Tail
+  const tailGeo = new THREE.ConeGeometry(0.1 * size, 0.8 * size, segments);
+  const tail = new THREE.Mesh(tailGeo, bodyMat);
+  tail.position.set(0, 0.8 * size, -0.8 * size);
+  tail.rotation.x = -Math.PI / 2;
+  tail.name = "tail";
+  group.add(tail);
+}
+
+function buildBoat(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const hullMat = createMaterial(customColor || 0x8b4513, style);
+  const sailMat = createMaterial(0xf5f5dc, style);
+  const mastMat = createMaterial(0x654321, style);
+
+  // Hull
+  const hullGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.5 * size,
+    1.5 * size,
+    segments,
+  );
+  const hull = new THREE.Mesh(hullGeo, hullMat);
+  hull.position.y = 0.5 * size;
+  hull.scale.set(1, 1, 0.4);
+  hull.name = "hull";
+  group.add(hull);
+
+  // Deck
+  const deckGeo = new THREE.BoxGeometry(0.8 * size, 0.1 * size, 1.4 * size);
+  const deck = new THREE.Mesh(deckGeo, mastMat);
+  deck.position.y = 0.8 * size;
+  deck.name = "deck";
+  group.add(deck);
+
+  // Mast
+  const mastGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.05 * size,
+    1.5 * size,
+    segments,
+  );
+  const mast = new THREE.Mesh(mastGeo, mastMat);
+  mast.position.y = 1.5 * size;
+  mast.name = "mast";
+  group.add(mast);
+
+  // Sail
+  const sailGeo = new THREE.PlaneGeometry(0.8 * size, 1 * size);
+  const sail = new THREE.Mesh(sailGeo, sailMat);
+  sail.position.set(0, 1.3 * size, 0.1 * size);
+  sail.name = "sail";
+  group.add(sail);
+}
+
+function buildPlane(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const bodyMat = createMaterial(customColor || 0xc0c0c0, style);
+  const wingMat = createMaterial(0xa9a9a9, style);
+  const engineMat = createMaterial(0x404040, style);
+
+  // Fuselage
+  const fuselageGeo = new THREE.CylinderGeometry(
+    0.2 * size,
+    0.3 * size,
+    2 * size,
+    segments,
+  );
+  const fuselage = new THREE.Mesh(fuselageGeo, bodyMat);
+  fuselage.rotation.x = Math.PI / 2;
+  fuselage.name = "fuselage";
+  group.add(fuselage);
+
+  // Nose
+  const noseGeo = new THREE.ConeGeometry(0.2 * size, 0.5 * size, segments);
+  const nose = new THREE.Mesh(noseGeo, bodyMat);
+  nose.position.z = 1.2 * size;
+  nose.rotation.x = Math.PI / 2;
+  nose.name = "nose";
+  group.add(nose);
+
+  // Wings
+  const wingGeo = new THREE.BoxGeometry(2 * size, 0.05 * size, 0.6 * size);
+  const wings = new THREE.Mesh(wingGeo, wingMat);
+  wings.position.y = 0.1 * size;
+  wings.name = "wings";
+  group.add(wings);
+
+  // Tail
+  const tailGeo = new THREE.BoxGeometry(0.8 * size, 0.05 * size, 0.4 * size);
+  const tail = new THREE.Mesh(tailGeo, wingMat);
+  tail.position.z = -1 * size;
+  tail.name = "tail";
+  group.add(tail);
+
+  // Vertical stabilizer
+  const stabGeo = new THREE.BoxGeometry(0.05 * size, 0.5 * size, 0.4 * size);
+  const stabilizer = new THREE.Mesh(stabGeo, wingMat);
+  stabilizer.position.set(0, 0.3 * size, -1 * size);
+  stabilizer.name = "vertical-stabilizer";
+  group.add(stabilizer);
+
+  // Engines
+  const engineGeo = new THREE.CylinderGeometry(
+    0.1 * size,
+    0.1 * size,
+    0.4 * size,
+    segments,
+  );
+  const engineGroup = new THREE.Group();
+  engineGroup.name = "engines";
+  const leftEngine = new THREE.Mesh(engineGeo, engineMat);
+  leftEngine.position.set(-0.6 * size, 0, 0.2 * size);
+  leftEngine.rotation.x = Math.PI / 2;
+  leftEngine.name = "left-engine";
+  engineGroup.add(leftEngine);
+
+  const rightEngine = new THREE.Mesh(engineGeo, engineMat);
+  rightEngine.position.set(0.6 * size, 0, 0.2 * size);
+  rightEngine.rotation.x = Math.PI / 2;
+  rightEngine.name = "right-engine";
+  engineGroup.add(rightEngine);
+  group.add(engineGroup);
+}
+
+function buildBike(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const frameMat = createMaterial(customColor || 0xff4500, style);
+  const wheelMat = createMaterial(0x1a1a1a, style);
+  const seatMat = createMaterial(0x4a4a4a, style);
+
+  // Wheels
+  const wheelGeo = new THREE.TorusGeometry(
+    0.3 * size,
+    0.05 * size,
+    8,
+    segments,
+  );
+  const wheelGroup = new THREE.Group();
+  wheelGroup.name = "wheels";
+  const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
+  frontWheel.position.set(0, 0.3 * size, 0.6 * size);
+  frontWheel.name = "front-wheel";
+  wheelGroup.add(frontWheel);
+
+  const rearWheel = new THREE.Mesh(wheelGeo, wheelMat);
+  rearWheel.position.set(0, 0.3 * size, -0.6 * size);
+  rearWheel.name = "rear-wheel";
+  wheelGroup.add(rearWheel);
+  group.add(wheelGroup);
+
+  // Frame
+  const frameGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.05 * size,
+    1 * size,
+    segments,
+  );
+  const frame = new THREE.Mesh(frameGeo, frameMat);
+  frame.position.y = 0.5 * size;
+  frame.rotation.x = Math.PI / 2;
+  frame.name = "frame";
+  group.add(frame);
+
+  // Handlebars
+  const handleGeo = new THREE.CylinderGeometry(
+    0.03 * size,
+    0.03 * size,
+    0.5 * size,
+    segments,
+  );
+  const handlebars = new THREE.Mesh(handleGeo, frameMat);
+  handlebars.position.set(0, 0.8 * size, 0.5 * size);
+  handlebars.rotation.z = Math.PI / 2;
+  handlebars.name = "handlebars";
+  group.add(handlebars);
+
+  // Seat
+  const seatGeo = new THREE.BoxGeometry(0.2 * size, 0.05 * size, 0.3 * size);
+  const seat = new THREE.Mesh(seatGeo, seatMat);
+  seat.position.set(0, 0.7 * size, -0.2 * size);
+  seat.name = "seat";
+  group.add(seat);
+}
+
+function buildCampfire(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const logMat = createMaterial(0x8b4513, style);
+  const stoneMat = createMaterial(0x696969, style);
+  const flameMat = createMaterial(customColor || 0xff4500, style);
+  flameMat.emissive = new THREE.Color(0xff2200);
+  flameMat.emissiveIntensity = 0.5;
+
+  // Logs
+  const logGeo = new THREE.CylinderGeometry(
+    0.08 * size,
+    0.08 * size,
+    0.6 * size,
+    segments,
+  );
+  const logGroup = new THREE.Group();
+  logGroup.name = "logs";
+  for (let i = 0; i < 5; i++) {
+    const log = new THREE.Mesh(logGeo, logMat);
+    const angle = (i / 5) * Math.PI * 2;
+    log.position.set(
+      Math.cos(angle) * 0.15 * size,
+      0.15 * size,
+      Math.sin(angle) * 0.15 * size,
+    );
+    log.rotation.z = Math.PI / 4;
+    log.rotation.y = angle;
+    log.name = `log-${i}`;
+    logGroup.add(log);
+  }
+  group.add(logGroup);
+
+  // Stones
+  const stoneGeo = new THREE.DodecahedronGeometry(0.1 * size, 0);
+  const stoneGroup = new THREE.Group();
+  stoneGroup.name = "stones";
+  for (let i = 0; i < 8; i++) {
+    const stone = new THREE.Mesh(stoneGeo, stoneMat);
+    const angle = (i / 8) * Math.PI * 2;
+    stone.position.set(
+      Math.cos(angle) * 0.4 * size,
+      0.05 * size,
+      Math.sin(angle) * 0.4 * size,
+    );
+    stone.name = `stone-${i}`;
+    stoneGroup.add(stone);
+  }
+  group.add(stoneGroup);
+
+  // Flame
+  const flameGeo = new THREE.ConeGeometry(0.2 * size, 0.5 * size, segments);
+  const flame = new THREE.Mesh(flameGeo, flameMat);
+  flame.position.y = 0.4 * size;
+  flame.name = "flame";
+  group.add(flame);
+}
+
+function buildSign(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const postMat = createMaterial(0x8b4513, style);
+  const boardMat = createMaterial(customColor || 0xdeb887, style);
+  const textMat = createMaterial(0x000000, style);
+
+  // Post
+  const postGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.05 * size,
+    1.2 * size,
+    segments,
+  );
+  const post = new THREE.Mesh(postGeo, postMat);
+  post.position.y = 0.6 * size;
+  post.name = "post";
+  group.add(post);
+
+  // Board
+  const boardGeo = new THREE.BoxGeometry(0.8 * size, 0.4 * size, 0.05 * size);
+  const board = new THREE.Mesh(boardGeo, boardMat);
+  board.position.y = 1 * size;
+  board.name = "board";
+  group.add(board);
+
+  // Text (simple line to represent text)
+  const textGeo = new THREE.BoxGeometry(0.6 * size, 0.1 * size, 0.06 * size);
+  const text = new THREE.Mesh(textGeo, textMat);
+  text.position.y = 1 * size;
+  text.name = "text";
+  group.add(text);
+}
+
+function buildCrystal(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const crystalMat = createMaterial(customColor || 0x9370db, style);
+  crystalMat.transparent = true;
+  crystalMat.opacity = 0.8;
+
+  // Base
+  const baseGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.4 * size,
+    0.2 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, crystalMat);
+  base.position.y = 0.1 * size;
+  base.name = "base";
+  group.add(base);
+
+  // Main shard
+  const shardGeo = new THREE.ConeGeometry(0.2 * size, 0.8 * size, segments);
+  const shard = new THREE.Mesh(shardGeo, crystalMat);
+  shard.position.y = 0.6 * size;
+  shard.name = "shard";
+  group.add(shard);
+
+  // Tip
+  const tipGeo = new THREE.ConeGeometry(0.1 * size, 0.3 * size, segments);
+  const tip = new THREE.Mesh(tipGeo, crystalMat);
+  tip.position.y = 1.1 * size;
+  tip.name = "tip";
+  group.add(tip);
+}
+
+function buildMushroom(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stemMat = createMaterial(0xf5f5dc, style);
+  const capMat = createMaterial(customColor || 0xff0000, style);
+  const spotMat = createMaterial(0xffffff, style);
+
+  // Stem
+  const stemGeo = new THREE.CylinderGeometry(
+    0.15 * size,
+    0.2 * size,
+    0.5 * size,
+    segments,
+  );
+  const stem = new THREE.Mesh(stemGeo, stemMat);
+  stem.position.y = 0.25 * size;
+  stem.name = "stem";
+  group.add(stem);
+
+  // Cap
+  const capGeo = new THREE.SphereGeometry(0.4 * size, segments, segments);
+  const cap = new THREE.Mesh(capGeo, capMat);
+  cap.position.y = 0.5 * size;
+  cap.scale.set(1, 0.6, 1);
+  cap.name = "cap";
+  group.add(cap);
+
+  // Spots
+  const spotGeo = new THREE.SphereGeometry(0.05 * size, 8, 8);
+  const spotGroup = new THREE.Group();
+  spotGroup.name = "spots";
+  for (let i = 0; i < 5; i++) {
+    const spot = new THREE.Mesh(spotGeo, spotMat);
+    const angle = (i / 5) * Math.PI * 2;
+    spot.position.set(
+      Math.cos(angle) * 0.25 * size,
+      0.65 * size,
+      Math.sin(angle) * 0.25 * size,
+    );
+    spot.name = `spot-${i}`;
+    spotGroup.add(spot);
+  }
+  group.add(spotGroup);
+}
+
+function buildTreeStump(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(customColor || 0x8b4513, style);
+  const ringMat = createMaterial(0x654321, style);
+
+  // Stump
+  const stumpGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.35 * size,
+    0.4 * size,
+    segments,
+  );
+  const stump = new THREE.Mesh(stumpGeo, woodMat);
+  stump.position.y = 0.2 * size;
+  stump.name = "stump";
+  group.add(stump);
+
+  // Rings
+  const ringGeo = new THREE.TorusGeometry(0.2 * size, 0.02 * size, 8, segments);
+  const ringGroup = new THREE.Group();
+  ringGroup.name = "rings";
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = 0.41 * size;
+    ring.rotation.x = Math.PI / 2;
+    ring.scale.setScalar(1 - i * 0.2);
+    ring.name = `ring-${i}`;
+    ringGroup.add(ring);
+  }
+  group.add(ringGroup);
+
+  // Roots
+  const rootGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.08 * size,
+    0.3 * size,
+    segments,
+  );
+  const rootGroup = new THREE.Group();
+  rootGroup.name = "roots";
+  for (let i = 0; i < 4; i++) {
+    const root = new THREE.Mesh(rootGeo, woodMat);
+    const angle = (i / 4) * Math.PI * 2;
+    root.position.set(
+      Math.cos(angle) * 0.3 * size,
+      0.05 * size,
+      Math.sin(angle) * 0.3 * size,
+    );
+    root.rotation.z = (Math.cos(angle) * Math.PI) / 4;
+    root.rotation.x = (-Math.sin(angle) * Math.PI) / 4;
+    root.name = `root-${i}`;
+    rootGroup.add(root);
+  }
+  group.add(rootGroup);
+}
+
+function buildBarrelVariants(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const bodyMat = createMaterial(customColor || 0x8b4513, style);
+  const hoopMat = createMaterial(0x404040, style);
+  const lidMat = createMaterial(0x654321, style);
+
+  // Body
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.35 * size,
+    0.35 * size,
+    0.8 * size,
+    segments,
+  );
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.4 * size;
+  body.name = "body";
+  group.add(body);
+
+  // Hoops
+  const hoopGeo = new THREE.TorusGeometry(
+    0.36 * size,
+    0.03 * size,
+    8,
+    segments,
+  );
+  const hoopGroup = new THREE.Group();
+  hoopGroup.name = "hoops";
+  const positions = [0.15, 0.4, 0.65];
+  positions.forEach((y, i) => {
+    const hoop = new THREE.Mesh(hoopGeo, hoopMat);
+    hoop.position.y = y * size;
+    hoop.rotation.x = Math.PI / 2;
+    hoop.name = `hoop-${i}`;
+    hoopGroup.add(hoop);
+  });
+  group.add(hoopGroup);
+
+  // Lid
+  const lidGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.3 * size,
+    0.05 * size,
+    segments,
+  );
+  const lid = new THREE.Mesh(lidGeo, lidMat);
+  lid.position.y = 0.82 * size;
+  lid.name = "lid";
+  group.add(lid);
 }
 
 function buildCube(

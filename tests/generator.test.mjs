@@ -429,6 +429,53 @@ test("getAssetTags returns correct category tags for asset types", () => {
     "animated",
   ]);
   assert.deepEqual(getAssetTags("car"), ["vehicle", "transport", "outdoor"]);
+  assert.deepEqual(getAssetTags("monster"), [
+    "creature",
+    "monster",
+    "animated",
+  ]);
+  assert.deepEqual(getAssetTags("dragon"), ["creature", "monster", "flying"]);
+  assert.deepEqual(getAssetTags("boat"), ["vehicle", "water", "outdoor"]);
+  assert.deepEqual(getAssetTags("plane"), ["vehicle", "flying", "metal"]);
+  assert.deepEqual(getAssetTags("bike"), ["vehicle", "transport", "outdoor"]);
+  assert.deepEqual(getAssetTags("campfire"), ["item", "light", "outdoor"]);
+  assert.deepEqual(getAssetTags("crystal"), [
+    "nature",
+    "mineral",
+    "collectible",
+  ]);
+  assert.deepEqual(getAssetTags("mushroom"), [
+    "nature",
+    "vegetation",
+    "collectible",
+  ]);
+  assert.deepEqual(getAssetTags("tree_stump"), [
+    "nature",
+    "terrain",
+    "outdoor",
+  ]);
+});
+
+test("new game asset types build their declared parts", () => {
+  const newTypes = [
+    "monster",
+    "dragon",
+    "boat",
+    "plane",
+    "bike",
+    "campfire",
+    "sign",
+    "crystal",
+    "mushroom",
+    "tree_stump",
+  ];
+  newTypes.forEach((type) => {
+    const model = generateAsset(type, { seed: 42 });
+    assert.ok(model, `${type} should generate a model`);
+    const stats = getAssetStats(model);
+    assert.ok(stats.triangles > 0, `${type} should have triangles`);
+    assert.ok(stats.parts > 0, `${type} should have parts`);
+  });
 });
 
 test("exportAssetManifest includes tags and lodLevels when present", () => {
