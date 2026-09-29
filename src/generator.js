@@ -162,6 +162,15 @@ const ASSET_COLLIDERS = {
   tree_stump: "cylinder",
 };
 
+// Animation presets target the named limbs every animated asset already
+// builds, so the same clips work on generated characters, monsters and
+// dragons without a separate skeleton rig.
+const ANIMATION_PRESETS = {
+  character: ["idle", "walk", "attack"],
+  monster: ["idle", "walk", "attack"],
+  dragon: ["idle", "fly", "attack"],
+};
+
 /**
  * Get category tags for an asset type.
  * @param {string} type - Asset type key
@@ -178,6 +187,230 @@ export function getAssetTags(type) {
  */
 export function getColliderShape(type) {
   return ASSET_COLLIDERS[type] || "mesh";
+}
+
+/**
+ * Build a quaternion track from per-frame Euler rotations.
+ */
+function quaternionTrack(nodeName, frames) {
+  const times = new Float32Array(frames.length);
+  const values = new Float32Array(frames.length * 4);
+  const euler = new THREE.Euler();
+  const quaternion = new THREE.Quaternion();
+  frames.forEach((frame, index) => {
+    times[index] = frame.t;
+    euler.set(frame.rot[0], frame.rot[1], frame.rot[2]);
+    quaternion.setFromEuler(euler);
+    values.set(quaternion.toArray(), index * 4);
+  });
+  return new THREE.QuaternionKeyframeTrack(
+    `${nodeName}.quaternion`,
+    times,
+    values,
+  );
+}
+
+/**
+ * Build a position track from per-frame offsets.
+ */
+function positionTrack(nodeName, frames) {
+  const times = new Float32Array(frames.length);
+  const values = new Float32Array(frames.length * 3);
+  frames.forEach((frame, index) => {
+    times[index] = frame.t;
+    values.set(frame.pos, index * 3);
+  });
+  return new THREE.VectorKeyframeTrack(`${nodeName}.position`, times, values);
+}
+
+/**
+ * Add ready-to-play procedural clips to an animated asset. The clips are
+ * embedded in exported GLBs so engines get movement without extra files.
+ * @param {THREE.Group} model - Generated model
+ * @param {string} type - Asset type key
+ * @param {number} size - Model size in game units
+ * @returns {THREE.AnimationClip[]}
+ */
+export function buildAssetAnimations(model, type, size = 1) {
+  const bob = 0.07 * size;
+  const clips = [];
+  const addClip = (name, duration, tracksByNode) => {
+    const tracks = [];
+    for (const [nodeName, frames] of Object.entries(tracksByNode)) {
+      if (!model.getObjectByName(nodeName)) continue;
+      if (frames.some((frame) => frame.rot)) {
+        tracks.push(quaternionTrack(nodeName, frames));
+      }
+      if (frames.some((frame) => frame.pos)) {
+        tracks.push(positionTrack(nodeName, frames));
+      }
+    }
+    if (tracks.length)
+      clips.push(new THREE.AnimationClip(name, duration, tracks));
+  };
+
+  if (type === "character" || type === "monster") {
+    addClip("idle", 2.4, {
+      head: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.6, pos: [0, bob, 0] },
+        { t: 1.2, pos: [0, 0, 0] },
+        { t: 1.8, pos: [0, -bob * 0.6, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+      arms: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.07] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.07] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+      body: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.6, pos: [0, bob * 0.4, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.16] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.16] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+    });
+
+    addClip("walk", 0.8, {
+      arms: [
+        { t: 0, rot: [0, 0, 0.35] },
+        { t: 0.4, rot: [0, 0, -0.35] },
+        { t: 0.8, rot: [0, 0, 0.35] },
+      ],
+      legs: [
+        { t: 0, rot: [0, 0, -0.35] },
+        { t: 0.4, rot: [0, 0, 0.35] },
+        { t: 0.8, rot: [0, 0, -0.35] },
+      ],
+      body: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.4, pos: [0, bob, 0] },
+        { t: 0.8, pos: [0, 0, 0] },
+      ],
+      head: [
+        { t: 0, rot: [0, 0, 0.05] },
+        { t: 0.4, rot: [0, 0, -0.05] },
+        { t: 0.8, rot: [0, 0, 0.05] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.4, rot: [0, 0, -0.2] },
+        { t: 0.8, rot: [0, 0, 0] },
+      ],
+    });
+
+    addClip("attack", 1, {
+      arms: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.35, rot: [-0.7, 0, 0] },
+        { t: 0.65, rot: [0.9, 0, 0] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+      head: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.35, rot: [0.12, 0, 0] },
+        { t: 0.65, rot: [-0.18, 0, 0] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+      body: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.35, pos: [0, 0, -0.05 * size] },
+        { t: 0.65, pos: [0, 0, 0.08 * size] },
+        { t: 1, pos: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.65, rot: [0, 0, -0.3] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "dragon") {
+    addClip("idle", 2.4, {
+      head: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.6, pos: [0, bob, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+      wings: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.08] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.08] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.18] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.18] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+    });
+
+    addClip("fly", 2, {
+      wings: [
+        { t: 0, rot: [0, 0, 0.55] },
+        { t: 1, rot: [0, 0, -0.55] },
+        { t: 2, rot: [0, 0, 0.55] },
+      ],
+      body: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 1, pos: [0, 0.05 * size, 0] },
+        { t: 2, pos: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 1, rot: [0, 0, -0.2] },
+        { t: 2, rot: [0, 0, 0] },
+      ],
+    });
+
+    addClip("attack", 1.2, {
+      head: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.45, pos: [0, 0, -0.08 * size] },
+        { t: 0.8, pos: [0, 0, 0.14 * size] },
+        { t: 1.2, pos: [0, 0, 0] },
+      ],
+      wings: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.45, rot: [0, 0, 0.4] },
+        { t: 0.8, rot: [0, 0, -0.25] },
+        { t: 1.2, rot: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.8, rot: [0, 0, -0.3] },
+        { t: 1.2, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  return clips;
+}
+
+/**
+ * Pick animation clips for an export. "auto" keeps everything the model has,
+ * "none" strips animation, and a named clip keeps only that take.
+ * @param {THREE.Object3D|Array} model - Model carrying .animations
+ * @param {string} choice - "auto", "none" or a clip name
+ * @returns {THREE.AnimationClip[]}
+ */
+export function selectAnimations(model, choice = "auto") {
+  const clips = Array.isArray(model?.animations) ? model.animations : [];
+  if (!choice || choice === "auto" || choice === "all") return clips;
+  if (choice === "none") return [];
+  return clips.filter((clip) => clip.name === choice);
 }
 
 // Material presets for different styles
@@ -445,6 +678,7 @@ export function generateAsset(
   const scaledBox = new THREE.Box3().setFromObject(group);
   const center = scaledBox.getCenter(new THREE.Vector3());
   group.position.sub(center);
+  group.animations = buildAssetAnimations(group, type, size);
 
   return group;
 }
@@ -2950,6 +3184,9 @@ function buildWell(
  */
 export function cloneModelDeep(object) {
   const clone = object.clone(true);
+  if (Array.isArray(object.animations)) {
+    clone.animations = object.animations.map((clip) => clip.clone());
+  }
   clone.traverse((child) => {
     if (child.isMesh && child.geometry) {
       child.geometry = child.geometry.clone();
@@ -3044,7 +3281,7 @@ export function generateLOD(group, levels = 3) {
  * @param {object} options - { upAxis: "Y" | "Z", scale: number }
  */
 export function exportGLB(object, options = {}) {
-  const { upAxis = "Y", scale = 1 } = options;
+  const { upAxis = "Y", scale = 1, animations } = options;
   // GLTFExporter converts the up axis itself; only the scale needs a wrapper.
   const wrapped = scale !== 1 ? wrapForExport(object, options, false) : object;
   ensureNodeFileReader();
@@ -3054,7 +3291,11 @@ export function exportGLB(object, options = {}) {
       wrapped,
       (result) => resolve(result),
       (error) => reject(error),
-      { binary: true, upAxis },
+      {
+        binary: true,
+        upAxis,
+        animations: animations || wrapped.animations || [],
+      },
     );
   });
 }
@@ -3082,6 +3323,7 @@ function wrapForExport(
   const wrapper = new THREE.Group();
   wrapper.name = `${object.name || "model"}-export`;
   wrapper.add(object);
+  wrapper.animations = object.animations || [];
   wrapper.scale.setScalar(scale);
   if (rotateZup && upAxis === "Z") wrapper.rotation.x = -Math.PI / 2;
   return wrapper;
@@ -3341,6 +3583,7 @@ export function getAssetTypeInfo(type) {
   return {
     ...info,
     collider: getColliderShape(type),
+    animations: ANIMATION_PRESETS[type] || [],
   };
 }
 
@@ -3449,6 +3692,7 @@ export function buildGamePackFiles({
       id: asset.id || `${asset.type}-${slug}`,
       name,
       type: asset.type,
+      animations: Array.isArray(asset.animations) ? asset.animations : [],
       favorite: asset.favorite ?? false,
       seed: asset.seed ?? null,
       size: asset.size ?? 1,
@@ -3543,10 +3787,17 @@ export async function exportGamePack({
   withLod = false,
   thumbnailDataUrl = null,
   collision = "auto",
+  animation = "auto",
   exportedAt = new Date().toISOString(),
 }) {
   const preset = getEnginePreset(engine);
   const options = { upAxis: preset.upAxis, scale: preset.scale };
+  const selectedAnimations = selectAnimations(model, animation);
+  const animationInfo = selectedAnimations.map((clip) => ({
+    name: clip.name,
+    duration: Math.round(clip.duration * 100) / 100,
+    tracks: clip.tracks.length,
+  }));
   const lodLevels = [];
   let collisionInfo = null;
   let colliderBytes = null;
@@ -3570,7 +3821,13 @@ export async function exportGamePack({
   if (withLod) {
     const lods = generateLOD(model, 4);
     for (const lod of lods) {
-      const glbBytes = new Uint8Array(await exportGLB(lod.mesh, options));
+      lod.mesh.animations = selectedAnimations;
+      const glbBytes = new Uint8Array(
+        await exportGLB(lod.mesh, {
+          ...options,
+          animations: selectedAnimations,
+        }),
+      );
       lodLevels.push({
         level: lod.level,
         triangles: lod.triangles,
@@ -3582,7 +3839,12 @@ export async function exportGamePack({
   const glbBytes =
     lodLevels.length > 0
       ? lodLevels[0].glbBytes
-      : new Uint8Array(await exportGLB(model, options));
+      : new Uint8Array(
+          await exportGLB(model, {
+            ...options,
+            animations: selectedAnimations,
+          }),
+        );
   if (lodLevels.length === 0) {
     lodLevels.push({
       level: 0,
@@ -3598,6 +3860,7 @@ export async function exportGamePack({
     lodLevels,
     glbBytes,
     thumbnailBytes,
+    animations: animationInfo,
     collision: collisionInfo,
     colliderBytes,
   };

@@ -1553,6 +1553,9 @@ dialog .muted {
     flex-direction: column;
     overflow: hidden;
   }
+  .ai-pane[data-ai-pane="gen"] {
+    overflow-y: auto;
+  }
 
   .chat-messages {
     flex: 1;
@@ -1857,6 +1860,58 @@ dialog .muted {
 }
 .gen-form .primary-button {
   margin-top: 4px;
+}
+.gen-preview {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--line-1);
+}
+.gen-preview-stage {
+  position: relative;
+  width: 100%;
+  height: 170px;
+  min-height: 130px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  overflow: hidden;
+}
+.gen-preview-stage canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+.gen-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.gen-preview-controls select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-preview-controls select:hover {
+  border-color: var(--accent);
+}
+.gen-preview-controls .icon-only {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.gen-preview-controls .icon-only.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 .gen-variants {
   padding: 10px 12px 10px;

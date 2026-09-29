@@ -1,6 +1,7 @@
 import { newId } from "./browser-crypto.js";
 import "./style.css";
 import { ModelViewer } from "./viewer.js";
+import { AssetPreview } from "./asset-preview.js";
 import { buildOrientCube, compassTransform } from "./orient-cube.js";
 import { latestVersion, viewingBehindLatest } from "./versions.js";
 import {
@@ -42,6 +43,7 @@ import {
   getColliderShape,
   computeCollider,
   buildColliderModel,
+  selectAnimations,
   getEnginePresets,
   exportGamePack,
   buildGamePackFiles,
@@ -99,6 +101,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-chat" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.5L5 20.5v-4.5H6a2 2 0 0 1-2-2z"/></g>
 <g id="mc-plug" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></g>
 <g id="mc-play" fill="currentColor" stroke="none"><path d="M7 4.8v14.4c0 .9 1 1.5 1.8 1L20 13a1.2 1.2 0 0 0 0-2L8.8 3.8c-.8-.5-1.8.1-1.8 1z"/></g>
+<g id="mc-pause" fill="currentColor" stroke="none"><path d="M7.5 4.5h3.2v15H7.5z"/><path d="M13.3 4.5h3.2v15h-3.2z"/></g>
 <g id="mc-gen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9l-9 5-9-5v-9z"/><path d="M12 2.5v19M3 7.5l9 5 9-5"/><path d="M7.5 5l9 5" opacity=".5"/></g>
 <g id="mc-scene" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></g>
 <g id="mc-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.7.8-4.1 4 .9 5.7-5-2.7-5 2.7.9-5.7-4.1-4 5.7-.8z"/></g>
@@ -248,6 +251,16 @@ app.innerHTML = `${SPRITE}
       </div>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
+    <div class="gen-preview" id="gen-preview" hidden>
+      <div class="gen-preview-stage" id="gen-preview-stage"></div>
+      <div class="gen-preview-controls">
+        <select id="gen-preview-clip" aria-label="${T("gen.animation")}">
+          <option value="">${T("gen.animationNone")}</option>
+        </select>
+        <button id="gen-preview-play" class="icon-only" aria-label="${T("gen.previewPlay")}" title="${T("gen.previewPlay")}">${icon("play")}</button>
+        <button id="gen-preview-spin" class="icon-only active" aria-label="${T("gen.previewSpin")}" aria-pressed="true" title="${T("gen.previewSpin")}">${icon("orbit")}</button>
+      </div>
+    </div>
     <div class="gen-variants">
       <div class="gen-variants-tools">
         <label for="gen-variant-count">${T("gen.variants")}</label>
@@ -333,6 +346,15 @@ app.innerHTML = `${SPRITE}
         <option value="cylinder">${T("gen.collisionCylinder")}</option>
         <option value="mesh">${T("gen.collisionMesh")}</option>
         <option value="none">${T("gen.collisionNone")}</option>
+      </select>
+      <label>${T("gen.animation")}</label>
+      <select id="gen-animation">
+        <option value="auto">${T("gen.animationAuto")}</option>
+        <option value="idle">${T("gen.animationIdle")}</option>
+        <option value="walk">${T("gen.animationWalk")}</option>
+        <option value="fly">${T("gen.animationFly")}</option>
+        <option value="attack">${T("gen.animationAttack")}</option>
+        <option value="none">${T("gen.animationNone")}</option>
       </select>
       <button id="gen-download" class="primary-button">${T("gen.download")}</button>
       <button id="gen-pack-download" class="primary-button">${T("gen.exportPack")}</button>
@@ -2463,6 +2485,67 @@ function setGenExportPanel(show) {
   $("#gen-export-panel").hidden = !show;
 }
 
+let genPreview = null;
+let genPreviewPlaying = true;
+let genPreviewSpin = true;
+
+function syncGenPreview() {
+  if (!genPreview || !genState.model?.threeObject) return;
+  const choice = $("#gen-animation")?.value || "auto";
+  const previewModel = cloneModelDeep(genState.model.threeObject);
+  previewModel.animations = selectAnimations(previewModel, choice);
+  genPreview.setModel(previewModel);
+  genPreview.setPlaying(true);
+  genPreviewPlaying = true;
+  const playButton = $("#gen-preview-play");
+  if (playButton) {
+    playButton.classList.remove("active");
+    playButton.setAttribute("aria-label", t("gen.previewPlay"));
+    playButton.setAttribute("title", t("gen.previewPlay"));
+    playButton.querySelector("use")?.setAttribute("href", "#mc-play");
+  }
+  const clips = previewModel.animations || [];
+  const clipSelect = $("#gen-preview-clip");
+  if (!clipSelect) return;
+  clipSelect.innerHTML = [
+    `<option value="">${esc(t("gen.animationNone"))}</option>`,
+    ...clips.map(
+      (clip) => `<option value="${esc(clip.name)}">${esc(clip.name)}</option>`,
+    ),
+  ].join("");
+  const current = clipSelect.value;
+  if (current && clips.some((clip) => clip.name === current)) {
+    genPreview.setClip(current);
+  } else {
+    clipSelect.value = clips.length ? clips[0].name : "";
+    if (clips.length) genPreview.setClip(clips[0].name);
+  }
+  if (genPreviewSpin) genPreview.setAutoRotate(true);
+}
+
+function showGenPreview() {
+  if (!genPreview) return;
+  $("#gen-preview").hidden = false;
+  syncGenPreview();
+}
+
+function updateGenPreviewPlayButton() {
+  const playButton = $("#gen-preview-play");
+  if (!playButton) return;
+  playButton.classList.toggle("active", !genPreviewPlaying);
+  playButton.setAttribute(
+    "aria-label",
+    t(genPreviewPlaying ? "gen.previewPlay" : "gen.previewPause"),
+  );
+  playButton.setAttribute(
+    "title",
+    t(genPreviewPlaying ? "gen.previewPlay" : "gen.previewPause"),
+  );
+  playButton
+    .querySelector("use")
+    ?.setAttribute("href", genPreviewPlaying ? "#mc-play" : "#mc-pause");
+}
+
 async function generateAsset() {
   if (genState.generating) return;
   const prompt = $("#gen-prompt").value.trim();
@@ -2507,6 +2590,7 @@ async function generateAsset() {
     );
     setGenActions(true);
     setGenOptimizePanel(false);
+    showGenPreview();
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
   } finally {
@@ -2635,6 +2719,7 @@ function loadVariant(index) {
   setGenExportPanel(false);
   setGenActions(true);
   setGenStatus(t("gen.applied"), "ok");
+  showGenPreview();
 }
 
 function readMaterialSettings() {
@@ -2741,6 +2826,7 @@ function decimateGenModel() {
   genState.activeLod = 0;
   refreshGenOptimizePanel();
   setGenStatus(`${t("gen.applied")} (${current} ${t("gen.triangles")})`, "ok");
+  syncGenPreview();
 }
 
 function buildGenLods() {
@@ -2755,6 +2841,7 @@ function buildGenLods() {
     `${t("gen.applied")} (${lod.triangles} ${t("gen.triangles")})`,
     "ok",
   );
+  syncGenPreview();
 }
 
 function setGenLod(level) {
@@ -2767,6 +2854,7 @@ function setGenLod(level) {
     `${t("gen.applied")} (${lod.triangles} ${t("gen.triangles")})`,
     "ok",
   );
+  syncGenPreview();
 }
 
 function restoreGenModel() {
@@ -2777,6 +2865,7 @@ function restoreGenModel() {
   refreshGenOptimizePanel();
   const count = countTriangles(genState.originalModel);
   setGenStatus(`${t("gen.applied")} (${count} ${t("gen.triangles")})`, "ok");
+  syncGenPreview();
 }
 
 function exportGenModel() {
@@ -2825,12 +2914,14 @@ async function downloadGenModel() {
   const format = $("#gen-format").value;
   const options = exportOptionsForCurrentModel();
   const withLod = $("#gen-export-lod")?.checked || false;
+  const animationChoice = $("#gen-animation")?.value || "auto";
   const source = genState.originalModel || genState.model.threeObject;
   const baseName = `asset-${genState.model.type}`;
   try {
     if (withLod) {
       const lods = generateLOD(source, 4);
       for (const lod of lods) {
+        lod.mesh.animations = selectAnimations(lod.mesh, animationChoice);
         await downloadObjectAsFile(
           lod.mesh,
           `${baseName}-LOD${lod.level}`,
@@ -2839,12 +2930,16 @@ async function downloadGenModel() {
         );
       }
     } else {
-      await downloadObjectAsFile(
-        genState.model.threeObject,
-        baseName,
-        format,
-        options,
-      );
+      const exportModel =
+        animationChoice === "auto"
+          ? genState.model.threeObject
+          : Object.assign(cloneModelDeep(genState.model.threeObject), {
+              animations: selectAnimations(
+                genState.model.threeObject,
+                animationChoice,
+              ),
+            });
+      await downloadObjectAsFile(exportModel, baseName, format, options);
     }
     setGenStatus(t("gen.applied"), "ok");
   } catch (err) {
@@ -2869,6 +2964,7 @@ async function downloadGenPack() {
   }
   const engine = $("#gen-engine")?.value || "unity";
   const collision = $("#gen-collision")?.value || "auto";
+  const animation = $("#gen-animation")?.value || "auto";
   const withLod = $("#gen-export-lod")?.checked || false;
   const source = genState.originalModel || genState.model.threeObject;
   const asset = {
@@ -2891,6 +2987,7 @@ async function downloadGenPack() {
       asset,
       engine,
       collision,
+      animation,
       withLod,
       thumbnailDataUrl,
     });
@@ -2964,6 +3061,7 @@ function composeGameKitScene(kitId) {
       `${t("gen.sceneReady")} (${scene.userData.props} ${t("gen.parts")} · ${stats.triangles} ${t("gen.triangles")})`,
       "ok",
     );
+    showGenPreview();
   } catch {
     setGenStatus(t("gen.error"), "error");
   } finally {
@@ -3036,6 +3134,33 @@ $("#gen-kits").addEventListener("click", (e) => {
 $("#gen-compose").addEventListener("click", () =>
   composeGameKitScene(selectedGenKit),
 );
+
+// --- Generated asset preview ---
+const genPreviewStage = $("#gen-preview-stage");
+if (genPreviewStage) {
+  genPreview = new AssetPreview(genPreviewStage);
+  genPreview.setAutoRotate(true);
+}
+$("#gen-preview-clip")?.addEventListener("change", (e) => {
+  genPreview?.setClip(e.target.value);
+  const animationSelect = $("#gen-animation");
+  if (animationSelect && e.target.value) {
+    animationSelect.value = e.target.value;
+  }
+});
+$("#gen-preview-play")?.addEventListener("click", () => {
+  if (!genPreview || genPreview.clips.length === 0) return;
+  genPreviewPlaying = !genPreviewPlaying;
+  genPreview.setPlaying(genPreviewPlaying);
+  updateGenPreviewPlayButton();
+});
+$("#gen-preview-spin")?.addEventListener("click", (e) => {
+  genPreviewSpin = !genPreviewSpin;
+  genPreview?.setAutoRotate(genPreviewSpin);
+  e.currentTarget.classList.toggle("active", genPreviewSpin);
+  e.currentTarget.setAttribute("aria-pressed", String(genPreviewSpin));
+});
+$("#gen-animation")?.addEventListener("change", syncGenPreview);
 
 // --- Asset Library UI ---
 function renderAssetLibrary() {
@@ -3166,6 +3291,7 @@ function loadAsset(id) {
   setGenOptimizePanel(false);
   setGenStatus(t("gen.applied"), "ok");
   setGenActions(true);
+  syncGenPreview();
 }
 
 function deleteAsset(id) {
@@ -3280,6 +3406,7 @@ async function exportLibraryPack() {
     scale: 1,
   };
   const collisionChoice = $("#gen-collision")?.value || "auto";
+  const animationChoice = $("#gen-animation")?.value || "auto";
   setGenStatus(t("gen.generating"), "info");
   try {
     const packAssets = await Promise.all(
@@ -3292,7 +3419,18 @@ async function exportLibraryPack() {
           seed: asset.seed ?? null,
           material: asset.material || null,
         });
-        const glbBytes = new Uint8Array(await exportGLB(model, enginePreset));
+        const selectedAnimations = selectAnimations(model, animationChoice);
+        const animations = selectedAnimations.map((clip) => ({
+          name: clip.name,
+          duration: Math.round(clip.duration * 100) / 100,
+          tracks: clip.tracks.length,
+        }));
+        const glbBytes = new Uint8Array(
+          await exportGLB(model, {
+            ...enginePreset,
+            animations: selectedAnimations,
+          }),
+        );
         let collision = null;
         let colliderBytes = null;
         const collisionShape =
@@ -3321,6 +3459,7 @@ async function exportLibraryPack() {
           stats: getAssetStats(model),
           glbBytes,
           thumbnailBytes,
+          animations,
           collision,
           colliderBytes,
         };
