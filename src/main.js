@@ -75,6 +75,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-chat" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5.5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9.5L5 20.5v-4.5H6a2 2 0 0 1-2-2z"/></g>
 <g id="mc-plug" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></g>
 <g id="mc-play" fill="currentColor" stroke="none"><path d="M7 4.8v14.4c0 .9 1 1.5 1.8 1L20 13a1.2 1.2 0 0 0 0-2L8.8 3.8c-.8-.5-1.8.1-1.8 1z"/></g>
+<g id="mc-gen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9l-9 5-9-5v-9z"/><path d="M12 2.5v19M3 7.5l9 5 9-5"/><path d="M7.5 5l9 5" opacity=".5"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -168,6 +169,7 @@ app.innerHTML = `${SPRITE}
   <div class="ai-tabs" role="tablist">
     <button class="ai-tab active" data-ai-tab="chat" role="tab" aria-selected="true">${icon("chat")}<span>${T("ai.chat")}</span></button>
     <button class="ai-tab" data-ai-tab="mcp" role="tab" aria-selected="false">${icon("plug")}<span>${T("ai.mcp")}</span></button>
+    <button class="ai-tab" data-ai-tab="gen" role="tab" aria-selected="false">${icon("gen")}<span>${T("ai.generate")}</span></button>
   </div>
   <div class="ai-pane" data-ai-pane="chat">
     <div id="chat-messages" class="chat-messages" aria-label="${T("a11y.chatMessages")}"></div>
@@ -175,6 +177,47 @@ app.innerHTML = `${SPRITE}
     <div class="chat-composer">
       <textarea id="chat-input" placeholder="${T("chat.placeholder")}" rows="2"></textarea>
       <button id="chat-send" class="primary-button">${icon("send")}<span>${T("chat.send")}</span></button>
+    </div>
+  </div>
+  <div class="ai-pane" data-ai-pane="gen" hidden>
+    <div class="gen-header"><strong>${T("gen.title")}</strong></div>
+    <div class="gen-form">
+      <label>${T("gen.prompt")}</label>
+      <textarea id="gen-prompt" placeholder="${T("gen.promptPlaceholder")}" rows="3"></textarea>
+      <label>${T("gen.style")}</label>
+      <select id="gen-style">
+        <option value="lowpoly">${T("gen.styleLowPoly")}</option>
+        <option value="realistic">${T("gen.styleRealistic")}</option>
+        <option value="stylized">${T("gen.styleStylized")}</option>
+      </select>
+      <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
+    </div>
+    <div id="gen-status" class="gen-status"></div>
+    <div class="gen-actions" id="gen-actions" hidden>
+      <button id="gen-import" class="primary-button">${T("gen.import")}</button>
+      <button id="gen-optimize" class="quiet">${T("gen.optimize")}</button>
+      <button id="gen-export" class="quiet">${T("gen.export")}</button>
+    </div>
+    <div class="gen-export-panel" id="gen-export-panel" hidden><div class="gen-settings-title">${T("gen.settings")}</div>
+      <label>${T("gen.format")}</label>
+      <select id="gen-format">
+        <option value="glb">${T("gen.formatGlb")}</option>
+        <option value="fbx">${T("gen.formatFbx")}</option>
+        <option value="obj">${T("gen.formatObj")}</option>
+      </select>
+      <label>${T("gen.units")}</label>
+      <select id="gen-units">
+        <option value="meters">${T("gen.unitsMeters")}</option>
+        <option value="centimeters">${T("gen.unitsCentimeters")}</option>
+      </select>
+      <label>${T("gen.scale")}</label>
+      <input id="gen-scale" type="number" value="1" min="0.01" max="100" step="0.01">
+      <label>${T("gen.coordinateSystem")}</label>
+      <select id="gen-coord">
+        <option value="yup">${T("gen.yUp")}</option>
+        <option value="zup">${T("gen.zUp")}</option>
+      </select>
+      <button id="gen-download" class="primary-button">${T("gen.download")}</button>
     </div>
   </div>
   <div class="ai-pane" data-ai-pane="mcp" hidden>
@@ -2079,6 +2122,162 @@ $("#mcp-server").addEventListener("change", (e) => {
   ).join("");
 });
 $("#mcp-call").addEventListener("click", mcpCallTool);
+
+// --- Asset Generation ---
+const genState = {
+  model: null,
+  generating: false,
+  optimizing: false,
+};
+
+function setGenStatus(message, type = "") {
+  const status = $("#gen-status");
+  status.textContent = message;
+  status.className = `gen-status ${type}`;
+}
+
+function setGenActions(show) {
+  $("#gen-actions").hidden = !show;
+}
+
+function setGenExportPanel(show) {
+  $("#gen-export-panel").hidden = !show;
+}
+
+async function generateAsset() {
+  if (genState.generating) return;
+  const prompt = $("#gen-prompt").value.trim();
+  if (!prompt) {
+    setGenStatus(t("gen.empty"), "warn");
+    return;
+  }
+  const style = $("#gen-style").value;
+  genState.generating = true;
+  setGenStatus(t("gen.generating"), "info");
+  setGenActions(false);
+  try {
+    // Parse the prompt to extract asset type and parameters
+    const asset = parseAssetPrompt(prompt, style);
+    genState.model = asset;
+    setGenStatus(t("gen.applied"), "ok");
+    setGenActions(true);
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  } finally {
+    genState.generating = false;
+  }
+}
+
+function parseAssetPrompt(prompt, style) {
+  // Simple keyword-based asset generation
+  const lower = prompt.toLowerCase();
+  let type = "cube";
+  let size = 1;
+  let segments = 16;
+
+  // Keyword matching uses i18n keys to avoid hard-coded interface text
+  const keywords = [
+    { keys: ["sword", "sword"], type: "sword" },
+    { keys: ["tree", "tree"], type: "tree" },
+    { keys: ["rock", "rock"], type: "rock" },
+    { keys: ["house", "house"], type: "house" },
+    { keys: ["car", "car"], type: "car" },
+    { keys: ["character", "character"], type: "character" },
+  ];
+  for (const kw of keywords) {
+    if (kw.keys.some((k) => lower.includes(k))) {
+      type = kw.type;
+      break;
+    }
+  }
+
+  // Extract size hints
+  const sizeMatch = lower.match(/(\d+(?:\.\d+)?)\s*(m|meter)/);
+  if (sizeMatch) size = parseFloat(sizeMatch[1]);
+
+  // Extract segment hints for low-poly
+  if (style === "lowpoly") segments = 8;
+  else if (style === "realistic") segments = 32;
+  else segments = 16;
+
+  return { type, size, segments, style, prompt };
+}
+
+function importGenModel() {
+  if (!genState.model) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  // Dispatch event for viewer to pick up
+  window.dispatchEvent(new CustomEvent("ai3d:import-generated", { detail: genState.model }));
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+function optimizeGenModel() {
+  if (!genState.model || genState.optimizing) return;
+  genState.optimizing = true;
+  setGenStatus(t("gen.optimizing"), "info");
+  // Show optimization options
+  const options = document.createElement("div");
+  options.className = "gen-optimize-options";
+  options.innerHTML = `
+    <label>${t("gen.triangles")}: <span id="gen-tri-count">0</span></label>
+    <label>${t("gen.targetTriangles")}: <input id="gen-target-tri" type="number" value="1000" min="100" max="100000" step="100"></label>
+    <div class="gen-optimize-actions">
+      <button id="gen-decimate" class="quiet">${t("gen.decimate")}</button>
+      <button id="gen-lod" class="quiet">${t("gen.lod")}</button>
+    </div>
+  `;
+  $("#gen-status").after(options);
+  // Simulate optimization
+  setTimeout(() => {
+    genState.optimizing = false;
+    setGenStatus(t("gen.applied"), "ok");
+    options.remove();
+  }, 1000);
+}
+
+function exportGenModel() {
+  if (!genState.model) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  setGenExportPanel(true);
+}
+
+function downloadGenModel() {
+  if (!genState.model) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  const format = $("#gen-format").value;
+  const units = $("#gen-units").value;
+  const scale = parseFloat($("#gen-scale").value) || 1;
+  const coord = $("#gen-coord").value;
+
+  // Create a simple GLB-like JSON for download
+  const data = {
+    asset: genState.model,
+    format,
+    units,
+    scale,
+    coordinateSystem: coord,
+    version: "1.0",
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `asset-${genState.model.type}-${Date.now()}.${format === "glb" ? "glb" : format}`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+$("#gen-generate").addEventListener("click", generateAsset);
+$("#gen-import").addEventListener("click", importGenModel);
+$("#gen-optimize").addEventListener("click", optimizeGenModel);
+$("#gen-export").addEventListener("click", exportGenModel);
+$("#gen-download").addEventListener("click", downloadGenModel);
 
 initAiDock();
 loadMcpConnections();

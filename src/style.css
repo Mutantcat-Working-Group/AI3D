@@ -1777,3 +1777,86 @@ body.ai-dock-open .workspace {
     padding: 7px 5px;
   }
 }
+
+/* ---------------- AI dock: generation ---------------- */
+
+.gen-header {
+  padding: 10px 12px 6px;
+  font-size: 13px;
+}
+.gen-form {
+  padding: 0 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gen-form label {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.gen-form textarea,
+.gen-form select,
+.gen-form input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-family: inherit;
+}
+.gen-form textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+.gen-form .primary-button {
+  margin-top: 4px;
+}
+.gen-status {
+  padding: 6px 12px;
+  font-size: 11px;
+  min-height: 14px;
+}
+.gen-status.info { color: var(--info-ink); }
+.gen-status.ok { color: var(--ok-ink); }
+.gen-status.warn { color: var(--warn-ink); }
+.gen-status.error { color: var(--error-ink); }
+.gen-actions {
+  padding: 0 12px 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gen-actions button {
+  flex: 1;
+  min-width: 80px;
+}
+.gen-export-panel {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line-1);
+  padding-top: 10px;
+}
+.gen-export-panel label {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.gen-export-panel select,
+.gen-export-panel input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-family: inherit;
+}
+.gen-export-panel .primary-button {
+  margin-top: 4px;
+}
