@@ -42,56 +42,63 @@ const STYLE_MATERIALS = {
 /**
  * Generate a 3D asset based on type and parameters.
  * Returns a THREE.Group containing the generated model.
+ * @param {string} type - Asset type
+ * @param {object} options - Generation options
+ * @param {number} options.size - Asset size
+ * @param {number} options.segments - Number of segments
+ * @param {string} options.style - Material style
+ * @param {string} options.color - Hex color string (e.g. "#ff0000")
  */
-export function generateAsset(type, { size = 1, segments = 16, style = "lowpoly" } = {}) {
+export function generateAsset(type, { size = 1, segments = 16, style = "lowpoly", color = null } = {}) {
   const group = new THREE.Group();
   group.name = `asset-${type}`;
 
   const matStyle = STYLE_MATERIALS[style] || STYLE_MATERIALS.lowpoly;
   const segments = Math.max(4, Math.min(32, segments));
+  const customColor = color ? new THREE.Color(color) : null;
 
   switch (type) {
     case "sword":
-      buildSword(group, size, segments, matStyle);
+      buildSword(group, size, segments, matStyle, customColor);
       break;
     case "tree":
-      buildTree(group, size, segments, matStyle);
+      buildTree(group, size, segments, matStyle, customColor);
       break;
     case "rock":
-      buildRock(group, size, segments, matStyle);
+      buildRock(group, size, segments, matStyle, customColor);
       break;
     case "house":
-      buildHouse(group, size, segments, matStyle);
+      buildHouse(group, size, segments, matStyle, customColor);
       break;
     case "car":
-      buildCar(group, size, segments, matStyle);
+      buildCar(group, size, segments, matStyle, customColor);
       break;
     case "character":
-      buildCharacter(group, size, segments, matStyle);
+      buildCharacter(group, size, segments, matStyle, customColor);
       break;
     case "shield":
-      buildShield(group, size, segments, matStyle);
+      buildShield(group, size, segments, matStyle, customColor);
       break;
     case "potion":
-      buildPotion(group, size, segments, matStyle);
+      buildPotion(group, size, segments, matStyle, customColor);
       break;
     case "chest":
-      buildChest(group, size, segments, matStyle);
+      buildChest(group, size, segments, matStyle, customColor);
       break;
     case "key":
-      buildKey(group, size, segments, matStyle);
+      buildKey(group, size, segments, matStyle, customColor);
       break;
     case "gem":
-      buildGem(group, size, segments, matStyle);
+      buildGem(group, size, segments, matStyle, customColor);
       break;
     case "barrel":
-      buildBarrel(group, size, segments, matStyle);
+      buildBarrel(group, size, segments, matStyle, customColor);
       break;
     case "crate":
-      buildCrate(group, size, segments, matStyle);
+      buildCrate(group, size, segments, matStyle, customColor);
       break;
     default:
-      buildCube(group, size, segments, matStyle);
+      buildCube(group, size, segments, matStyle, customColor);
   }
 
   // Center and scale the model
@@ -116,8 +123,8 @@ function createMaterial(color, style) {
   });
 }
 
-function buildSword(group, size, segments, style) {
-  const bladeMat = createMaterial(0xc0c0c0, style);
+function buildSword(group, size, segments, style, customColor = null) {
+  const bladeMat = createMaterial(customColor || 0xc0c0c0, style);
   const guardMat = createMaterial(0x8b4513, style);
   const handleMat = createMaterial(0x4a3728, style);
   const pommelMat = createMaterial(0xffd700, style);
@@ -158,9 +165,9 @@ function buildSword(group, size, segments, style) {
   group.add(pommel);
 }
 
-function buildTree(group, size, segments, style) {
+function buildTree(group, size, segments, style, customColor = null) {
   const trunkMat = createMaterial(0x8b4513, style);
-  const foliageMat = createMaterial(0x228b22, style);
+  const foliageMat = createMaterial(customColor || 0x228b22, style);
 
   // Trunk
   const trunkGeo = new THREE.CylinderGeometry(0.15 * size, 0.25 * size, 2 * size, segments);
@@ -182,8 +189,8 @@ function buildTree(group, size, segments, style) {
   }
 }
 
-function buildRock(group, size, segments, style) {
-  const rockMat = createMaterial(0x808080, style);
+function buildRock(group, size, segments, style, customColor = null) {
+  const rockMat = createMaterial(customColor || 0x808080, style);
 
   // Main body with noise displacement
   const rockGeo = new THREE.IcosahedronGeometry(size, 1);
@@ -201,8 +208,8 @@ function buildRock(group, size, segments, style) {
   group.add(rock);
 }
 
-function buildHouse(group, size, segments, style) {
-  const wallMat = createMaterial(0xf5f5dc, style);
+function buildHouse(group, size, segments, style, customColor = null) {
+  const wallMat = createMaterial(customColor || 0xf5f5dc, style);
   const roofMat = createMaterial(0xb22222, style);
   const doorMat = createMaterial(0x8b4513, style);
   const windowMat = createMaterial(0x87ceeb, style);
@@ -242,8 +249,8 @@ function buildHouse(group, size, segments, style) {
   group.add(windowRight);
 }
 
-function buildCar(group, size, segments, style) {
-  const bodyMat = createMaterial(0xff0000, style);
+function buildCar(group, size, segments, style, customColor = null) {
+  const bodyMat = createMaterial(customColor || 0xff0000, style);
   const wheelMat = createMaterial(0x333333, style);
   const windowMat = createMaterial(0x87ceeb, style);
 
@@ -285,9 +292,9 @@ function buildCar(group, size, segments, style) {
   });
 }
 
-function buildCharacter(group, size, segments, style) {
+function buildCharacter(group, size, segments, style, customColor = null) {
   const skinMat = createMaterial(0xffdbac, style);
-  const shirtMat = createMaterial(0x4169e1, style);
+  const shirtMat = createMaterial(customColor || 0x4169e1, style);
   const pantsMat = createMaterial(0x2f4f4f, style);
 
   // Head
@@ -331,16 +338,16 @@ function buildCharacter(group, size, segments, style) {
   group.add(rightLeg);
 }
 
-function buildCube(group, size, segments, style) {
-  const mat = createMaterial(0x808080, style);
+function buildCube(group, size, segments, style, customColor = null) {
+  const mat = createMaterial(customColor || 0x808080, style);
   const geo = new THREE.BoxGeometry(size, size, size);
   const cube = new THREE.Mesh(geo, mat);
   cube.name = "body";
   group.add(cube);
 }
 
-function buildShield(group, size, segments, style) {
-  const bodyMat = createMaterial(0x8b4513, style);
+function buildShield(group, size, segments, style, customColor = null) {
+  const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const bossMat = createMaterial(0xffd700, style);
   const rimMat = createMaterial(0xc0c0c0, style);
 
@@ -365,9 +372,9 @@ function buildShield(group, size, segments, style) {
   group.add(rim);
 }
 
-function buildPotion(group, size, segments, style) {
-  const bodyMat = createMaterial(0x87ceeb, style);
-  const neckMat = createMaterial(0x87ceeb, style);
+function buildPotion(group, size, segments, style, customColor = null) {
+  const bodyMat = createMaterial(customColor || 0x87ceeb, style);
+  const neckMat = createMaterial(customColor || 0x87ceeb, style);
   const corkMat = createMaterial(0x8b4513, style);
 
   // Body
@@ -392,9 +399,9 @@ function buildPotion(group, size, segments, style) {
   group.add(cork);
 }
 
-function buildChest(group, size, segments, style) {
-  const bodyMat = createMaterial(0x8b4513, style);
-  const lidMat = createMaterial(0x8b4513, style);
+function buildChest(group, size, segments, style, customColor = null) {
+  const bodyMat = createMaterial(customColor || 0x8b4513, style);
+  const lidMat = createMaterial(customColor || 0x8b4513, style);
   const lockMat = createMaterial(0xffd700, style);
 
   // Body
@@ -419,8 +426,8 @@ function buildChest(group, size, segments, style) {
   group.add(lock);
 }
 
-function buildKey(group, size, segments, style) {
-  const mat = createMaterial(0xffd700, style);
+function buildKey(group, size, segments, style, customColor = null) {
+  const mat = createMaterial(customColor || 0xffd700, style);
 
   // Bow
   const bowGeo = new THREE.TorusGeometry(0.2 * size, 0.05 * size, segments, segments);
@@ -444,16 +451,16 @@ function buildKey(group, size, segments, style) {
   group.add(bit);
 }
 
-function buildGem(group, size, segments, style) {
-  const mat = createMaterial(0xff00ff, style);
+function buildGem(group, size, segments, style, customColor = null) {
+  const mat = createMaterial(customColor || 0xff00ff, style);
   const geo = new THREE.OctahedronGeometry(size, 0);
   const gem = new THREE.Mesh(geo, mat);
   gem.name = "body";
   group.add(gem);
 }
 
-function buildBarrel(group, size, segments, style) {
-  const bodyMat = createMaterial(0x8b4513, style);
+function buildBarrel(group, size, segments, style, customColor = null) {
+  const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const hoopMat = createMaterial(0x333333, style);
 
   // Body
@@ -474,8 +481,8 @@ function buildBarrel(group, size, segments, style) {
   });
 }
 
-function buildCrate(group, size, segments, style) {
-  const mat = createMaterial(0x8b4513, style);
+function buildCrate(group, size, segments, style, customColor = null) {
+  const mat = createMaterial(customColor || 0x8b4513, style);
   const geo = new THREE.BoxGeometry(size, size, size);
   const crate = new THREE.Mesh(geo, mat);
   crate.name = "body";

@@ -190,6 +190,11 @@ app.innerHTML = `${SPRITE}
         <option value="realistic">${T("gen.styleRealistic")}</option>
         <option value="stylized">${T("gen.styleStylized")}</option>
       </select>
+      <label>${T("gen.color")}</label>
+      <div class="gen-color-row">
+        <input type="color" id="gen-color" value="#808080">
+        <button type="button" id="gen-color-reset" class="quiet">${T("gen.colorReset")}</button>
+      </div>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
     <div id="gen-status" class="gen-status"></div>
@@ -2205,6 +2210,7 @@ async function generateAsset() {
     return;
   }
   const style = $("#gen-style").value;
+  const color = $("#gen-color").value;
   genState.generating = true;
   setGenStatus(t("gen.generating"), "info");
   setGenActions(false);
@@ -2214,6 +2220,7 @@ async function generateAsset() {
       size: assetType.size,
       segments: assetType.segments,
       style: assetType.style,
+      color: color,
     });
     genState.model = { ...assetType, threeObject: model };
     const triCount = countTriangles(model);
@@ -2346,6 +2353,9 @@ $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
 $("#gen-export").addEventListener("click", exportGenModel);
 $("#gen-download").addEventListener("click", downloadGenModel);
+$("#gen-color-reset").addEventListener("click", () => {
+  $("#gen-color").value = "#808080";
+});
 
 // --- Asset Library UI ---
 function renderAssetLibrary() {
@@ -2361,6 +2371,7 @@ function renderAssetLibrary() {
     .map(
       (a) => `
     <div class="gen-asset-card" data-id="${a.id}">
+      <div class="gen-asset-preview" data-preview="${a.id}"></div>
       <div class="gen-asset-info">
         <strong>${a.type}</strong>
         <span>${a.prompt.slice(0, 50)}${a.prompt.length > 50 ? "..." : ""}</span>
@@ -2374,6 +2385,40 @@ function renderAssetLibrary() {
   `
     )
     .join("");
+  // Render thumbnails for each asset
+  assets.forEach((a) => renderAssetPreview(a));
+}
+
+/**
+ * Render a 3D thumbnail preview for an asset.
+ */
+function renderAssetPreview(asset) {
+  const container = document.querySelector(`[data-preview="${asset.id}"]`);
+  if (!container) return;
+  try {
+    const model = generateAsset(asset.type, {
+      size: asset.size,
+      segments: Math.min(asset.segments || 8, 8), // Low segments for preview
+      style: asset.style,
+      color: asset.color || null,
+    });
+    // Create a simple preview using a canvas
+    const canvas = document.createElement("canvas");
+    canvas.width = 120;
+    canvas.height = 90;
+    canvas.className = "gen-asset-thumbnail";
+    const ctx = canvas.getContext("2d");
+    // Draw a simple representation
+    ctx.fillStyle = asset.color || "#808080";
+    ctx.fillRect(10, 10, 100, 70);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(asset.type, 60, 50);
+    container.appendChild(canvas);
+  } catch {
+    container.innerHTML = `<div class="gen-asset-preview-placeholder">${t("gen.previewError")}</div>`;
+  }
 }
 
 function saveCurrentAsset() {
@@ -2396,6 +2441,7 @@ function loadAsset(id) {
     size: asset.size,
     segments: asset.segments,
     style: asset.style,
+    color: asset.color || null,
   });
   genState.model = { ...asset, threeObject: model };
   setGenStatus(t("gen.applied"), "ok");
