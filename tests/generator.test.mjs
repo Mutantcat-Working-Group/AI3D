@@ -20,6 +20,9 @@ import {
   getAssetTags,
   getEnginePresets,
   getEnginePreset,
+  getColliderShape,
+  computeCollider,
+  buildColliderModel,
   buildGamePackFiles,
   exportGamePack,
 } from "../src/generator.js";
@@ -599,6 +602,66 @@ test("engine presets resolve Unity conventions by default", () => {
   assert.equal(getEnginePreset("missing").id, "unity");
 });
 
+test("collider presets recommend a physics shape for every asset type", () => {
+  const shapes = new Set(["box", "sphere", "capsule", "cylinder", "mesh"]);
+  for (const type of getAssetTypes()) {
+    const shape = getColliderShape(type);
+    assert.ok(shapes.has(shape), `${type} has a supported collider preset`);
+    assert.equal(getAssetTypeInfo(type).collider, shape);
+  }
+});
+
+test("computeCollider fits primitives to the generated bounds", () => {
+  const box = computeCollider(
+    generateAsset("crate", { size: 2, seed: 1 }),
+    "box",
+  );
+  assert.equal(box.shape, "box");
+  assert.ok(Math.abs(box.center[0]) < 1e-5);
+  assert.ok(Math.abs(box.size[0] - 1.84) < 0.02);
+
+  const sphere = computeCollider(
+    generateAsset("rock", { size: 2, seed: 1 }),
+    "sphere",
+  );
+  assert.equal(sphere.shape, "sphere");
+  assert.ok(sphere.radius > 0.8 && sphere.radius < 1);
+
+  const capsule = computeCollider(
+    generateAsset("character", { size: 2, seed: 1 }),
+    "capsule",
+  );
+  assert.equal(capsule.shape, "capsule");
+  assert.equal(capsule.axis, "Y");
+  assert.ok(capsule.height >= capsule.radius * 2);
+
+  const cylinder = computeCollider(
+    generateAsset("barrel", { size: 2, seed: 1 }),
+    "cylinder",
+  );
+  assert.equal(cylinder.shape, "cylinder");
+  assert.ok(cylinder.radius > 0);
+  assert.ok(cylinder.height > 0);
+});
+
+test("buildColliderModel produces a named, disposable collider scene", () => {
+  const collider = computeCollider(
+    generateAsset("tower", { size: 1.5, seed: 6 }),
+    "capsule",
+  );
+  const group = buildColliderModel(collider);
+  assert.ok(group);
+  assert.equal(group.name, "AI3D-Collider");
+  assert.equal(meshCount(group), 1);
+  const mesh = firstMesh(group);
+  assert.equal(mesh.name, "AI3D-Collider");
+  assert.equal(mesh.userData.colliderShape, "capsule");
+  assert.equal(
+    buildColliderModel(computeCollider(generateAsset("sword"), "mesh")),
+    null,
+  );
+});
+
 test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   const zip = buildGamePackFiles({
     assets: [samplePackAsset()],
@@ -621,6 +684,30 @@ test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   assert.equal(manifest.assets[0].name, "Sword Test");
   assert.equal(manifest.assets[0].stats.triangles, 120);
   assert.equal(manifest.assets[0].files.model, "models/sword-test-1/LOD0.glb");
+});
+
+test("game packs include collision metadata and a collider GLB", () => {
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        collision: {
+          shape: "box",
+          center: [0, 0, 0],
+          size: [0.9, 0.9, 0.9],
+        },
+        colliderBytes: new Uint8Array([0x67, 0x6c, 0x74, 0x66]),
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.ok(files["colliders/sword-test-1.glb"]);
+  assert.equal(manifest.assets[0].files.collider, "colliders/sword-test-1.glb");
+  assert.equal(manifest.assets[0].collision.shape, "box");
+  assert.deepEqual(manifest.assets[0].collision.size, [0.9, 0.9, 0.9]);
 });
 
 test("game packs carry Unreal conventions and LOD files", () => {
@@ -688,4 +775,39 @@ test("exportGamePack exports a real GLB at the preset scale", async () => {
     getAssetStats(source).triangles,
   );
   assert.equal(String.fromCharCode(...glb.slice(0, 4)), "glTF");
+});
+
+test("exportGamePack writes colliders and respects the none choice", async () => {
+  const source = generateAsset("barrel", { size: 1, seed: 4 });
+  const autoZip = await exportGamePack({
+    model: source,
+    asset: { id: "barrel-pack", type: "barrel", seed: 4 },
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const autoFiles = unzipSync(autoZip);
+  const autoManifest = JSON.parse(
+    new TextDecoder().decode(autoFiles["manifest.json"]),
+  );
+
+  assert.equal(autoManifest.assets[0].collision.shape, "cylinder");
+  assert.ok(autoFiles["colliders/barrel-pack.glb"]);
+  assert.equal(
+    String.fromCharCode(...autoFiles["colliders/barrel-pack.glb"].slice(0, 4)),
+    "glTF",
+  );
+
+  const noneZip = await exportGamePack({
+    model: source,
+    asset: { id: "barrel-pack", type: "barrel", seed: 4 },
+    engine: "unity",
+    collision: "none",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const noneFiles = unzipSync(noneZip);
+  const noneManifest = JSON.parse(
+    new TextDecoder().decode(noneFiles["manifest.json"]),
+  );
+  assert.equal(noneManifest.assets[0].collision, null);
+  assert.equal(noneFiles["colliders/barrel-pack.glb"], undefined);
 });

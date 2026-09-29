@@ -94,7 +94,7 @@ From a clone, for development:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 267 unit and integration tests
+npm test             # 272 unit and integration tests
 npm run test:browser # 76 real-Chromium tests
 ```
 

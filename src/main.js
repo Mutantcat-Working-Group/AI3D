@@ -39,6 +39,9 @@ import {
   generateLOD,
   getAssetStats,
   getAssetTags,
+  getColliderShape,
+  computeCollider,
+  buildColliderModel,
   getEnginePresets,
   exportGamePack,
   buildGamePackFiles,
@@ -320,6 +323,16 @@ app.innerHTML = `${SPRITE}
         <option value="unity">${T("gen.engineUnity")}</option>
         <option value="godot">${T("gen.engineGodot")}</option>
         <option value="unreal">${T("gen.engineUnreal")}</option>
+      </select>
+      <label>${T("gen.collision")}</label>
+      <select id="gen-collision">
+        <option value="auto">${T("gen.collisionAuto")}</option>
+        <option value="box">${T("gen.collisionBox")}</option>
+        <option value="sphere">${T("gen.collisionSphere")}</option>
+        <option value="capsule">${T("gen.collisionCapsule")}</option>
+        <option value="cylinder">${T("gen.collisionCylinder")}</option>
+        <option value="mesh">${T("gen.collisionMesh")}</option>
+        <option value="none">${T("gen.collisionNone")}</option>
       </select>
       <button id="gen-download" class="primary-button">${T("gen.download")}</button>
       <button id="gen-pack-download" class="primary-button">${T("gen.exportPack")}</button>
@@ -2855,6 +2868,7 @@ async function downloadGenPack() {
     return;
   }
   const engine = $("#gen-engine")?.value || "unity";
+  const collision = $("#gen-collision")?.value || "auto";
   const withLod = $("#gen-export-lod")?.checked || false;
   const source = genState.originalModel || genState.model.threeObject;
   const asset = {
@@ -2876,6 +2890,7 @@ async function downloadGenPack() {
       model: source,
       asset,
       engine,
+      collision,
       withLod,
       thumbnailDataUrl,
     });
@@ -3260,6 +3275,11 @@ async function exportLibraryPack() {
     return;
   }
   const engine = $("#gen-engine")?.value || "unity";
+  const enginePreset = getEnginePresets().find((p) => p.id === engine) || {
+    upAxis: "Y",
+    scale: 1,
+  };
+  const collisionChoice = $("#gen-collision")?.value || "auto";
   setGenStatus(t("gen.generating"), "info");
   try {
     const packAssets = await Promise.all(
@@ -3272,15 +3292,26 @@ async function exportLibraryPack() {
           seed: asset.seed ?? null,
           material: asset.material || null,
         });
-        const glbBytes = new Uint8Array(
-          await exportGLB(
-            model,
-            getEnginePresets().find((p) => p.id === engine) || {
-              upAxis: "Y",
-              scale: 1,
-            },
-          ),
-        );
+        const glbBytes = new Uint8Array(await exportGLB(model, enginePreset));
+        let collision = null;
+        let colliderBytes = null;
+        const collisionShape =
+          collisionChoice === "none"
+            ? null
+            : collisionChoice === "auto"
+              ? getColliderShape(asset.type)
+              : collisionChoice;
+        if (collisionShape) {
+          collision = computeCollider(model, collisionShape);
+          if (collision?.shape !== "mesh") {
+            const colliderModel = buildColliderModel(collision);
+            if (colliderModel) {
+              colliderBytes = new Uint8Array(
+                await exportGLB(colliderModel, enginePreset),
+              );
+            }
+          }
+        }
         const thumbnailDataUrl = renderAssetThumbnail(model, 256, 192);
         const thumbnailBytes = thumbnailDataUrl
           ? await dataUrlToBytes(thumbnailDataUrl)
@@ -3290,6 +3321,8 @@ async function exportLibraryPack() {
           stats: getAssetStats(model),
           glbBytes,
           thumbnailBytes,
+          collision,
+          colliderBytes,
         };
       }),
     );

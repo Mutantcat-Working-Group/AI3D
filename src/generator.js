@@ -111,6 +111,57 @@ const ASSET_TAGS = {
   tree_stump: ["nature", "terrain", "outdoor"],
 };
 
+// Collider presets are per asset type so game teams get a sensible physics
+// proxy without tuning one manually. The computed size still comes from the
+// actual generated model, so presets only decide the primitive shape.
+const ASSET_COLLIDERS = {
+  sword: "capsule",
+  tree: "capsule",
+  rock: "sphere",
+  house: "box",
+  car: "box",
+  character: "capsule",
+  cube: "box",
+  shield: "mesh",
+  potion: "sphere",
+  chest: "box",
+  key: "mesh",
+  gem: "sphere",
+  barrel: "cylinder",
+  crate: "box",
+  tower: "box",
+  flag: "box",
+  torch: "cylinder",
+  fence: "box",
+  bridge: "box",
+  fountain: "box",
+  brazier: "cylinder",
+  runestone: "box",
+  trap: "box",
+  turret: "box",
+  drone: "box",
+  antenna: "cylinder",
+  axe: "capsule",
+  bow: "mesh",
+  hammer: "capsule",
+  spear: "capsule",
+  tent: "box",
+  statue: "box",
+  pillar: "cylinder",
+  well: "cylinder",
+  monster: "capsule",
+  dragon: "capsule",
+  boat: "capsule",
+  plane: "box",
+  bike: "box",
+  campfire: "cylinder",
+  sign: "box",
+  barrel_variants: "cylinder",
+  crystal: "sphere",
+  mushroom: "capsule",
+  tree_stump: "cylinder",
+};
+
 /**
  * Get category tags for an asset type.
  * @param {string} type - Asset type key
@@ -118,6 +169,15 @@ const ASSET_TAGS = {
  */
 export function getAssetTags(type) {
   return ASSET_TAGS[type] || ["misc"];
+}
+
+/**
+ * Get the recommended collision primitive for an asset type.
+ * @param {string} type - Asset type key
+ * @returns {string} "box", "sphere", "capsule", "cylinder" or "mesh"
+ */
+export function getColliderShape(type) {
+  return ASSET_COLLIDERS[type] || "mesh";
 }
 
 // Material presets for different styles
@@ -3104,6 +3164,118 @@ export function getAssetStats(object) {
 }
 
 /**
+ * Fit a collision primitive around a generated model. The dimensions are
+ * slightly shrunk so physics proxies sit just inside the visible mesh and do
+ * not catch stray edges in the game engine.
+ * @param {THREE.Object3D} model - Generated model
+ * @param {string} shape - "box", "sphere", "capsule", "cylinder" or "mesh"
+ * @returns {object|null} Collision metadata, or null for "none"
+ */
+export function computeCollider(model, shape = "auto") {
+  const resolved =
+    shape === "auto" || shape == null
+      ? getColliderShape(model.name || "")
+      : shape;
+  if (resolved === "none") return null;
+
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const rawSize = box.getSize(new THREE.Vector3());
+  const round = (value) => Math.round(value * 10000) / 10000;
+  const size = rawSize.clone().multiplyScalar(0.92).toArray().map(round);
+  const maxSize = Math.max(...size, 0.001);
+
+  if (resolved === "sphere") {
+    return {
+      shape: "sphere",
+      center: center.toArray().map(round),
+      radius: round(maxSize / 2),
+    };
+  }
+
+  if (resolved === "capsule") {
+    const radius = Math.max(size[0], size[2]) / 2;
+    return {
+      shape: "capsule",
+      axis: "Y",
+      center: center.toArray().map(round),
+      radius: round(radius),
+      height: round(Math.max(size[1], radius * 2)),
+    };
+  }
+
+  if (resolved === "cylinder") {
+    return {
+      shape: "cylinder",
+      axis: "Y",
+      center: center.toArray().map(round),
+      radius: round(Math.max(size[0], size[2]) / 2),
+      height: round(size[1]),
+    };
+  }
+
+  if (resolved === "box") {
+    return {
+      shape: "box",
+      center: center.toArray().map(round),
+      size: size.map(round),
+    };
+  }
+
+  return {
+    shape: "mesh",
+    center: center.toArray().map(round),
+    size: size.map(round),
+  };
+}
+
+/**
+ * Build a small GLB-exportable visual for a collision primitive. Mesh
+ * colliders do not need a separate file; engines use the model itself.
+ * @param {object} collider - Collision metadata from computeCollider
+ * @returns {THREE.Group|null} Named collider scene, or null for mesh/none
+ */
+export function buildColliderModel(collider) {
+  if (!collider || collider.shape === "mesh" || collider.shape === "none") {
+    return null;
+  }
+
+  let geometry = null;
+  if (collider.shape === "box") {
+    const [w, h, d] = collider.size;
+    geometry = new THREE.BoxGeometry(w, h, d);
+  } else if (collider.shape === "sphere") {
+    geometry = new THREE.SphereGeometry(collider.radius, 24, 12);
+  } else if (collider.shape === "capsule") {
+    const straight = Math.max(0, collider.height - collider.radius * 2);
+    geometry = new THREE.CapsuleGeometry(collider.radius, straight, 6, 12);
+  } else if (collider.shape === "cylinder") {
+    geometry = new THREE.CylinderGeometry(
+      collider.radius,
+      collider.radius,
+      collider.height,
+      16,
+    );
+  }
+  if (!geometry) return null;
+
+  const group = new THREE.Group();
+  group.name = "AI3D-Collider";
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x00e676,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = "AI3D-Collider";
+  mesh.userData.colliderShape = collider.shape;
+  if (collider.center) mesh.position.set(...collider.center);
+  group.add(mesh);
+  return group;
+}
+
+/**
  * Render a small WebGL thumbnail of a model to a PNG data URL.
  * Returns null when WebGL is unavailable so callers can fall back.
  */
@@ -3165,7 +3337,11 @@ export function renderAssetThumbnail(model, width = 120, height = 90) {
  * Get asset type information.
  */
 export function getAssetTypeInfo(type) {
-  return ASSET_TYPES[type] || ASSET_TYPES.cube;
+  const info = ASSET_TYPES[type] || ASSET_TYPES.cube;
+  return {
+    ...info,
+    collider: getColliderShape(type),
+  };
 }
 
 /**
@@ -3282,6 +3458,7 @@ export function buildGamePackFiles({
       material: asset.material || null,
       tags: getAssetTags(asset.type),
       stats,
+      collision: asset.collision || null,
       lodLevels: asset.lodLevels
         ? asset.lodLevels.map((lod) => ({
             level: lod.level,
@@ -3304,6 +3481,7 @@ export function buildGamePackFiles({
           file: `models/${slug}/LOD${lod.level}.glb`,
         })),
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
+        collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
       },
     };
   });
@@ -3343,6 +3521,9 @@ export function buildGamePackFiles({
     if (asset.thumbnailBytes) {
       files[`thumbnails/${slug}.png`] = asset.thumbnailBytes;
     }
+    if (asset.colliderBytes) {
+      files[`colliders/${slug}.glb`] = asset.colliderBytes;
+    }
   }
 
   return zipSync(files, { level: 6 });
@@ -3361,11 +3542,30 @@ export async function exportGamePack({
   engine = "unity",
   withLod = false,
   thumbnailDataUrl = null,
+  collision = "auto",
   exportedAt = new Date().toISOString(),
 }) {
   const preset = getEnginePreset(engine);
   const options = { upAxis: preset.upAxis, scale: preset.scale };
   const lodLevels = [];
+  let collisionInfo = null;
+  let colliderBytes = null;
+
+  const collisionShape =
+    collision && collision !== "none"
+      ? collision === "auto"
+        ? getColliderShape(asset.type)
+        : collision
+      : null;
+  if (collisionShape) {
+    collisionInfo = computeCollider(model, collisionShape);
+    if (collisionInfo?.shape !== "mesh") {
+      const colliderModel = buildColliderModel(collisionInfo);
+      if (colliderModel) {
+        colliderBytes = new Uint8Array(await exportGLB(colliderModel, options));
+      }
+    }
+  }
 
   if (withLod) {
     const lods = generateLOD(model, 4);
@@ -3398,6 +3598,8 @@ export async function exportGamePack({
     lodLevels,
     glbBytes,
     thumbnailBytes,
+    collision: collisionInfo,
+    colliderBytes,
   };
   return buildGamePackFiles({
     assets: [packAsset],
