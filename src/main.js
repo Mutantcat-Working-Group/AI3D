@@ -193,6 +193,11 @@ app.innerHTML = `${SPRITE}
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
     <div id="gen-status" class="gen-status"></div>
+    <div class="gen-library-header">
+      <input id="gen-search" placeholder="${t("gen.promptPlaceholder")}">
+      <button id="gen-save" class="quiet">${t("mcp.save")}</button>
+    </div>
+    <div id="gen-library" class="gen-library"></div>
     <div class="gen-actions" id="gen-actions" hidden>
       <button id="gen-import" class="primary-button">${T("gen.import")}</button>
       <button id="gen-optimize" class="quiet">${T("gen.optimize")}</button>
@@ -2130,6 +2135,53 @@ const genState = {
   optimizing: false,
 };
 
+// --- Asset Library ---
+const assetLibrary = {
+  assets: [],
+  load() {
+    try {
+      const data = localStorage.getItem("ai3d-asset-library");
+      if (data) this.assets = JSON.parse(data);
+    } catch {
+      this.assets = [];
+    }
+  },
+  save() {
+    try {
+      localStorage.setItem("ai3d-asset-library", JSON.stringify(this.assets));
+    } catch {
+      // Storage full or unavailable
+    }
+  },
+  add(asset) {
+    this.assets.unshift({
+      ...asset,
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+    });
+    this.save();
+  },
+  remove(id) {
+    this.assets = this.assets.filter((a) => a.id !== id);
+    this.save();
+  },
+  clear() {
+    this.assets = [];
+    this.save();
+  },
+  search(query) {
+    const q = query.toLowerCase();
+    return this.assets.filter(
+      (a) =>
+        a.prompt.toLowerCase().includes(q) ||
+        a.type.toLowerCase().includes(q) ||
+        a.style.toLowerCase().includes(q)
+    );
+  },
+};
+
+assetLibrary.load();
+
 function setGenStatus(message, type = "") {
   const status = $("#gen-status");
   status.textContent = message;
@@ -2293,6 +2345,78 @@ $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
 $("#gen-export").addEventListener("click", exportGenModel);
 $("#gen-download").addEventListener("click", downloadGenModel);
+
+// --- Asset Library UI ---
+function renderAssetLibrary() {
+  const container = $("#gen-library");
+  if (!container) return;
+  const query = $("#gen-search").value.trim();
+  const assets = query ? assetLibrary.search(query) : assetLibrary.assets;
+  if (assets.length === 0) {
+    container.innerHTML = `<div class="gen-library-empty">${t("gen.empty")}</div>`;
+    return;
+  }
+  container.innerHTML = assets
+    .map(
+      (a) => `
+    <div class="gen-asset-card" data-id="${a.id}">
+      <div class="gen-asset-info">
+        <strong>${a.type}</strong>
+        <span>${a.prompt.slice(0, 50)}${a.prompt.length > 50 ? "..." : ""}</span>
+        <small>${new Date(a.createdAt).toLocaleDateString()}</small>
+      </div>
+      <div class="gen-asset-actions">
+        <button class="gen-asset-load" data-id="${a.id}">${t("gen.import")}</button>
+        <button class="gen-asset-delete" data-id="${a.id}">${t("mcp.remove")}</button>
+      </div>
+    </div>
+  `
+    )
+    .join("");
+}
+
+function saveCurrentAsset() {
+  if (!genState.model) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  assetLibrary.add({
+    ...genState.model,
+    threeObject: null, // Don't serialize Three.js objects
+  });
+  renderAssetLibrary();
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+function loadAsset(id) {
+  const asset = assetLibrary.assets.find((a) => a.id === id);
+  if (!asset) return;
+  const model = generateAsset(asset.type, {
+    size: asset.size,
+    segments: asset.segments,
+    style: asset.style,
+  });
+  genState.model = { ...asset, threeObject: model };
+  setGenStatus(t("gen.applied"), "ok");
+  setGenActions(true);
+}
+
+function deleteAsset(id) {
+  assetLibrary.remove(id);
+  renderAssetLibrary();
+}
+
+$("#gen-save").addEventListener("click", saveCurrentAsset);
+$("#gen-search").addEventListener("input", renderAssetLibrary);
+$("#gen-library").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (btn.classList.contains("gen-asset-load")) loadAsset(id);
+  else if (btn.classList.contains("gen-asset-delete")) deleteAsset(id);
+});
+
+renderAssetLibrary();
 
 initAiDock();
 loadMcpConnections();

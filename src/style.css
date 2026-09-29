@@ -1860,3 +1860,65 @@ body.ai-dock-open .workspace {
 .gen-export-panel .primary-button {
   margin-top: 4px;
 }
+/* ---------------- Asset Library ---------------- */
+
+.gen-library-header {
+  padding: 0 12px 8px;
+  display: flex;
+  gap: 6px;
+}
+.gen-library-header input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-family: inherit;
+}
+.gen-library {
+  padding: 0 12px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.gen-library-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 11px;
+}
+.gen-asset-card {
+  padding: 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: var(--bg-1);
+}
+.gen-asset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.gen-asset-info strong {
+  font-size: 12px;
+  color: var(--text-1);
+}
+.gen-asset-info span {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.gen-asset-info small {
+  font-size: 10px;
+  color: var(--text-3);
+}
+.gen-asset-actions {
+  display: flex;
+  gap: 4px;
+}
+.gen-asset-actions button {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 11px;
+}
