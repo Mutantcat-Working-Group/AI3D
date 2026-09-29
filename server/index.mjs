@@ -20,6 +20,7 @@ import {
   instanceCookieName,
   agentSocketPath,
   prepareSocketDirectory,
+  isNamedPipePath,
   INTEGRATION_API,
 } from "./instance.mjs";
 import {
@@ -1311,9 +1312,12 @@ function errorHandler(err, req, res, next) {
 agentApp.use(errorHandler);
 const socketPath = agentSocketPath(runtime, instance);
 prepareSocketDirectory(socketPath, instance);
-if (fs.existsSync(socketPath)) fs.unlinkSync(socketPath);
+if (!isNamedPipePath(socketPath) && fs.existsSync(socketPath))
+  fs.unlinkSync(socketPath);
 const agentServer = http.createServer(agentApp);
-agentServer.listen(socketPath, () => fs.chmodSync(socketPath, 0o600));
+agentServer.listen(socketPath, () => {
+  if (!isNamedPipePath(socketPath)) fs.chmodSync(socketPath, 0o600);
+});
 app.use(
   express.static(
     path.resolve(process.env.REVIEW_DIST_DIR || path.join(repo, "dist")),
@@ -1326,15 +1330,30 @@ app.get("/{*path}", (req, res) =>
 );
 app.use(errorHandler);
 const port = Number(process.env.PORT || 43173);
-const server = app.listen(port, network.host, () =>
+const server = app.listen(port, network.host, () => {
   log.info("service", "AI3D listening", {
     host: network.host,
     port: server.address().port,
     pid: process.pid,
     instance: instance?.id,
     accessRequired,
-  }),
-);
+  });
+  // A desktop host starts the service on an ephemeral port and needs the
+  // answer before it can point a WebView at it. The ready file is written
+  // only after the listener is actually accepting connections, so whoever
+  // reads it can navigate immediately without polling health first.
+  if (process.env.REVIEW_READY_FILE)
+    fs.writeFileSync(
+      process.env.REVIEW_READY_FILE,
+      JSON.stringify({
+        app: "3d-agent-review",
+        host: network.host,
+        port: server.address().port,
+        url: `http://${network.host}:${server.address().port}/`,
+        pid: process.pid,
+      }),
+    );
+});
 function shutdown() {
   server.close();
   agentServer.close(() => process.exit(0));

@@ -31,6 +31,10 @@
     "build": "npm run check:i18n && vite build",
     "prepare": "npm run build",
     "build:integration": "node scripts/build-integration.mjs",
+    "desktop:build": "node scripts/build-desktop.mjs",
+    "desktop:dev": "tauri dev",
+    "desktop:build:installer": "tauri build",
+    "tauri": "tauri",
     "start": "node server/index.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
     "sync:docs": "node scripts/sync-reviewer-help.mjs",
@@ -57,6 +61,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "@tauri-apps/cli": "^2.12.0",
     "esbuild": "0.28.2",
     "prettier": "^3.9.8",
     "vite": "^7.1.0"

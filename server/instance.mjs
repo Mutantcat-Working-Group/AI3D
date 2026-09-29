@@ -33,16 +33,24 @@ export function instanceCookieName(instance) {
     : "review_access";
 }
 
+export function isNamedPipePath(socketPath) {
+  return process.platform === "win32" && socketPath.startsWith("\\\\.\\pipe\\");
+}
+
 // Darwin AF_UNIX names have a short byte limit. Managed instances keep their
 // persistent state in the project but put only the ephemeral socket in a
 // private, per-uid OS temporary directory. Legacy instances keep their path.
 export function agentSocketPath(runtime, instance = null) {
-  if (!instance) return path.join(runtime, "agent.sock");
   const key = crypto
     .createHash("sha256")
     .update(fs.realpathSync(runtime))
     .digest("hex")
     .slice(0, 24);
+  // Windows has no filesystem Unix sockets; Node supports named pipes instead.
+  // One pipe per runtime keeps every side of an instance agreement on the
+  // address while still separating clones and projects.
+  if (process.platform === "win32") return `\\\\.\\pipe\\ai3d-${key}`;
+  if (!instance) return path.join(runtime, "agent.sock");
   return path.join(
     os.tmpdir(),
     `ai3d-${process.getuid?.() ?? "user"}`,
@@ -52,6 +60,7 @@ export function agentSocketPath(runtime, instance = null) {
 
 export function prepareSocketDirectory(socketPath, instance) {
   if (!instance) return;
+  if (isNamedPipePath(socketPath)) return;
   const directory = path.dirname(socketPath);
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const st = fs.lstatSync(directory);

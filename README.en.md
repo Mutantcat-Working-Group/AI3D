@@ -136,7 +136,27 @@ install commands above use npm as the package manager, not as the source.
 The workbench listens on the loopback address by default. LAN mode binds one
 verified private IPv4 and always requires authorization.
 
-### 7. Roadmap
+### 7. Desktop client
+
+AI3D also ships as a Tauri desktop client that puts the same workbench in its
+own window. The desktop app needs Node.js 22 or newer on the machine because
+the bundled service still runs under Node; the window uses the system WebView
+(WebView2 on Windows).
+
+```sh
+npm ci
+npm run desktop:build                 # stage the service and web client into tmp/desktop-package
+npm run desktop:dev                   # open the desktop window in dev mode
+npm run desktop:build:installer       # build the NSIS installer (Windows)
+```
+
+Installer output lands in `src-tauri/target/release/bundle/nsis/`. The
+application identifier is `org.mutantcat.ai3d`; the window title is AI3D and
+the icon is the repository's `icon.png`. Desktop data - review state and
+published models - lives in the OS application data directory, and the bundled
+service only listens on the local loopback address.
+
+### 8. Roadmap
 
 Plans, not promises: the order can change as people use it. Ideas and requests
 are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions).
@@ -155,14 +175,14 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
 - **2.0** - animation playback: rigged animation you can play and step through
   frame by frame.
 
-### 8. Documentation
+### 9. Documentation
 
 - [AGENT-INTERFACE.md](AGENT-INTERFACE.md) - the contract an agent implements
 - [docs/zh/](docs/zh/) - design documents, in Chinese: positioning,
   requirements, versioning rules, roadmap
 - [Chinese README](README.md) - the Chinese project overview
 
-### 9. License
+### 10. License
 
 Apache-2.0. See [LICENSE](LICENSE).
 

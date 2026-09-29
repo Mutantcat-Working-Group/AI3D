@@ -11,6 +11,8 @@ __pycache__/
 /dist/
 /build/
 /tmp/
+/src-tauri/target/
+/src-tauri/gen/
 *.log
 
 # Acceptance evidence is local. It carries machine paths, session identifiers

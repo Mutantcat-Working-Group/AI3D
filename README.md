@@ -102,7 +102,20 @@ args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.3.2", "ai3d-mcp"]
 
 工作台默认只监听 loopback 地址；LAN 模式绑定一个验证过的私有 IPv4，并且始终要求授权。
 
-### 七、开发进度
+### 七、桌面客户端
+
+AI3D 同时提供 Tauri 桌面客户端，把同一个工作台放进独立窗口。桌面端需要本机安装 Node.js 22 或更新版本，因为打包后的内置服务仍由 Node 运行；窗口本身使用系统 WebView（Windows 上为 WebView2）。
+
+```sh
+npm ci
+npm run desktop:build                 # 打包内置服务与前端到 tmp/desktop-package
+npm run desktop:dev                   # 以开发模式启动桌面窗口
+npm run desktop:build:installer       # 构建 NSIS 安装包（Windows）
+```
+
+安装包输出在 `src-tauri/target/release/bundle/nsis/`；应用标识为 `org.mutantcat.ai3d`，窗口标题为 AI3D，图标与仓库根目录的 `icon.png` 一致。桌面端数据（审阅状态、已发布模型）保存在系统应用数据目录，默认只在本机 loopback 地址上运行内置服务。
+
+### 八、开发进度
 
 计划不是承诺：使用中可能会调整顺序。想法和需求欢迎发到 [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions)。
 
@@ -112,13 +125,13 @@ args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.3.2", "ai3d-mcp"]
 - **1.7** — 面向游戏资产的审阅辅助：UV 和棋盘格视图、分通道贴图视图、按网格三角面数、带可见性的节点树。
 - **2.0** — 动画播放：可以播放并逐帧查看绑骨动画。
 
-### 八、文档
+### 九、文档
 
 - [AGENT-INTERFACE.md](AGENT-INTERFACE.md) — Agent 实现的接口契约
 - [docs/zh/](docs/zh/) — 中文设计文档：定位、需求、版本规则、路线图
 - [English README](README.en.md) — 英文项目说明
 
-### 九、许可证
+### 十、许可证
 
 Apache-2.0，见 [LICENSE](LICENSE)。
 
