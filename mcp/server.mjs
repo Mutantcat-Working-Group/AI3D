@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MeshCue over the Model Context Protocol, for every harness that speaks it.
+// AI3D over the Model Context Protocol, for every harness that speaks it.
 //
 // It stands on the same InstanceManager the CLI and the OpenClaw adapter use,
 // so there is one implementation of a review and not three that have to be kept
@@ -27,7 +27,7 @@ export const PROTOCOL_VERSION = "2025-06-18";
 // bytes the bundled Skill carries. A second copy written for this surface would
 // start agreeing with the first and end up describing a different product.
 export function instructions(root = ROOT) {
-  const file = path.join(root, "skills/meshcue-review/SKILL.md");
+  const file = path.join(root, "skills/ai3d-review/SKILL.md");
   if (!fs.existsSync(file)) return "";
   return fs
     .readFileSync(file, "utf8")
@@ -37,11 +37,11 @@ export function instructions(root = ROOT) {
 
 // MCP offers no session identity — initialize names the client, not the
 // conversation — so the finest owner this protocol can honestly describe is the
-// workspace being worked in. MESHCUE_OWNER overrides it for a host that does
+// workspace being worked in. AI3D_OWNER overrides it for a host that does
 // know which session is asking, which is the only way to make it finer without
 // inventing it.
 export function mcpOwner(workspace, environment = process.env) {
-  if (environment.MESHCUE_OWNER) return environment.MESHCUE_OWNER;
+  if (environment.AI3D_OWNER) return environment.AI3D_OWNER;
   const digest = crypto
     .createHash("sha256")
     .update(`${os.hostname()}\0${workspace}`)
@@ -51,7 +51,7 @@ export function mcpOwner(workspace, environment = process.env) {
 }
 
 export const TOOL = {
-  name: "meshcue",
+  name: "ai3d",
   description:
     "Browser-based 3D model review. Publish a GLB, STL or STEP for a person to mark on, read the marks they submit, and publish the next version. STEP and STL are drawn +Z up, GLB +Y up; rotate a model built otherwise before publishing. precheck a GLB or STL before every open; open measures a STEP itself. This host cannot be pushed to: a submitted batch waits to be read, so call read when the reviewer says they are done rather than waiting to be told.",
   inputSchema: {
@@ -124,7 +124,7 @@ export function createHandler({
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: {
-          name: "meshcue",
+          name: "ai3d",
           version: JSON.parse(
             fs.readFileSync(path.join(root, "package.json"), "utf8"),
           ).version,

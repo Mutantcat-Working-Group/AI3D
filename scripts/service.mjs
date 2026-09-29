@@ -42,7 +42,7 @@ async function health() {
 async function stop() {
   const current = await health();
   if (!current) {
-    console.log("No MeshCue review service is running on this port.");
+    console.log("No AI3D review service is running on this port.");
     return;
   }
   if (
@@ -61,7 +61,7 @@ async function stop() {
 }
 async function start() {
   if (await health()) {
-    console.log(`MeshCue review service started: ${url} (runtime ${runtime})`);
+    console.log(`AI3D review service started: ${url} (runtime ${runtime})`);
     return;
   }
   fs.mkdirSync(runtime, { recursive: true });
@@ -82,7 +82,7 @@ async function start() {
       // a stale pid behind, and every later stop refused with "PID mismatch".
       fs.writeFileSync(pidFile, `${up.pid}\n`, { mode: 0o600 });
       console.log(
-        `MeshCue review service started: ${url} (runtime ${runtime})`,
+        `AI3D review service started: ${url} (runtime ${runtime})`,
       );
       return;
     }

@@ -84,7 +84,7 @@ function readRequested() {
     /* a URL we cannot parse simply has no preference in it */
   }
   try {
-    return localStorage.getItem("meshcue-locale");
+    return localStorage.getItem("ai3d-locale");
   } catch {
     return null;
   }
@@ -129,7 +129,7 @@ export function setLocale(next) {
   if (!hit || hit === locale) return locale;
   locale = hit;
   try {
-    localStorage.setItem("meshcue-locale", hit);
+    localStorage.setItem("ai3d-locale", hit);
   } catch {
     /* a reviewer with no storage still gets the language for this visit */
   }

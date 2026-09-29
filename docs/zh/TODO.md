@@ -813,7 +813,7 @@ glTF 规定「没有材质的 primitive 用默认材质」，而那个默认材�
 ## 📋 下一批 · 1.1.0 之后（在 `dev` 上开工，**按新规矩批量处理**）
 
 > 工作在 `dev`，`main` 只做 `--ff-only` 合并并紧接着打 tag；版本号在 `dev` 上带 `-dev`
-> 后缀、发版提交才去掉。完整约定见仓库根的 `CONTRIBUTING.md`。
+> 后缀、发版提交才去掉。
 > **修一个缺陷不需要发版** —— 交给 Kelven 试的是 `npm run build:integration` 出来的包，
 > 他用 `openclaw plugins install <路径>` 装，全程没有 tag、没有 Release。
 

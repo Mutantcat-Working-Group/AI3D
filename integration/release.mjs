@@ -39,8 +39,8 @@ export function cacheRelease(installRoot, runtime) {
       "utf8",
     ),
   );
-  if (manifest.id !== "meshcue")
-    fail("PACKAGE_INVALID", "This package is not MeshCue.");
+  if (manifest.id !== "ai3d")
+    fail("PACKAGE_INVALID", "This package is not AI3D.");
   const skills = path.join(installRoot, "skills");
   const wanted = [
     "runtime/server.mjs",

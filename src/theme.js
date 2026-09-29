@@ -9,7 +9,7 @@
    frame of the wrong theme on every load. */
 
 export const THEMES = ["system", "light", "dark"];
-const KEY = "meshcue-theme";
+const KEY = "ai3d-theme";
 
 export function systemTheme(matcher) {
   return matcher?.matches ? "dark" : "light";

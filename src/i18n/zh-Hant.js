@@ -3,7 +3,7 @@
 export default {
   "app.tagline": "3D 模型審閱與標注",
   "app.version": "正在執行的版本",
-  "app.updateHint": "有新版本 {version}。讓你的 Agent 更新 MeshCue。",
+  "app.updateHint": "有新版本 {version}。讓你的 Agent 更新 AI3D模型。",
 
   "closing.pending":
     "這一輪審閱已經有一段時間沒人使用，即將關閉。你在這裡做任何操作都會讓它繼續。",
@@ -34,7 +34,7 @@ export default {
   "error.originBusy": "另一個對話正在使用這次審閱",
   "error.accessExpired": "臨時授權已過期，請返回原對話",
   "error.accessLimit": "本次審閱的連線數已達上限",
-  "error.integrationDisabled": "MeshCue 已停用；草稿已保留，請在原對話繼續",
+  "error.integrationDisabled": "AI3D模型 已停用；草稿已保留，請在原對話繼續",
   "error.deliveryUnconfirmed": "尚未確認送達；標記已保存，會自動重試",
   "error.accessRequired": "此入口未取得有效審閱權，請返回原對話。",
 

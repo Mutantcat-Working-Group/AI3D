@@ -32,7 +32,7 @@ const parameters = {
     project: {
       type: "string",
       description:
-        "Workspace-relative modelling project, e.g. projects/phone-stand. Never the MeshCue application checkout.",
+        "Workspace-relative modelling project, e.g. projects/phone-stand. Never the AI3D application checkout.",
     },
     file: {
       type: "string",
@@ -80,12 +80,12 @@ const parameters = {
   required: ["action"],
 };
 const description =
-  "Open or continue browser-based 3D model review in the current conversation; publish GLB, STL or STEP drafts (STEP and STL are drawn +Z up with -Y to the front, GLB +Y up; rotate a model built otherwise before publishing), choose which published version the reviewer sees, read submitted annotations, and show understanding before revising a model. Use after creating a first model, including natural modelling requests that do not name MeshCue. Model limits are 600000 triangles and 80 MB, and nothing degrades below them: run precheck on a GLB or STL before every open, and when its verdict is reject, simplify the model by the ratio it gives and say so before publishing; a STEP needs no precheck, since open measures it while importing and refuses it the same way. Every published version stays selectable and annotatable, so activate switches the display freely and never discards a draft; status lists versions with their marking counts. A batch with sealed true was closed out on the reviewer's behalf, so confirm what they meant before treating it as a change request, and check whether a marking made against an older version still applies to the current one. inspect, precheck and status are read-only. finish closes a version's round and unlock clears a stale tab: use either only when the user asks.";
+  "Open or continue browser-based 3D model review in the current conversation; publish GLB, STL or STEP drafts (STEP and STL are drawn +Z up with -Y to the front, GLB +Y up; rotate a model built otherwise before publishing), choose which published version the reviewer sees, read submitted annotations, and show understanding before revising a model. Use after creating a first model, including natural modelling requests that do not name AI3D. Model limits are 600000 triangles and 80 MB, and nothing degrades below them: run precheck on a GLB or STL before every open, and when its verdict is reject, simplify the model by the ratio it gives and say so before publishing; a STEP needs no precheck, since open measures it while importing and refuses it the same way. Every published version stays selectable and annotatable, so activate switches the display freely and never discards a draft; status lists versions with their marking counts. A batch with sealed true was closed out on the reviewer's behalf, so confirm what they meant before treating it as a change request, and check whether a marking made against an older version still applies to the current one. inspect, precheck and status are read-only. finish closes a version's round and unlock clears a stale tab: use either only when the user asks.";
 
 const managers = new Map();
 const plugin = defineToolPlugin({
-  id: "meshcue",
-  name: "MeshCue",
+  id: "ai3d",
+  name: "AI3D",
   description:
     "3D model review, annotation and model iteration in the originating conversation",
   configSchema: {
@@ -106,14 +106,14 @@ const plugin = defineToolPlugin({
   },
   tools: (tool) => [
     tool({
-      name: "meshcue",
+      name: "ai3d",
       description,
       parameters,
       optional: false,
       factory({ api, config, toolContext: ctx }) {
         return {
-          name: "meshcue",
-          label: "MeshCue",
+          name: "ai3d",
+          label: "AI3D",
           description,
           parameters,
           async execute(_callId, params) {
@@ -153,7 +153,7 @@ const plugin = defineToolPlugin({
               // The structured result reaches the model; the host log is the
               // only place the stack survives for an operator.
               api.logger?.warn?.(
-                `MeshCue ${params.action || "?"} failed: ${error.code || "UNAVAILABLE"} ${error.message}`,
+                `AI3D ${params.action || "?"} failed: ${error.code || "UNAVAILABLE"} ${error.message}`,
               );
               const result = {
                 ok: false,
@@ -192,14 +192,14 @@ function sweepRegistrations(api, verb, sweep) {
       unavailable += sweep(workspace, api.rootDir).length;
     } catch (error) {
       api.logger?.warn?.(
-        `MeshCue ${verb}: registry unreadable for ${workspace}: ${error.message}`,
+        `AI3D ${verb}: registry unreadable for ${workspace}: ${error.message}`,
       );
       unavailable++;
     }
   }
   if (unavailable)
     api.logger?.warn(
-      `MeshCue ${verb}: ${unavailable} unavailable registrations; other instances were processed.`,
+      `AI3D ${verb}: ${unavailable} unavailable registrations; other instances were processed.`,
     );
 }
 // Preserve the SDK's static metadata while adding the supported cleanup hook.
@@ -209,11 +209,11 @@ plugin.register = (api) => {
   // Registering is itself the proof that this extension is enabled, so any
   // pause marker a previous process left behind is stale. Clearing it here is
   // what keeps a Gateway restart from stranding a live review behind a 503 that
-  // only an Agent action could lift: the host cannot tell MeshCue that a
-  // shutdown was a restart, but MeshCue can tell that it came back.
+  // only an Agent action could lift: the host cannot tell AI3D that a
+  // shutdown was a restart, but AI3D can tell that it came back.
   sweepRegistrations(api, "resume", resumeRegistered);
   api.lifecycle.registerRuntimeLifecycle({
-    id: "meshcue-instances",
+    id: "ai3d-instances",
     description:
       "Pause managed review writes when the extension is disabled; keep drafts and outbox.",
     cleanup({ reason }) {
@@ -225,7 +225,7 @@ plugin.register = (api) => {
         unavailable += manager.pauseOwned().length;
       if (unavailable)
         api.logger?.warn(
-          `MeshCue disable: ${unavailable} managed instances could not be paused.`,
+          `AI3D disable: ${unavailable} managed instances could not be paused.`,
         );
       sweepRegistrations(api, "disable", pauseRegistered);
       // Gateway restart is deliberately not a model-service restart. Reset is

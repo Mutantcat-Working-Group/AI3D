@@ -91,7 +91,7 @@ test("a refused call keeps the host's typed reason instead of just the exit code
   // rejects on the exit code first, so the reason used to be dropped: an
   // admin-scope refusal retried eighteen times and logged "Command failed"
   // every time, with the answer sitting unread on stdout.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-refusal-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-refusal-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const stub = path.join(dir, "openclaw");
   fs.writeFileSync(
@@ -119,7 +119,7 @@ test("a refused call keeps the host's typed reason instead of just the exit code
 });
 
 test("a refused call with no parsable payload still fails loudly", async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-refusal-raw-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-refusal-raw-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const stub = path.join(dir, "openclaw");
   fs.writeFileSync(
@@ -139,7 +139,7 @@ test("a refused call with no parsable payload still fails loudly", async (t) => 
 });
 
 test("a zero-exit payload that carries no error is still accepted", async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-accept-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-accept-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const stub = path.join(dir, "openclaw");
   fs.writeFileSync(

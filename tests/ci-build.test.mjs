@@ -37,7 +37,7 @@ const candidate = (t, name) => {
 
 test("without the host build, the package still builds and says so", (t) => {
   const result = JSON.parse(
-    build(candidate(t, "ci-skip"), { MESHCUE_SKIP_HOST_BUILD: "1" }),
+    build(candidate(t, "ci-skip"), { AI3D_SKIP_HOST_BUILD: "1" }),
   );
   assert.equal(result.hostBuild, false);
   assert.equal(result.bundledSkill, true);
@@ -65,7 +65,7 @@ test("skipping the host build does not skip the version guard", (t) => {
     original.replace(/"version":\s*"[^"]+"/, '"version": "0.0.1-drift"'),
   );
   assert.throws(
-    () => build(candidate(t, "ci-drift"), { MESHCUE_SKIP_HOST_BUILD: "1" }),
+    () => build(candidate(t, "ci-drift"), { AI3D_SKIP_HOST_BUILD: "1" }),
     /0\.0\.1-drift|version/,
   );
 });
@@ -75,7 +75,7 @@ test("the workflow asks for the skip rather than relying on a bare runner", () =
     path.join(repo, ".github/workflows/ci.yml"),
     "utf8",
   );
-  assert.match(workflow, /MESHCUE_SKIP_HOST_BUILD:\s*"1"/);
+  assert.match(workflow, /AI3D_SKIP_HOST_BUILD:\s*"1"/);
 });
 
 /* The one class of failure the rest of the suite cannot see. Everything else
@@ -91,7 +91,7 @@ test("the workflow asks for the skip rather than relying on a bare runner", () =
    file. */
 test("the packaged converter runs from the package, not from node_modules", async (t) => {
   const out = candidate(t, "ci-step");
-  build(out, { MESHCUE_SKIP_HOST_BUILD: "1" });
+  build(out, { AI3D_SKIP_HOST_BUILD: "1" });
   const pkg = path.join(repo, out);
   assert.ok(
     fs.existsSync(path.join(pkg, "vendor/occt-import-js.wasm")),

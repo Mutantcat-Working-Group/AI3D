@@ -289,7 +289,7 @@ function rememberStepMesh(mediaDir, sourceHash, generator, entry) {
    the size limit applied -- before anything reads the file or converts it. */
 export async function importModel(
   { file, name, version, source, units = "unspecified" },
-  { workspace, mediaDir, generator = "MeshCue" },
+  { workspace, mediaDir, generator = "AI3D" },
 ) {
   const actual = fs.realpathSync(path.resolve(workspace, file));
   if (!actual.startsWith(workspace + path.sep))

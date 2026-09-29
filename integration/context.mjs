@@ -14,7 +14,7 @@ export const fail = (code, message) => {
 };
 export { within };
 // Every field a host tool context carries is optional in the host's own type
-// declaration, so which ones MeshCue cannot work without is MeshCue's judgment
+// declaration, so which ones AI3D cannot work without is AI3D's judgment
 // to make, one field at a time, from what each one is used for. Requiring a
 // field that only narrows something is how a host that supplies less context
 // gets refused for no reason -- and a guard that merges several fields into one
@@ -26,8 +26,8 @@ export { within };
 //      "owner"     who may change this review; every host must answer it
 //      "route"     where a batch is delivered; only a host that can be pushed
 //                  to has one, so this is a property of the adapter rather than
-//                  of MeshCue. The branch in trustedOrigin decides for OpenClaw
-//      null        optional; `absent` is what MeshCue does instead
+//                  of AI3D. The branch in trustedOrigin decides for OpenClaw
+//      null        optional; `absent` is what AI3D does instead
 export const HOST_CONTEXT = [
   {
     key: "workspace",

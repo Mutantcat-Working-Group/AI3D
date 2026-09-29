@@ -8,8 +8,8 @@ import { pruneReleases } from "../integration/manager.mjs";
 
 // The version cache is what an upgrade rolls back to. Nothing here was covered,
 // so a package that had been altered on disk could have been launched anyway.
-function fixture(t, { id = "meshcue", extra = {} } = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-release-"));
+function fixture(t, { id = "ai3d", extra = {} } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-release-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const install = path.join(root, "install"),
     runtime = path.join(root, "runtime");
@@ -22,7 +22,7 @@ function fixture(t, { id = "meshcue", extra = {} } = {}) {
   write("openclaw.plugin.json", JSON.stringify({ id, version: "0.0.0-test" }));
   write(
     "package.json",
-    JSON.stringify({ name: "@meshcue/openclaw", version: "0.0.0-test" }),
+    JSON.stringify({ name: "org.mutantcat.ai3d.openclaw", version: "0.0.0-test" }),
   );
   write("runtime/server.mjs", "export const server = 1;\n");
   // A real package ships these beside the server, and the server resolves both
@@ -35,7 +35,7 @@ function fixture(t, { id = "meshcue", extra = {} } = {}) {
   write("vendor/package.json", JSON.stringify({ type: "commonjs" }));
   write("vendor/LICENSE.occt.txt", "LGPL-2.1\n");
   write("AGENT-INTERFACE.md", "# interface\n");
-  write("web/index.html", "<!doctype html><title>MeshCue</title>");
+  write("web/index.html", "<!doctype html><title>AI3D</title>");
   write("web/assets/app.js", "console.log(1);\n");
   for (const [relative, content] of Object.entries(extra))
     write(relative, content);
@@ -165,9 +165,9 @@ test("a package missing a part it needs says so rather than throwing ENOENT", (t
 test("a bundled skill is part of the package identity, not a loose file", (t) => {
   // The host loads a bundled skill from the install root, so swapping it there
   // changes what the Agent is told to do while every other check still passes.
-  const skill = "skills/meshcue-review/SKILL.md";
+  const skill = "skills/ai3d-review/SKILL.md";
   const f = fixture(t, {
-    extra: { [skill]: "---\nname: meshcue-review\n---\n" },
+    extra: { [skill]: "---\nname: ai3d-review\n---\n" },
   });
   const release = cacheRelease(f.install, f.runtime);
   assert.equal(fs.existsSync(path.join(release.root, skill)), true);
@@ -181,7 +181,7 @@ test("a bundled skill is part of the package identity, not a loose file", (t) =>
 
   // Its contents count, not just its presence: a reworded skill is a new package.
   const reworded = fixture(t, {
-    extra: { [skill]: "---\nname: meshcue-review\n---\nreworded\n" },
+    extra: { [skill]: "---\nname: ai3d-review\n---\nreworded\n" },
   });
   assert.notEqual(
     release.id,
@@ -208,7 +208,7 @@ test("a release identity must be a real digest and a real directory", (t) => {
   });
 });
 
-test("a package that is not MeshCue, or not plain files, does not start", (t) => {
+test("a package that is not AI3D, or not plain files, does not start", (t) => {
   const foreign = fixture(t, { id: "something-else" });
   assert.throws(() => cacheRelease(foreign.install, foreign.runtime), {
     code: "PACKAGE_INVALID",

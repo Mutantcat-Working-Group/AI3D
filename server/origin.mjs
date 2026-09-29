@@ -85,7 +85,7 @@ export function deliveryParams(value) {
   // The host resolves the destination from the session itself. Naming it here
   // with originating* route fields is an admin-scoped override that a normal
   // operator client cannot use — the Gateway answers "originating route fields
-  // require admin scope" and the whole review round stalls unconfirmed. MeshCue
+  // require admin scope" and the whole review round stalls unconfirmed. AI3D
   // never needed the override: sessionKey already identifies the exact channel,
   // chat and topic this batch was bound to, and the caller cannot widen that.
   // The frozen target/accountId/threadId stay on the stored route as a record

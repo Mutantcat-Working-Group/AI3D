@@ -61,7 +61,7 @@ function setup(t) {
   fs.writeFileSync(path.join(workspace, "part.stl"), stl);
   fs.writeFileSync(
     path.join(workspace, "openclaw.plugin.json"),
-    JSON.stringify({ id: "meshcue" }),
+    JSON.stringify({ id: "ai3d" }),
   );
   const ctx = {
     workspaceDir: workspace,
@@ -241,7 +241,7 @@ test("concurrent prepare is idempotent; independent projects persist identity an
       .stopped,
     true,
   );
-  const hijack = http.createServer((_req, res) => res.end("not MeshCue"));
+  const hijack = http.createServer((_req, res) => res.end("not AI3D"));
   await new Promise((r) =>
     hijack.listen(Number(new URL(a.url).port), "127.0.0.1", r),
   );
@@ -371,7 +371,7 @@ test("fresh-process disable skips a stale registration and still pauses other pr
   const f = setup(t);
   await f.open("projects/a");
   const b = await f.open("projects/b");
-  const file = path.join(f.workspace, "projects/meshcue-state/registry.json");
+  const file = path.join(f.workspace, "projects/ai3d-state/registry.json");
   const registry = JSON.parse(fs.readFileSync(file, "utf8"));
   const a = Object.values(registry.projects).find(
     (p) => p.project === "projects/a",
@@ -397,17 +397,17 @@ test("a registered project whose folder is gone is passed over, then dropped", a
   const f = setup(t);
   await f.open("projects/a");
   const b = await f.open("projects/b");
-  const file = path.join(f.workspace, "projects/meshcue-state/registry.json");
+  const file = path.join(f.workspace, "projects/ai3d-state/registry.json");
   const registry = JSON.parse(fs.readFileSync(file, "utf8"));
   Object.values(registry.projects).find(
     (p) => p.project === "projects/a",
-  ).runtime = "projects/removed/.meshcue";
+  ).runtime = "projects/removed/.ai3d";
   const foreign = {
     project: "projects/elsewhere",
-    runtime: "projects/also-removed/.meshcue",
+    runtime: "projects/also-removed/.ai3d",
     instanceId: "x",
     agentId: "main",
-    installRoot: "/somewhere/else/meshcue",
+    installRoot: "/somewhere/else/ai3d",
   };
   registry.projects.foreign = foreign;
   fs.writeFileSync(file, JSON.stringify(registry));
@@ -457,16 +457,16 @@ test("a registration after a shutdown-shaped disable resumes the paused projects
     );
 });
 
-// Resuming is scoped exactly like pausing: another MeshCue install's projects
+// Resuming is scoped exactly like pausing: another AI3D install's projects
 // are not this install's to un-pause, however stale their marker looks.
 test("resume leaves projects registered to another install root paused", async (t) => {
   const f = setup(t);
   const opened = await f.open("projects/a");
   assert.deepEqual(pauseRegistered(f.workspace, f.options.installRoot), []);
-  const file = path.join(f.workspace, "projects/meshcue-state/registry.json");
+  const file = path.join(f.workspace, "projects/ai3d-state/registry.json");
   const registry = JSON.parse(fs.readFileSync(file, "utf8"));
   for (const item of Object.values(registry.projects))
-    item.installRoot = "/somewhere/else/meshcue";
+    item.installRoot = "/somewhere/else/ai3d";
   fs.writeFileSync(file, JSON.stringify(registry));
   assert.deepEqual(resumeRegistered(f.workspace, f.options.installRoot), []);
   assert.equal(
@@ -656,7 +656,7 @@ test("the Agent can publish without taking the screen, then switch, finish and c
  * would fix it. Hit on the first call after the 0.13.0 restart, 2026-09-15.
  */
 test("a route the running build predates says so, instead of leaking a parse error", async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-ipc-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-ipc-"));
   const server = http.createServer((req, res) => {
     if (req.url === "/status") {
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -694,7 +694,7 @@ test("a route the running build predates says so, instead of leaking a parse err
  * Hit on the first real publish after the 1.3.0-dev restart, 2026-09-21.
  */
 test("a route that does real work gets its own budget, and silence still fails fast", async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-budget-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-budget-"));
   const server = http.createServer((req, res) => {
     setTimeout(() => {
       res.writeHead(200, { "Content-Type": "application/json" });

@@ -113,11 +113,11 @@ test("re-importing the same STEP lands on the same mesh file, so marks keep mean
 test("a STEP this build already tessellated here is taken from disk, not the kernel", async (t) => {
   const mediaDir = mediaFixture(t);
   const opts = { file: FIXTURE, name: "plate", version: "v1" };
-  const build = { workspace: repo, mediaDir, generator: "MeshCue test" };
+  const build = { workspace: repo, mediaDir, generator: "AI3D test" };
   const first = await importModel(opts, build);
   const indexFile = path.join(mediaDir, "step-meshes.json");
   const index = JSON.parse(fs.readFileSync(indexFile, "utf8"));
-  const entry = index[first.sha256]["MeshCue test"];
+  const entry = index[first.sha256]["AI3D test"];
   assert.equal(entry.sha256, first.mesh.sha256);
 
   const stand = Buffer.from("not a tessellation of anything");
@@ -131,7 +131,7 @@ test("a STEP this build already tessellated here is taken from disk, not the ker
   fs.writeFileSync(path.join(mediaDir, `${standHash}.glb`), "edited");
   assert.equal((await importModel(opts, build)).mesh.sha256, first.mesh.sha256);
   // And another build does not borrow this one's mesh.
-  const other = await importModel(opts, { ...build, generator: "MeshCue 9" });
+  const other = await importModel(opts, { ...build, generator: "AI3D 9" });
   assert.notEqual(other.mesh.sha256, first.mesh.sha256);
 });
 

@@ -36,12 +36,12 @@ test("the agent reads the same reviewer help the panel shows", async () => {
  * not exist yet, so the same line has to be held from the other side: whatever
  * the documentation points at, it must not be the version being worked towards.
  * A reader who follows a tag that was written ahead of its release gets nothing
- * at all. See CONTRIBUTING.md. */
+ * at all. */
 test("the documented install tag is this version", () => {
   const { version } = JSON.parse(read("package.json"));
   const [released, inProgress] = version.split("-");
   for (const file of ["README.md", "AGENT-INTERFACE.md"]) {
-    const tags = [...read(file).matchAll(/meshcue#v([0-9]+\.[0-9]+\.[0-9]+)/g)];
+    const tags = [...read(file).matchAll(/ai3d#v([0-9]+\.[0-9]+\.[0-9]+)/gi)];
     assert.ok(tags.length, `${file} documents no pinned install tag`);
     for (const [, tag] of tags)
       if (inProgress)
@@ -106,7 +106,7 @@ test("README counts the browser cases the suite actually has", () => {
  * the only thing that tells it where. A named path that does not open is worse
  * than a missing one: it looks exactly like an install that worked. */
 test("inspect names only documents that are there", (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-docs-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-docs-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   assert.deepEqual(docPaths(root), {}, "an empty root has nothing to offer");
   fs.writeFileSync(path.join(root, "README.md"), "# readme\n");

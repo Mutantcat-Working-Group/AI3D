@@ -211,7 +211,7 @@ function toGlb(meshes, generator) {
    child below -- see `convertStepDetached` for why there is nowhere else it is
    allowed to run. `generator` is the caller's version string, written into the
    file so a mesh on disk can say what produced it. */
-export async function convertStep(buffer, { generator = "MeshCue" } = {}) {
+export async function convertStep(buffer, { generator = "AI3D" } = {}) {
   const kernel = await occt();
   /* On a malformed upload this prints its own complaint ("**** ERR StepFile:
      Incorrect syntax") to stdout, despite reading like an error. Nothing is
@@ -352,7 +352,7 @@ export function readAnswer(answer, { code, signal } = {}) {
    came back as "stopped without an answer (exit 1)" and cost an hour. */
 export function convertStepDetached(
   buffer,
-  { generator = "MeshCue", timeoutMs = CONVERSION_TIMEOUT } = {},
+  { generator = "AI3D", timeoutMs = CONVERSION_TIMEOUT } = {},
 ) {
   return new Promise((resolve, reject) => {
     const script = childScript();

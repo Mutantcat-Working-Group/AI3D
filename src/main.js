@@ -31,6 +31,7 @@ document.documentElement.lang = currentLocale();
 
 const $ = (selector) => document.querySelector(selector);
 const app = $("#app");
+const brandIcon = new URL("../icon.png", import.meta.url).href;
 /* Icons were Unicode glyphs, which is not a style choice but an absence of
    control: the operating system font decided their shape, weight and baseline,
    the rarer ones (▱ ▰ ⌖ ⌂) are missing from some fonts entirely, and ▱ against
@@ -43,9 +44,13 @@ const app = $("#app");
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");
 let themeChoice = readThemeChoice();
 applyTheme(themeChoice, darkQuery);
+const faviconLink = document.createElement("link");
+faviconLink.rel = "icon";
+faviconLink.type = "image/png";
+faviconLink.href = brandIcon;
+document.head.append(faviconLink);
 
 const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
-<g id="mc-brand" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3.2 20.4 8v8L12 20.8 3.6 16V8z"/><path d="M3.6 8 12 12.8 20.4 8M12 12.8v8" stroke-width="1.2" opacity=".55"/></g>
 <g id="mc-orbit" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5z"/><path d="M4 8.5 12 13l8-4.5M12 13v7" stroke-width="1.2" opacity=".55"/></g>
 <g id="mc-fill" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M11 2.6 20 11.6a1.6 1.6 0 0 1 0 2.3l-6 6a1.6 1.6 0 0 1-2.3 0l-6-6a1.6 1.6 0 0 1 0-2.3l6-6"/><path d="M5.6 13.2h14.2l-5.8 5.8a1.6 1.6 0 0 1-2.3 0z" fill="currentColor" stroke="none" opacity=".32"/><path d="M21.4 15.6c.9 1.2 1.4 2.1 1.4 2.8a1.4 1.4 0 1 1-2.8 0c0-.7.5-1.6 1.4-2.8z" fill="currentColor" stroke="none"/></g>
 <g id="mc-undo" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h9a5 5 0 0 1 0 10H9"/><path d="M7.5 6 3.5 10l4 4"/></g>
@@ -117,7 +122,7 @@ const serverMessage = (json) =>
   json?.error ||
   t("conn.actionFailed");
 app.innerHTML = `${SPRITE}
-<header class="app-header"><div class="brand-mark">${icon("brand")}</div><div class="brand"><div class="brand-title"><strong>MeshCue</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__MESHCUE_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button></div></header>
+<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button></div></header>
 <main class="workspace">
  <section class="review-panel" aria-label="${T("a11y.reviewPanel")}">
   <!-- The name arrived with the link, the tab strip carries the version, and a
@@ -1054,7 +1059,7 @@ function showRecovery(backup) {
     new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }),
   );
   $("#download-recovery").href = recoveryUrl;
-  $("#download-recovery").download = `meshcue-${loadedId}-unsynced.json`;
+  $("#download-recovery").download = `ai3d-${loadedId}-unsynced.json`;
   $("#recovery-banner").hidden = false;
 }
 // The other half of the note beside `bounds` in `flushDraft`: what the service

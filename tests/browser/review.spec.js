@@ -1725,7 +1725,7 @@ test("the right button turns the model the same way after a look straight down o
     .toBeGreaterThan(0.8);
 });
 
-/* STEP and STL carry no up axis, and MeshCue gives them +Z. The same plate,
+/* STEP and STL carry no up axis, and AI3D gives them +Z. The same plate,
    20 × 15 × 8 mm and modelled flat, used to stand on its long edge: the 15 mm
    side went up the screen and the 8 mm one into it. */
 test("a STEP and an STL stand on +Z", async ({ page }) => {
@@ -1911,7 +1911,7 @@ test("many versions stay on one row, and the one being marked stays reachable", 
   expect(at).toBeGreaterThan(0);
   for (let i = 2; i <= 17; i++) {
     const bytes = Buffer.from(sample);
-    Buffer.from(`MeshCueStripTest${String(i).padStart(2, "0")}`).copy(
+    Buffer.from(`AI3DStripTest${String(i).padStart(2, "0")}`).copy(
       bytes,
       at,
     );
@@ -2008,7 +2008,7 @@ test("the Agent can shorten the version strip while the page stays open", async 
   const at = sample.indexOf(generator);
   for (let i = 2; i <= 6; i++) {
     const bytes = Buffer.from(sample);
-    Buffer.from(`MeshCueKeepTest${String(i).padStart(3, "0")}`).copy(bytes, at);
+    Buffer.from(`AI3DKeepTest${String(i).padStart(3, "0")}`).copy(bytes, at);
     const file = path.join(dir, `keep-${i}.glb`);
     fs.writeFileSync(file, bytes);
     execFileSync(
@@ -2044,7 +2044,7 @@ test("the Agent can shorten the version strip while the page stays open", async 
 
   // A rule, not a tidy-up: the next version keeps the promise by itself.
   const bytes = Buffer.from(sample);
-  Buffer.from("MeshCueKeepTest777").copy(bytes, at);
+  Buffer.from("AI3DKeepTest777").copy(bytes, at);
   const file = path.join(dir, "keep-7.glb");
   fs.writeFileSync(file, bytes);
   execFileSync(

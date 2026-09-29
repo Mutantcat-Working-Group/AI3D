@@ -54,6 +54,6 @@ jobs:
             printf 'This release is commit %s.\n' "$commit"
           } > "$RUNNER_TEMP/notes.md"
           gh release create "$tag" \
-            --title "MeshCue ${tag#v}" \
+            --title "AI3D ${tag#v}" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --verify-tag

@@ -125,7 +125,7 @@ export async function ipc(runtime, instance, route, body, timeout = IPC_IDLE) {
             return;
           }
           if (res.statusCode >= 400) {
-            const err = new Error(value.error || "MeshCue request failed");
+            const err = new Error(value.error || "AI3D request failed");
             err.code = value.code;
             reject(err);
           } else resolve(value);
@@ -133,7 +133,7 @@ export async function ipc(runtime, instance, route, body, timeout = IPC_IDLE) {
       },
     );
     req.setTimeout(timeout, () =>
-      req.destroy(new Error("MeshCue IPC timed out")),
+      req.destroy(new Error("AI3D IPC timed out")),
     );
     req.on("error", reject);
     req.end(body === undefined ? undefined : JSON.stringify(body));
@@ -187,8 +187,8 @@ export function installedVersion(root) {
    A built package has its version written into the bundle; run from source,
    the code and its package.json are the same files. */
 const BUILT_VERSION =
-  typeof __MESHCUE_BUILD_VERSION__ === "string"
-    ? __MESHCUE_BUILD_VERSION__
+  typeof __AI3D_BUILD_VERSION__ === "string"
+    ? __AI3D_BUILD_VERSION__
     : null;
 export function runningVersion(root) {
   return BUILT_VERSION ?? installedVersion(root);
@@ -197,15 +197,15 @@ export function runningVersion(root) {
 // Every packaging route has to carry all of these for `inspect` to report them.
 export const DOC_FILES = {
   agentInterface: "AGENT-INTERFACE.md",
-  skill: "skills/meshcue-review/SKILL.md",
-  security: "SECURITY.md",
+  skill: "skills/ai3d-review/SKILL.md",
   readme: "README.md",
+  readmeEnglish: "README.en.md",
 };
 
 // Absolute, because the reader is an agent that has to open them and may be
 // running with a working directory nowhere near the install. Checked, because
 // composing a path is not the same as shipping a file: the adapter package
-// carried neither README.md nor SECURITY.md and `inspect` named both anyway. An
+// carried neither README.md nor the skill and `inspect` named both anyway. An
 // absolute path that does not open reads exactly like one that does, which is
 // the failure AGENT-INTERFACE.md tells agents to refuse to cause. Anything
 // missing here is a packaging bug, and the packaging tests are where it is
@@ -227,7 +227,7 @@ export function docPaths(root) {
 // so the first instruction is true wherever it is read.
 export function inspectInstall(context, root) {
   return {
-    product: "MeshCue",
+    product: "AI3D",
     integrationVersion: runningVersion(root),
     // Derived from the same table the guards read, so the probe cannot report a
     // field the guards no longer look at, or stay silent about one they added.
@@ -280,7 +280,7 @@ export class InstanceManager {
   project(project, create = false) {
     if (
       !/^projects\/[a-zA-Z0-9][^\x00-\x1f]*$/.test(project || "") ||
-      project.startsWith("projects/meshcue-state")
+      project.startsWith("projects/ai3d-state")
     )
       fail(
         "PROJECT_REQUIRED",
@@ -301,7 +301,7 @@ export class InstanceManager {
       .slice(0, 32);
     const relative = path.relative(
       this.workspace,
-      path.join(projectRoot, ".meshcue", id),
+      path.join(projectRoot, ".ai3d", id),
     );
     const runtime = scopedPath(this.workspace, relative, {
       create,
@@ -361,13 +361,13 @@ export class InstanceManager {
     return unavailable;
   }
   async register(p, config) {
-    const root = path.join(this.workspace, "projects/meshcue-state");
+    const root = path.join(this.workspace, "projects/ai3d-state");
     if (!within(this.allowed, root))
       fail(
         "PATH_SCOPE",
         "The integration needs permission for the project registry inside the workspace.",
       );
-    scopedPath(this.workspace, "projects/meshcue-state", {
+    scopedPath(this.workspace, "projects/ai3d-state", {
       create: true,
       directory: true,
     });
@@ -517,7 +517,7 @@ export class InstanceManager {
         "The package is missing workbench assets; no ad-hoc build was attempted and no fake URL invented.",
       );
     const network = listenerConfig(config.host);
-    const mediaDir = scopedPath(this.workspace, `media/3d/meshcue/${p.id}`, {
+    const mediaDir = scopedPath(this.workspace, `media/3d/ai3d/${p.id}`, {
       create: true,
       directory: true,
     });
@@ -604,7 +604,7 @@ export class InstanceManager {
       result.serving = {
         running: result.version,
         installed,
-        note: "This project still runs an older build; only meshcue open replaces a running server.",
+        note: "This project still runs an older build; only ai3d open replaces a running server.",
       };
     return result;
   }
@@ -616,9 +616,9 @@ export class InstanceManager {
     if (
       !within(
         this.allowed,
-        path.join(this.workspace, "projects/meshcue-state"),
+        path.join(this.workspace, "projects/ai3d-state"),
       ) ||
-      !within(this.allowed, path.join(this.workspace, "media/3d/meshcue"))
+      !within(this.allowed, path.join(this.workspace, "media/3d/ai3d"))
     )
       fail(
         "PATH_SCOPE",
@@ -898,7 +898,7 @@ export class InstanceManager {
           project: p.project,
         };
       }
-      fail("BAD_ACTION", "Unsupported MeshCue action");
+      fail("BAD_ACTION", "Unsupported AI3D action");
     });
   }
 }
@@ -910,9 +910,9 @@ export class InstanceManager {
 // proves it still belongs to the instance the registry recorded.
 function eachRegistered(workspace, installRoot, verb, act) {
   const root = fs.realpathSync(workspace);
-  const file = path.join(root, "projects/meshcue-state/registry.json");
+  const file = path.join(root, "projects/ai3d-state/registry.json");
   if (!fs.existsSync(file)) return [];
-  const checked = scopedPath(root, "projects/meshcue-state/registry.json");
+  const checked = scopedPath(root, "projects/ai3d-state/registry.json");
   const registry = JSON.parse(fs.readFileSync(checked, "utf8"));
   if (registry.schema !== 1)
     fail(
@@ -958,13 +958,13 @@ export async function runtimesThatCannotReclaim(
   exceptProject,
 ) {
   const root = fs.realpathSync(workspace);
-  const file = path.join(root, "projects/meshcue-state/registry.json");
+  const file = path.join(root, "projects/ai3d-state/registry.json");
   if (!fs.existsSync(file)) return [];
   let registry;
   try {
     registry = JSON.parse(
       fs.readFileSync(
-        scopedPath(root, "projects/meshcue-state/registry.json"),
+        scopedPath(root, "projects/ai3d-state/registry.json"),
         "utf8",
       ),
     );

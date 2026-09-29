@@ -138,7 +138,7 @@ try {
   assert.ok(700000 * rejected.simplify.requiredRatio <= 600000);
   fs.rmSync(path.join(workspace, "over.stl"));
   assert.equal(
-    fs.existsSync(path.join(workspace, "projects/meshcue-state/registry.json")),
+    fs.existsSync(path.join(workspace, "projects/ai3d-state/registry.json")),
     false,
     "precheck must not register a project or start an instance",
   );
@@ -171,7 +171,7 @@ try {
   /* What was published stays the STEP; what the page loads is derived from it.
      Both halves on disk is the only proof from out here that the worker ran:
      the publish that failed returned the same shape of error as any other. */
-  const runtimeDir = path.join(workspace, stepProject, ".meshcue");
+  const runtimeDir = path.join(workspace, stepProject, ".ai3d");
   const [projectId] = fs.readdirSync(runtimeDir);
   const active = JSON.parse(
     fs.readFileSync(path.join(runtimeDir, projectId, "state.json"), "utf8"),
@@ -405,7 +405,7 @@ try {
   lifecycle.cleanup({ reason: "restart" });
   const registered = JSON.parse(
     fs.readFileSync(
-      path.join(workspace, "projects/meshcue-state/registry.json"),
+      path.join(workspace, "projects/ai3d-state/registry.json"),
       "utf8",
     ),
   );
@@ -509,7 +509,7 @@ try {
   fs.writeFileSync(serviceFile, originalService);
   await browser?.close();
   // Only fixture processes whose private instance records live under our new workspace.
-  const registry = path.join(workspace, "projects/meshcue-state/registry.json");
+  const registry = path.join(workspace, "projects/ai3d-state/registry.json");
   if (fs.existsSync(registry))
     for (const record of Object.values(
       JSON.parse(fs.readFileSync(registry, "utf8")).projects,

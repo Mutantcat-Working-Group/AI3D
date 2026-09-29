@@ -29,14 +29,14 @@ function workspace(t) {
   fs.writeFileSync(path.join(dir, "projects/lamp/part.stl"), stl);
   fs.writeFileSync(
     path.join(dir, "openclaw.plugin.json"),
-    JSON.stringify({ id: "meshcue" }),
+    JSON.stringify({ id: "ai3d" }),
   );
   return dir;
 }
 const handlerFor = (dir) =>
   createHandler({
     workspace: dir,
-    environment: { MESHCUE_OWNER: "mcp-session-one" },
+    environment: { AI3D_OWNER: "mcp-session-one" },
     managerOptions: {
       installRoot: dir,
       serverEntry: path.join(repo, "server/index.mjs"),
@@ -57,8 +57,8 @@ test("initialize advertises tools and carries the Skill as its instructions", as
   );
   // Same bytes as the bundled Skill, frontmatter removed. A second copy written
   // for this surface is the thing that later disagrees with the first.
-  const skill = fs.readFileSync("skills/meshcue-review/SKILL.md", "utf8");
-  assert.equal(answer.result.instructions.startsWith("# MeshCue"), true);
+  const skill = fs.readFileSync("skills/ai3d-review/SKILL.md", "utf8");
+  assert.equal(answer.result.instructions.startsWith("# AI3D"), true);
   assert.equal(skill.includes(answer.result.instructions.slice(0, 200)), true);
   // The specification asks that the opening be self-contained; 512 characters
   // in, a reader must already know what this server is for.
@@ -79,7 +79,7 @@ test("the tool says up front that nothing here will announce a submission", asyn
   });
   assert.deepEqual(
     listed.result.tools.map((tool) => tool.name),
-    ["meshcue"],
+    ["ai3d"],
   );
   assert.match(TOOL.description, /cannot be pushed to/);
   assert.equal(TOOL.inputSchema.required.includes("action"), true);
@@ -92,7 +92,7 @@ test("a review opened over MCP is owned by MCP, and refusals come back as result
     handle({
       id: 3,
       method: "tools/call",
-      params: { name: "meshcue", arguments: args },
+      params: { name: "ai3d", arguments: args },
     });
 
   const measured = await call({
@@ -128,7 +128,7 @@ test("a review opened over MCP is owned by MCP, and refusals come back as result
 });
 
 test("owner is stable across restarts and overridable by a host that knows better", () => {
-  assert.equal(mcpOwner("/w", { MESHCUE_OWNER: "given" }), "given");
+  assert.equal(mcpOwner("/w", { AI3D_OWNER: "given" }), "given");
   assert.equal(mcpOwner("/w", {}), mcpOwner("/w", {}));
   assert.notEqual(mcpOwner("/w", {}), mcpOwner("/other", {}));
   assert.match(mcpOwner("/w", {}), /^mcp:[0-9a-f]{16}$/);
@@ -143,7 +143,7 @@ test("the transport reads whole lines and refuses a broken one without dying", a
     { write: (line) => written.push(JSON.parse(line)) },
     {
       workspace: dir,
-      environment: { MESHCUE_OWNER: "mcp-session-one" },
+      environment: { AI3D_OWNER: "mcp-session-one" },
     },
   );
   // Split across chunks: a message is a line, not a packet.

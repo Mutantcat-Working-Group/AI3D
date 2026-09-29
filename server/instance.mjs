@@ -21,7 +21,7 @@ export function readInstance(config) {
     !/^[a-f0-9]{32}$/.test(value.projectId || "")
   ) {
     throw new Error(
-      "Unsupported or invalid MeshCue instance identity; data was not migrated.",
+      "Unsupported or invalid AI3D instance identity; data was not migrated.",
     );
   }
   return { id: value.id, projectId: value.projectId, schema: value.schema };
@@ -45,7 +45,7 @@ export function agentSocketPath(runtime, instance = null) {
     .slice(0, 24);
   return path.join(
     os.tmpdir(),
-    `meshcue-${process.getuid?.() ?? "user"}`,
+    `ai3d-${process.getuid?.() ?? "user"}`,
     `${key}.sock`,
   );
 }
@@ -61,8 +61,8 @@ export function prepareSocketDirectory(socketPath, instance) {
     (process.getuid && st.uid !== process.getuid()) ||
     st.mode & 0o077
   ) {
-    throw new Error("MeshCue IPC directory is not private to this user.");
+    throw new Error("AI3D IPC directory is not private to this user.");
   }
   if (Buffer.byteLength(socketPath) >= 104)
-    throw new Error("MeshCue IPC path exceeds the platform limit.");
+    throw new Error("AI3D IPC path exceeds the platform limit.");
 }

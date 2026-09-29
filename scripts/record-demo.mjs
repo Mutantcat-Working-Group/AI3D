@@ -271,7 +271,7 @@ await cardPage.setContent(`<!doctype html><meta charset="utf-8"><style>
     box-shadow: 0 18px 48px rgba(20, 32, 45, .22); }
 </style>
 <div class="say">
-  <div class="name">MeshCue</div>
+  <div class="name">AI3D</div>
   <div class="line">Point at the model.<br>Let the Agent read what you meant.</div>
   <div class="foot">Browser 3D review for agent-assisted modelling · Apache-2.0</div>
 </div>

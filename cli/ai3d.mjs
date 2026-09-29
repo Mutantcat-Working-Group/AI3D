@@ -62,7 +62,7 @@ const NUMBERS = new Set(["keep"]);
 // first. Absolute paths, because the reader is an agent that has to open them.
 export function help(installRoot = INSTALL_ROOT) {
   return {
-    usage: `meshcue <${ACTIONS.join("|")}> [--option value]…`,
+    usage: `ai3d <${ACTIONS.join("|")}> [--option value]…`,
     actions: ACTIONS,
     start:
       "Read AGENT-INTERFACE.md before the first call: it states what each answer does and does not mean, and how to check an install. SKILL.md is the procedure for running a review.",
@@ -138,7 +138,7 @@ export async function run(
   if (!action || !ACTIONS.includes(action))
     throw new IntegrationError(
       "BAD_USAGE",
-      `Usage: meshcue <${ACTIONS.join("|")}> [--option value]… — run "meshcue help" for the documentation paths.`,
+      `Usage: ai3d <${ACTIONS.join("|")}> [--option value]… — run "ai3d help" for the documentation paths.`,
     );
   const workspace = fs.realpathSync(input.workspace || cwd);
   // Orientation comes before ownership: an agent calls this to find out where it
@@ -175,7 +175,7 @@ export async function run(
 
 const invoked =
   process.argv[1] &&
-  fs.realpathSync(process.argv[1]) === fs.realpathSync(HERE + "/meshcue.mjs");
+  fs.realpathSync(process.argv[1]) === fs.realpathSync(HERE + "/ai3d.mjs");
 if (invoked) {
   try {
     const result = await run(process.argv.slice(2));

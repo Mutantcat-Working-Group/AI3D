@@ -1,18 +1,18 @@
 {
-  "name": "@meshcue/openclaw",
+  "name": "org.mutantcat.ai3d.openclaw",
   "version": "1.3.2",
   "private": true,
   "license": "Apache-2.0",
   "author": "Kelven Ling <kelvenlinglzy@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lzyling/meshcue.git"
+    "url": "git+https://github.com/Mutantcat-Working-Group/AI3D.git"
   },
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
   },
-  "description": "MeshCue browser review and annotation integration for OpenClaw",
+  "description": "AI3D browser review and annotation integration for OpenClaw",
   "openclaw": {
     "extensions": [
       "./index.mjs"

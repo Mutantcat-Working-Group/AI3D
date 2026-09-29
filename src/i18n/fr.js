@@ -4,7 +4,7 @@ export default {
   "app.tagline": "Revue et annotation de modèles 3D",
   "app.version": "Version en cours",
   "app.updateHint":
-    "La version {version} est disponible. Demandez à votre agent de mettre à jour MeshCue.",
+    "La version {version} est disponible. Demandez à votre agent de mettre à jour AI3D.",
 
   "closing.pending":
     "Cette revue n'a pas servi depuis un moment et va se fermer. Toute action ici la maintient ouverte.",
@@ -41,7 +41,7 @@ export default {
     "Cette autorisation à usage unique a expiré ; revenez à la conversation",
   "error.accessLimit": "Cette revue a atteint sa limite de connexions",
   "error.integrationDisabled":
-    "MeshCue est désactivé ; votre brouillon est conservé, continuez dans la conversation",
+    "AI3D est désactivé ; votre brouillon est conservé, continuez dans la conversation",
   "error.deliveryUnconfirmed":
     "Livraison non confirmée ; vos marques sont enregistrées et seront réessayées",
   "error.accessRequired":

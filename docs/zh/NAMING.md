@@ -1,4 +1,28 @@
-# MeshCue · 正式命名与兼容
+# AI3D · 正式命名与兼容
+
+2026-09-29，软件正式更名为 **AI3D**，中文名 **AI3D模型**，包名统一为
+`org.mutantcat.xxx` 形式；仓库包名 `org.mutantcat.ai3d`，OpenClaw 适配包名
+`org.mutantcat.ai3d.openclaw`。
+
+| 用途                | 正式名称                                                          |
+| ------------------- | ----------------------------------------------------------------- |
+| 产品名              | **AI3D**                                                          |
+| 中文名              | **AI3D模型**                                                      |
+| GitHub仓库          | `Mutantcat-Working-Group/AI3D`                                    |
+| 仓库包名            | `org.mutantcat.ai3d`                                              |
+| 适配插件包名        | `org.mutantcat.ai3d.openclaw`                                     |
+| 中文说明            | 面向Agent协作的3D模型审阅与标注工作台                             |
+| 中文一句话          | 在模型上标清楚，让Agent改明白。                                   |
+| 英文描述            | Browser-based 3D review and annotation for agent-assisted modeling. |
+
+本次改名覆盖页面标题、工作台品牌、CLI／MCP 入口（`ai3d`／`ai3d-mcp`）、
+OpenClaw 插件标识、环境变量（`AI3D_*`）、构建常量、媒体与状态路径、包名及
+锁文件。health 的 `app: 3d-agent-review`、浏览器缓存键、cookie、服务 API、
+Unix IPC 和提交消息识别前缀等兼容标识不随改名变动，历史版本与审阅数据不受影响。
+
+---
+
+> 以下为 2026-09-10 正式定名 **MeshCue** 时的记录，保留作为历史背景；当前正式名称以本文顶部为准。
 
 2026-09-10 17:14，Kelven明确采纳 **MeshCue** 为正式产品名，并要求完成项目命名修改；GitHub仓库由Kelven创建。
 

@@ -4,7 +4,7 @@ export default {
   "app.tagline": "3D model review and annotation",
   "app.version": "Running version",
   "app.updateHint":
-    "Version {version} is available. Ask your agent to update MeshCue.",
+    "Version {version} is available. Ask your agent to update AI3D.",
 
   "closing.pending":
     "Nobody has used this review for a while, so it is closing. Anything you do here keeps it open.",
@@ -38,7 +38,7 @@ export default {
     "That one-time grant has expired; go back to the conversation",
   "error.accessLimit": "This review has reached its connection limit",
   "error.integrationDisabled":
-    "MeshCue is disabled; your draft is kept, continue from the conversation",
+    "AI3D is disabled; your draft is kept, continue from the conversation",
   "error.deliveryUnconfirmed":
     "Delivery is not confirmed yet; your marks are saved and will be retried",
   "error.accessRequired":

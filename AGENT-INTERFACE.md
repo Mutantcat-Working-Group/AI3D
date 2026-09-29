@@ -1,18 +1,18 @@
-# MeshCue · Agent interface
+# AI3D · Agent interface
 
-What an agent can ask MeshCue to do, and what it must not conclude from the
+What an agent can ask AI3D to do, and what it must not conclude from the
 answers. This is a project interface, not a system capability: it grants no
 permission the host has not already given, every path resolves inside the
 workspace, and the workbench binds loopback unless a verified private address is
-configured. See [SECURITY.md](SECURITY.md) for the network and trust model.
+configured.
 
 ## Three ways in, one implementation
 
 | Entry point        | Call it as                        | Who owns a review                              |
 | ------------------ | --------------------------------- | ---------------------------------------------- |
-| OpenClaw extension | the native `meshcue` tool         | derived from the host session and channel      |
-| `meshcue` CLI      | `meshcue <action> --owner <id> …` | **stated by the caller**; it is never invented |
-| `meshcue-mcp`      | one `meshcue` tool over stdio MCP | the workspace, or `MESHCUE_OWNER`              |
+| OpenClaw extension | the native `ai3d` tool            | derived from the host session and channel      |
+| `ai3d` CLI         | `ai3d <action> --owner <id> …`    | **stated by the caller**; it is never invented |
+| `ai3d-mcp`         | one `ai3d` tool over stdio MCP    | the workspace, or `AI3D_OWNER`                 |
 
 All three drive the same instance manager. Ownership decides who may change a
 draft or switch the displayed version, and it did not loosen when the entry
@@ -22,18 +22,19 @@ points multiplied: a second owner asking about the same project is refused with
 ## Installing it
 
 When the tool is not there at all, this is what to install. Pin a tag: a bare
-`github:lzyling/meshcue` installs whatever the default branch holds at that
+`github:Mutantcat-Working-Group/AI3D` installs whatever the default branch holds at that
 second and runs the `prepare` script in it.
 
 | Host             | Install                                                                                                                     | It worked when                                                            |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Any MCP client   | `npm i -g "github:lzyling/meshcue#v1.3.2"`, then `command = "meshcue-mcp"`                                                 | `initialize` answers with the operating instructions, not an empty string |
-| CLI, any harness | the same install; call `meshcue <action> --owner <id>`                                                                      | `meshcue help` prints the documentation paths                             |
-| OpenClaw         | from a clone: `npm run build:integration -- tmp/candidate/package`, then `openclaw plugins install ./tmp/candidate/package` | the native `meshcue` tool answers `inspect`                               |
+| Any MCP client   | `npm i -g "github:Mutantcat-Working-Group/AI3D#v1.3.2"`, then `command = "ai3d-mcp"`                                      | `initialize` answers with the operating instructions, not an empty string |
+| CLI, any harness | the same install; call `ai3d <action> --owner <id>`                                                                        | `ai3d help` prints the documentation paths                                |
+| OpenClaw         | from a clone: `npm run build:integration -- tmp/candidate/package`, then `openclaw plugins install ./tmp/candidate/package` | the native `ai3d` tool answers `inspect`                                  |
 
-MeshCue is **not published on npm**. A package named `meshcue` or `meshcue-mcp`
-on that registry is not this project; every release states the SHA-256 of its
-own artifact, and that is what to check an install against.
+AI3D is **not published on npm**; this repository installs as the package
+`org.mutantcat.ai3d`. A package named `meshcue` or `meshcue-mcp` on that
+registry is not this project; every release states the SHA-256 of its own
+artifact, and that is what to check an install against.
 
 `inspect` is the first call on every host: it reports the workspace, agent and
 session a review would belong to. When it fails, say what is actually missing.
@@ -77,7 +78,7 @@ Two capabilities, each of which a host may simply lack.
   ⚠️ Do not wait for a message here, and do not report `waiting` to the reviewer
   as a fault. Call `read` when they say they are done.
 - **`observe: false`** — can push but cannot read the conversation back, so
-  delivery is confirmed by **your own `read` receipt** rather than by MeshCue
+  delivery is confirmed by **your own `read` receipt** rather than by AI3D
   inferring it. That is the more honest of the two anyway.
 
 ## `status.outbox` — the only signal when marks cannot reach you
@@ -149,9 +150,9 @@ Re-run `precheck` after simplifying, then `open`.
 
 ## Which way is up
 
-MeshCue draws STEP and STL with **+Z up, −Y towards the reviewer and +X to the
+AI3D draws STEP and STL with **+Z up, −Y towards the reviewer and +X to the
 right**, the way CAD and slicers draw them, and GLB as glTF defines it, **+Y
-up**. Neither STEP nor STL records an up axis, so this is MeshCue's convention
+up**. Neither STEP nor STL records an up axis, so this is AI3D's convention
 and not something read from the file. Nothing is guessed: **a model built
 another way has to be rotated before it is published**, and there is no
 parameter for it.

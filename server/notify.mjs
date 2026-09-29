@@ -1,7 +1,7 @@
 import { OpenClawBridge } from "./bridge.mjs";
 import { normalizeOrigin } from "./origin.mjs";
 
-// A notifier describes what a host offers, not what MeshCue requires. There are
+// A notifier describes what a host offers, not what AI3D requires. There are
 // two capabilities and a host may have either, both or neither:
 //
 //   send(message, key)  push a batch into the conversation that owns it
@@ -13,7 +13,7 @@ import { normalizeOrigin } from "./origin.mjs";
 // delivery that failed, because the page turns that into a standing alarm.
 //
 // A host with send but no observe is the honest common case: delivery is
-// confirmed by the Agent acknowledging its read, not by MeshCue reading the
+// confirmed by the Agent acknowledging its read, not by AI3D reading the
 // conversation over the Agent's shoulder.
 export function notifierFor(value, { enabled = true } = {}) {
   const origin = normalizeOrigin(value);

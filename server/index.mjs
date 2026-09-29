@@ -185,7 +185,7 @@ app.use((req, res, next) => {
   if (!["GET", "HEAD"].includes(req.method) && !managedEnabled())
     return res.status(503).json({
       error:
-        "The MeshCue extension is disabled; drafts are kept, continue from the originating conversation.",
+        "The AI3D extension is disabled; drafts are kept, continue from the originating conversation.",
       code: "INTEGRATION_DISABLED",
     });
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -623,7 +623,7 @@ app.get("/api/health", (req, res) =>
   res.json({
     ok: true,
     app: "3d-agent-review", // Stable service identity for pre-rename launchers.
-    product: "MeshCue",
+    product: "AI3D",
     version,
     integrationApi: INTEGRATION_API,
     instance,
@@ -814,7 +814,7 @@ function deliverFeedback(item) {
         const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
         const readCommand =
           config.managed && config.projectPath
-            ? `the meshcue tool with ${JSON.stringify({ action: "read", project: config.projectPath, submissionId: item.id })}`
+            ? `the ai3d tool with ${JSON.stringify({ action: "read", project: config.projectPath, submissionId: item.id })}`
             : `REVIEW_DATA_DIR=${shellQuote(runtime)} node ${shellQuote(path.join(repo, "scripts/reviewctl.mjs"))} read ${shellQuote(item.id)}`;
         const summary = item.annotations
           .map((a) =>
@@ -830,7 +830,7 @@ function deliverFeedback(item) {
               : `${a.color} painted region (id ${a.id}): ${["brush-v1", "source-v1", "source-v2"].includes(a.coverage) ? "an actual surface stroke" : "an older whole-face mark"} — not a lettered pin; identify it by colour and position`,
           )
           .join("\n");
-        const message = `[MeshCue review marks ${item.id}]\nModel: ${item.model.name} / ${item.model.version}; version ${item.versionId}; SHA256 ${item.model.sha256}.\n${summary}\n\nThe full 3D annotations and camera are saved at ${localFile}. Agent instructions: ${path.join(repo, "AGENT-INTERFACE.md")}.\nThis is a batch of positions the reviewer sent with "Send to Agent". It is not an instruction to change anything. Read the complete submission from this instance with ${readCommand} and write the read receipt before confirming you have it; if the conversation does not already explain the marks, ask what each one means and what to change rather than guessing. Reply only in the conversation this batch came from — never forward it to another topic or channel. The reviewer has not finished, so do not replace the model on them.`;
+        const message = `[AI3D review marks ${item.id}]\nModel: ${item.model.name} / ${item.model.version}; version ${item.versionId}; SHA256 ${item.model.sha256}.\n${summary}\n\nThe full 3D annotations and camera are saved at ${localFile}. Agent instructions: ${path.join(repo, "AGENT-INTERFACE.md")}.\nThis is a batch of positions the reviewer sent with "Send to Agent". It is not an instruction to change anything. Read the complete submission from this instance with ${readCommand} and write the read receipt before confirming you have it; if the conversation does not already explain the marks, ask what each one means and what to change rather than guessing. Reply only in the conversation this batch came from — never forward it to another topic or channel. The reviewer has not finished, so do not replace the model on them.`;
         const notifier = notifierCached(store.submissionOrigin(item));
         // Nowhere to push is not a push that failed. The batch is already
         // durable and listed; this host's Agent collects it by asking. Counting
@@ -870,7 +870,7 @@ function deliverFeedback(item) {
               history.messages.some(
                 (m) =>
                   m.role === "user" &&
-                  m.text.includes(`[MeshCue review marks ${item.id}]`),
+                  m.text.includes(`[AI3D review marks ${item.id}]`),
               )
             )
               store.submissionStatus(item.id, "accepted", {
@@ -955,7 +955,7 @@ app.get("/api/submissions/:id", (req, res) => {
   const submissionId = id.parse(req.params.id);
   const file = path.join(runtime, "submissions", `${submissionId}.json`);
   if (!fs.existsSync(file)) throw new ReviewError("No such submission.", 404);
-  res.download(`${submissionId}.json`, `meshcue-${submissionId}.json`, {
+  res.download(`${submissionId}.json`, `ai3d-${submissionId}.json`, {
     root: path.join(runtime, "submissions"),
   });
 });
@@ -1142,7 +1142,7 @@ agentApp.post("/publish", async (req, res) => {
   const model = await importModel(p, {
     workspace,
     mediaDir,
-    generator: `MeshCue ${version}`,
+    generator: `AI3D ${version}`,
   });
   if (p.label) model.label = p.label;
   res.json(store.publish(model, p.origin, { activate: p.activate !== false }));
@@ -1327,7 +1327,7 @@ app.get("/{*path}", (req, res) =>
 app.use(errorHandler);
 const port = Number(process.env.PORT || 43173);
 const server = app.listen(port, network.host, () =>
-  log.info("service", "MeshCue listening", {
+  log.info("service", "AI3D listening", {
     host: network.host,
     port: server.address().port,
     pid: process.pid,

@@ -37,7 +37,7 @@ const MAX_REVIEW_TRIANGLES = 600000;
    taller than it is wide. The floor gives way to the model, never the other
    way round. */
 const GRID_Y = -1.4;
-/* STEP and STL say nothing about which way is up, so MeshCue says it for them:
+/* STEP and STL say nothing about which way is up, so AI3D says it for them:
    +Z, with -Y towards the reviewer -- how CAD and every slicer draw them. glTF
    does say, +Y, and is left as it is. An agent whose model is built another way
    turns it before publishing; nothing here guesses. */

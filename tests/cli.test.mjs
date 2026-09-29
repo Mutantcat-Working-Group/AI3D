@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { run, parseArgs, cliOrigin } from "../cli/meshcue.mjs";
+import { run, parseArgs, cliOrigin } from "../cli/ai3d.mjs";
 
 // The manager hands its own environment to the service it starts, so this
 // reaches every instance these cases open: no suite talks to the internet.
@@ -25,7 +25,7 @@ function workspace(t) {
   fs.writeFileSync(path.join(dir, "projects/lamp/part.stl"), stl);
   fs.writeFileSync(
     path.join(dir, "openclaw.plugin.json"),
-    JSON.stringify({ id: "meshcue" }),
+    JSON.stringify({ id: "ai3d" }),
   );
   return {
     dir,

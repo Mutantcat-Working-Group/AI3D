@@ -24,7 +24,7 @@ if (
   );
 fs.mkdirSync(out, { recursive: true });
 const banner = {
-  js: 'import { createRequire as __meshcueRequire } from "node:module"; const require = __meshcueRequire(import.meta.url);',
+  js: 'import { createRequire as __ai3dRequire } from "node:module"; const require = __ai3dRequire(import.meta.url);',
 };
 // The shipped web bundle must advertise the plugin version it travels with,
 // not the project's, which is what the bundled server reads from the copied
@@ -75,7 +75,7 @@ await build({
   // What `inspect` reports: the build in memory, not whatever was installed
   // over it since the host loaded this one.
   define: {
-    __MESHCUE_BUILD_VERSION__: JSON.stringify(pluginManifest.version),
+    __AI3D_BUILD_VERSION__: JSON.stringify(pluginManifest.version),
   },
 });
 execFileSync(
@@ -89,7 +89,7 @@ execFileSync(
   {
     cwd: repo,
     stdio: "pipe",
-    env: { ...process.env, MESHCUE_VERSION: pluginManifest.version },
+    env: { ...process.env, AI3D_VERSION: pluginManifest.version },
   },
 );
 /* The tessellator travels as two files rather than inside a bundle, and that is
@@ -160,19 +160,19 @@ for (const relative of Object.values(DOC_FILES))
     fs.copyFileSync(path.join(repo, relative), path.join(out, relative));
 // Workshop is the only authoring source. A vetted export can be supplied for
 // packaging; do not synthesize or patch SKILL.md in this build process.
-// skills/meshcue-review in the repository is such an export, committed so that
-// a clone can rebuild the package it ships. MESHCUE_SKILL_EXPORT still wins,
+// skills/ai3d-review in the repository is such an export, committed so that
+// a clone can rebuild the package it ships. AI3D_SKILL_EXPORT still wins,
 // which is how a Workshop revision reaches a package before it is committed.
 const skillExport =
-  process.env.MESHCUE_SKILL_EXPORT ||
-  (fs.existsSync(path.join(repo, "skills/meshcue-review/SKILL.md"))
-    ? path.join(repo, "skills/meshcue-review")
+  process.env.AI3D_SKILL_EXPORT ||
+  (fs.existsSync(path.join(repo, "skills/ai3d-review/SKILL.md"))
+    ? path.join(repo, "skills/ai3d-review")
     : null);
 if (skillExport) {
   const source = fs.realpathSync(skillExport);
   if (!fs.existsSync(path.join(source, "SKILL.md")))
     throw new Error("Workshop export has no SKILL.md");
-  const skillRoot = path.join(out, "skills/meshcue-review");
+  const skillRoot = path.join(out, "skills/ai3d-review");
   fs.cpSync(source, skillRoot, { recursive: true, dereference: false });
   // release.mjs refuses to launch a package containing a symlink. Fail here
   // rather than ship something that installs cleanly and then cannot start.
@@ -192,7 +192,7 @@ if (skillExport) {
   checkPlain(skillRoot);
   const manifestFile = path.join(out, "openclaw.plugin.json");
   const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-  manifest.skills = ["./skills/meshcue-review"];
+  manifest.skills = ["./skills/ai3d-review"];
   fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + "\n");
 }
 // Copying is not shipping. `copyFileSync` only complains about a source that is
@@ -220,7 +220,7 @@ for (const [key, relative] of Object.entries(DOC_FILES)) {
    Skipping is stated in the result, never inferred from a missing binary. A
    build that quietly decided the host step was optional would be the same
    mistake as a copy that never checked what it wrote. */
-const hostBuild = process.env.MESHCUE_SKIP_HOST_BUILD !== "1";
+const hostBuild = process.env.AI3D_SKIP_HOST_BUILD !== "1";
 if (hostBuild)
   execFileSync("openclaw", ["plugins", "build", "--root", out], {
     cwd: repo,
@@ -230,7 +230,7 @@ console.log(
   JSON.stringify({
     output: path.relative(repo, out),
     bundledSkill: !!skillExport,
-    skillSource: process.env.MESHCUE_SKILL_EXPORT ? "export" : "repository",
+    skillSource: process.env.AI3D_SKILL_EXPORT ? "export" : "repository",
     hostBuild,
   }),
 );

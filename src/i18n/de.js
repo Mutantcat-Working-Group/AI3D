@@ -4,7 +4,7 @@ export default {
   "app.tagline": "3D-Modelle prüfen und markieren",
   "app.version": "Laufende Version",
   "app.updateHint":
-    "Version {version} ist verfügbar. Bitten Sie Ihren Agenten, MeshCue zu aktualisieren.",
+    "Version {version} ist verfügbar. Bitten Sie Ihren Agenten, AI3D zu aktualisieren.",
 
   "closing.pending":
     "Diese Prüfung wurde eine Weile nicht genutzt und wird geschlossen. Alles, was Sie hier tun, hält sie offen.",
@@ -42,7 +42,7 @@ export default {
     "Die einmalige Freigabe ist abgelaufen; kehren Sie zum Gespräch zurück",
   "error.accessLimit": "Diese Durchsicht hat ihre Verbindungsgrenze erreicht",
   "error.integrationDisabled":
-    "MeshCue ist deaktiviert; Ihr Entwurf bleibt erhalten, machen Sie im Gespräch weiter",
+    "AI3D ist deaktiviert; Ihr Entwurf bleibt erhalten, machen Sie im Gespräch weiter",
   "error.deliveryUnconfirmed":
     "Zustellung noch nicht bestätigt; Ihre Markierungen sind gespeichert und werden erneut gesendet",
   "error.accessRequired":

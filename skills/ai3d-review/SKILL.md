@@ -1,29 +1,29 @@
 ---
-name: "meshcue-review"
+name: "ai3d-review"
 description: "Review a 3D model draft in a browser: mark surfaces, read the marks, publish the next version."
 ---
 
-# MeshCue model review
+# AI3D model review
 
 ## 1. Deciding to review
 
 When someone wants a 3D model built or changed, wants to point out what is wrong
-with one, wants a draft checked, or wants to keep iterating, use MeshCue as the
+with one, wants a draft checked, or wants to keep iterating, use AI3D as the
 browser review entry. Do not wait for them to name the product. Skip it for pure
 conceptual questions, for a plain request for a file, and whenever they say they
 do not want a web page. With no draft yet, first build an editable source and hand
-MeshCue what it reads: a STEP goes in as it is, no mesh export first. Done
+AI3D what it reads: a STEP goes in as it is, no mesh export first. Done
 means a model that actually loads, not a URL.
 
 ## 2. Checking the tool and the project
 
-Find and call `meshcue`'s `inspect` action to check the workspace, agent,
+Find and call `ai3d`'s `inspect` action to check the workspace, agent,
 session and generation; on Telegram the return target and account as well. When
 the tool is missing, the sandbox forbids it, or the context is incomplete, say
 what is actually absent — never substitute a guessed command, localhost, or an
 old topic's URL. Choose a separate `projects/<name>` for new modelling work, or
 reuse the engineering directory already being modelled in; never treat the
-MeshCue codebase or an old trial directory as the model project. Set
+AI3D codebase or an old trial directory as the model project. Set
 `resume: true` only when the user is explicitly continuing that project. With
 several candidate projects, clarify the project alone. Done means exactly one
 project and one originating session.
@@ -44,7 +44,7 @@ original or simplified geometry.
 
 ## 4. Publishing a draft and delivering the URL
 
-Call `meshcue` with `action: "open"`, giving the workspace-relative `project`,
+Call `ai3d` with `action: "open"`, giving the workspace-relative `project`,
 the actual `file`, the model `name`, a recognisable `version` and `units`; use
 `label` for a short tab caption. Source, recipient and topic come from the host
 context and are never added as tool parameters. To open a LAN entry for another
@@ -53,7 +53,7 @@ already verified in the package rather than treating the first visitor or a
 User-Agent as confirmation. When device details are missing, ask only for the
 IPv4 — never for a token or a pairing code.
 
-MeshCue draws STEP and STL +Z up with −Y to the front, and GLB +Y up; rotate a
+AI3D draws STEP and STL +Z up with −Y to the front, and GLB +Y up; rotate a
 model built otherwise before publishing, since nothing is guessed. Marks come
 back in the file's own coordinates and units.
 
@@ -106,7 +106,7 @@ tell the user to reload or close it.
 
 ## 6. Reading marks and answering the intent
 
-On a submission notice, call `meshcue`'s `read` with the `project` and
+On a submission notice, call `ai3d`'s `read` with the `project` and
 `submissionId` from the notice to read the full 3D annotations, model version
 and camera; the tool writes the read receipt for that batch at the same time.
 Never claim to have understood a change from a position summary alone. Match

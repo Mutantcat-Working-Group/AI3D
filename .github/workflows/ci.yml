@@ -45,7 +45,7 @@ jobs:
       # four documents back out of the output -- runs before it.
       - run: npm run build:integration -- tmp/ci-package
         env:
-          MESHCUE_SKIP_HOST_BUILD: "1"
+          AI3D_SKIP_HOST_BUILD: "1"
       # A dependency with a published fix and nobody watching is the ordinary
       # way this kind of project gets compromised. Advisory-only: it reports
       # what is known now, and says so out loud rather than failing a build on

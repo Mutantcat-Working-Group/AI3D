@@ -15,7 +15,7 @@
 import { log, errorDetail } from "./log.mjs";
 
 export const UPSTREAM_LATEST =
-  "https://api.github.com/repos/lzyling/meshcue/releases/latest";
+  "https://api.github.com/repos/Mutantcat-Working-Group/AI3D/releases/latest";
 
 // A review left open all day asks twice. Releases are not that urgent.
 export const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000;
@@ -72,7 +72,7 @@ export function createUpdateWatch({
       const res = await doFetch(url, {
         headers: {
           accept: "application/vnd.github+json",
-          "user-agent": "meshcue",
+          "user-agent": "ai3d",
         },
         signal: AbortSignal.timeout(timeoutMs),
       });
@@ -115,9 +115,9 @@ export function createUpdateWatch({
   };
 }
 
-/* Off is one word in one place, and it has to be, because this is the line in
-   SECURITY.md that says the service talks to exactly one host. Anyone who
-   would rather it talked to none needs that to be simple. */
+/* Off is one word in one place, and it has to be, because this is the line
+   that says the service talks to exactly one host. Anyone who would rather it
+   talked to none needs that to be simple. */
 export function updateCheckEnabled(env, config) {
   const said = env.REVIEW_UPDATE_CHECK;
   if (said !== undefined && said !== "")

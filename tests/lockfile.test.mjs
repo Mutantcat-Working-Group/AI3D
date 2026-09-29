@@ -11,7 +11,7 @@ import {
 } from "../server/lockfile.mjs";
 
 function scratch(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-lock-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-lock-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return path.join(dir, "instance.lock");
 }

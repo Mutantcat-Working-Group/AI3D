@@ -10,14 +10,14 @@ import {
   prepareSocketDirectory,
 } from "../server/instance.mjs";
 
-const INSTALL_ROOT = "/fixture/install/meshcue";
+const INSTALL_ROOT = "/fixture/install/ai3d";
 
 function registered(t, projects) {
   const workspace = fs.realpathSync(
-    fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-registry-")),
+    fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-registry-")),
   );
   t.after(() => fs.rmSync(workspace, { recursive: true, force: true }));
-  fs.mkdirSync(path.join(workspace, "projects/meshcue-state"), {
+  fs.mkdirSync(path.join(workspace, "projects/ai3d-state"), {
     recursive: true,
   });
   const entries = {};
@@ -28,7 +28,7 @@ function registered(t, projects) {
       projectId: id,
       schema: 1,
     };
-    const runtime = path.join(workspace, "projects", name, ".meshcue", id);
+    const runtime = path.join(workspace, "projects", name, ".ai3d", id);
     fs.mkdirSync(runtime, { recursive: true });
     fs.writeFileSync(
       path.join(runtime, "config.json"),
@@ -63,7 +63,7 @@ function registered(t, projects) {
     t.after(() => new Promise((done) => server.close(done)));
   }
   fs.writeFileSync(
-    path.join(workspace, "projects/meshcue-state/registry.json"),
+    path.join(workspace, "projects/ai3d-state/registry.json"),
     JSON.stringify({ schema: 1, projects: entries }),
   );
   return workspace;
@@ -114,7 +114,7 @@ test("the project being opened is not reported to itself, and a foreign install 
 
 test("a missing or unreadable registry reports nothing rather than failing an open", async (t) => {
   const empty = fs.realpathSync(
-    fs.mkdtempSync(path.join(os.tmpdir(), "meshcue-registry-none-")),
+    fs.mkdtempSync(path.join(os.tmpdir(), "ai3d-registry-none-")),
   );
   t.after(() => fs.rmSync(empty, { recursive: true, force: true }));
   assert.deepEqual(
@@ -122,9 +122,9 @@ test("a missing or unreadable registry reports nothing rather than failing an op
     [],
   );
 
-  fs.mkdirSync(path.join(empty, "projects/meshcue-state"), { recursive: true });
+  fs.mkdirSync(path.join(empty, "projects/ai3d-state"), { recursive: true });
   fs.writeFileSync(
-    path.join(empty, "projects/meshcue-state/registry.json"),
+    path.join(empty, "projects/ai3d-state/registry.json"),
     "{ not json",
   );
   assert.deepEqual(

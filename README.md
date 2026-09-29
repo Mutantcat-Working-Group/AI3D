@@ -1,203 +1,125 @@
-# MeshCue
+<div align="center">
+  <img src="icon.png" width="100" alt="AI3D" />
+  <h2>AI3D · AI3D模型</h2>
+  <p>在模型上标清楚，让 Agent 改明白。</p>
+</div>
 
-[![CI](https://github.com/lzyling/meshcue/actions/workflows/ci.yml/badge.svg)](https://github.com/lzyling/meshcue/actions/workflows/ci.yml)
+**中文** | [English](README.en.md)
+
+[![CI](https://github.com/Mutantcat-Working-Group/AI3D/actions/workflows/ci.yml/badge.svg)](https://github.com/Mutantcat-Working-Group/AI3D/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**Point at the model. Let the Agent read what you meant.**
+### 一、产品概述
 
-https://github.com/user-attachments/assets/711ffa94-dab0-44b6-90ce-c6df4dd65614
+AI3D（中文名：AI3D模型）是一个在浏览器里与 Agent 协作审阅 3D 模型的标注工作台。Agent 先发布一版草稿，你在自己的浏览器中打开它，直接在网格表面放下带字母的定位针，或用油漆桶标出相连的近平面区域，然后把这一批标注交回给 Agent。Agent 读到的是一组三维坐标、面引用和版本信息，而不是截图；确认理解后，它发布下一版。每个版本都保持可打开、可继续标注。
 
-<sub>43 seconds, with sound. It is an animation, rendered from code with Remotion,
-and the drone frame in it was made for the film; the recording below is the
-application itself. A Chinese cut (中文版) is in the
-[announcement](https://github.com/lzyling/meshcue/discussions/9).</sub>
+它不替代 CAD 或雕刻软件；它补的是「这是草稿」和「这里要改」之间那一段：以前是一张截图加一段话，现在是一批落在模型表面、可被 Agent 精确读取的标记。
 
-![A reviewer turns a bracket with the right mouse button, drops lettered pins A and B on two surfaces, fills a face with the paint bucket, and presses Send to Agent](docs/media/demo.gif)
+![在模型表面放置 A、B 字母针，油漆桶填充平面，然后发送给 Agent 的录制演示](docs/media/demo.gif)
 
-<sub>Recorded from the application by `scripts/record-demo.mjs` — a real server, a
-real publish, real Chromium. The Agent on the other end of the last step is the
-same test double the suites use; everything the browser does is the product.</sub>
+### 二、为什么直接在模型上标注
 
-MeshCue is a browser workbench for reviewing 3D models with an AI agent. The
-agent publishes a draft, you open it in your own browser, mark the surfaces that
-are wrong — lettered pins and painted regions, on the mesh, in three dimensions —
-and hand the batch back. The agent reads positions, not a screenshot, and
-publishes the next version. Every version stays open for marking.
+对 Agent 说「左边支架的圆角太锐利」只需要一句话，却要花更多话确认是哪个支架。AI3D 的标记携带网格、面、重心坐标以及它依据的版本；Agent 拿到的是地址而不是描述，还能反过来指出它理解的是哪个表面。
 
-It is not a CAD or sculpting tool. It is the step between "here is a draft" and
-"here is what to change", which until now was a screenshot and a paragraph.
+### 三、审阅闭环
 
-## Why positions
+1. Agent 先对模型文件运行 `precheck`，再 `open` 发布。
+2. 你在 Chrome、Safari 或任何现代 WebGL 浏览器里打开链接。
+3. 选标注工具，点击表面放下字母针；油漆桶会填充所点面周围相连的近平面区域。旋转视角的工具不会产生标注，模型在明确提交前不会发出任何东西。
+4. 按「交给 Agent」。这一批标注会冻结在它所依据的版本上。
+5. Agent 调用 `read` 读取标注，在原对话中回复，并 `open` 下一版。旧版本保留自己的标注，仍可切换选择。
 
-Telling an agent "the fillet on the left bracket is too sharp" costs a sentence
-and buys an argument about which bracket. A mark carries the mesh, the face, the
-barycentric coordinate and the version it was made against. The agent gets an
-address, not a description, and can say back which surface it understood.
+没有「结束本轮」按钮：下一版本就是上一轮的结束。
 
-## The loop
+### 四、三种入口，同一套实现
 
-1. The agent runs `precheck` on the model file, then `open` to publish it.
-2. You open the URL in Chrome, Safari or any modern WebGL browser.
-3. Pick the label tool and click a surface to drop a lettered pin; the paint
-   bucket fills the connected near-flat area around the face you click. The
-   orbit tool places nothing, so turning the model never marks it. Nothing is
-   submitted until you say so.
-4. Press **Send to Agent**. The batch is frozen against the version you marked.
-5. The agent calls `read`, replies in your conversation, and `open`s the next
-   version. Older versions keep their own marks and stay selectable.
+核心不知道是谁在调用它；三个入口都驱动同一个实例管理器，使用同一组动作和同一种结果。
 
-There is no "finish the round" button. The next version _is_ the end of the last
-one.
+| 入口 | 调用方式 | 审阅归属 |
+| --- | --- | --- |
+| OpenClaw 扩展 | 原生 `ai3d` 工具 | 由宿主会话派生 |
+| `ai3d` CLI | `ai3d <action> --owner <id> …`，JSON 进 JSON 出 | 由调用方声明 |
+| `ai3d-mcp` | stdio MCP server，加入客户端的 `mcp_servers` | 工作区，或 `AI3D_OWNER` |
 
-## Three ways in, one implementation
+归属决定谁能改动草稿或切换显示版本。第二个归属者询问同一项目时会收到 `RESUME_REQUIRED`，直到有人明确说明审阅正在继续。
 
-The core does not know which harness is talking to it. All three entry points
-drive the same instance manager, with the same actions and the same results.
+只有能写回自己会话的宿主才能主动投递提交；通过工具协议连进来的客户端不能，因为协议里没有唤醒对话的机制。`status.notifier` 会报告宿主实际提供的能力。`send` 为 false 时，提交批次的状态是 `waiting`：可持久化、可列出、由调用 `read` 收集。这不是投递失败，也不会变成卡死状态。
 
-| Entry point        | How                                                    | Who owns a review                 |
-| ------------------ | ------------------------------------------------------ | --------------------------------- |
-| OpenClaw extension | native `meshcue` tool                                  | derived from the host's session   |
-| `meshcue` CLI      | `meshcue <action> --owner <id> …`, JSON in, JSON out   | stated by the caller              |
-| `meshcue-mcp`      | stdio MCP server, added to your client's `mcp_servers` | the workspace, or `MESHCUE_OWNER` |
+### 五、模型限制
 
-Ownership decides who may change a draft or switch the displayed version.
-A second owner asking about the same project is refused with `RESUME_REQUIRED`
-until someone says, explicitly, that the review is being continued.
+| 限制 | 阈值 | 超出时 |
+| --- | --- | --- |
+| 三角面 | 600,000 | 拒绝发布，`MODEL_LIMIT` |
+| 文件大小 | 80 MB | 拒绝发布，`MODEL_LIMIT` |
+| 贴图像素 | 单张 8192×8192，合计 33,554,432 | 拒绝发布，`TEXTURE_LIMIT` |
 
-### Being told, or asking
+标记指向源面，所以处于限制边缘的模型与小型模型一样精确；限制以下不存在性能悄悄变差的问题。`precheck` 在 `open` 之前测量文件，超出时给出应简化的比例，而不是事后拒绝。
 
-Only a host that can write into its own conversation can announce a submission.
-A client reached over a tool protocol cannot: the protocol has no way to wake a
-conversation. MeshCue does not pretend otherwise.
+STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；`open` 随后发布的就是同一次细分。超出上限时它要求简化模型而不是给出比例，因为文件里没有可减面的三角形，被数过的三角形来自这次细分。
 
-`status.notifier` reports what the host actually offers. Where `send` is false,
-a submitted batch has the status `waiting` — durable, listed, collected by
-calling `read`. It is not a delivery that failed, it counts as no attempt, and it
-never becomes stalled. An agent on such a host should read when the reviewer says
-they are done rather than waiting for a message that cannot arrive.
+### 六、安装与运行
 
-## Model limits
+需要 Node.js 22 或更新版本，以及支持 WebGL 的浏览器。
 
-| Limit          | Threshold                        | On exceeding                     |
-| -------------- | -------------------------------- | -------------------------------- |
-| Triangles      | 600,000                          | publish refused, `MODEL_LIMIT`   |
-| File size      | 80 MB                            | publish refused, `MODEL_LIMIT`   |
-| Texture pixels | 8192×8192 each, 33,554,432 total | publish refused, `TEXTURE_LIMIT` |
-
-A mark names a source face, so a model at the cap marks exactly as precisely as
-a small one — there is no band below these limits where something quietly gets
-worse. `precheck` measures a file before `open` and, when it is over, answers
-with the ratio to decimate by instead of a refusal after the fact.
-
-A STEP has no face count until it has been tessellated, so `precheck` tessellates
-it to measure it — the same tessellation `open` then publishes. Over the cap it
-says to simplify the model rather than giving a ratio, because there are no
-triangles in the file to decimate: the ones that were counted are ours.
-
-## Running it
-
-Node.js 22 or newer, and a browser with WebGL.
-
-From a clone, for development:
+从克隆运行开发环境：
 
 ```sh
 npm ci
-npm run samples      # generate the parametric sample models
+npm run samples      # 生成参数化样例模型
 npm test             # 232 unit and integration tests
-npm run test:browser # 76 real-Chromium tests, isolated port and data
+npm run test:browser # 76 real-Chromium tests
 ```
 
-Work happens on `dev`; `main` is what has been released, and is only ever
-fast-forwarded from `dev` with the tag going on straight afterwards.
-[CONTRIBUTING.md](CONTRIBUTING.md) has the whole of it, which is short.
+`npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。
 
-`npm run samples` writes to `tmp/samples` inside the clone, which is where the
-suites publish from. A server started from a clone publishes models from the
-clone itself and keeps its copies under `runtime/models`; to review files that
-live elsewhere, point `REVIEW_WORKSPACE` at the folder that holds them. Cases
-that need models this repository does not ship — the LAN case and one
-heavy-texture case — skip themselves and say why.
-
-For an OpenClaw install, build and install the extension from that clone:
+OpenClaw 安装：
 
 ```sh
 npm run build:integration -- tmp/candidate/package
 openclaw plugins install ./tmp/candidate/package
 ```
 
-For any MCP client, install a tagged commit and point the client at it:
+任何 MCP 客户端安装指定 tag：
 
 ```sh
-npm i -g "github:lzyling/meshcue#v1.3.2"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.3.2"
 ```
 
 ```toml
-[mcp_servers.meshcue]
-command = "meshcue-mcp"
+[mcp_servers.ai3d]
+command = "ai3d-mcp"
 ```
 
-Or start it without installing, at the cost of a fetch and a build each time:
+或不安装、直接运行：
 
 ```toml
-[mcp_servers.meshcue]
+[mcp_servers.ai3d]
 command = "npx"
-args = ["-p", "github:lzyling/meshcue#v1.3.2", "meshcue-mcp"]
+args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.3.2", "ai3d-mcp"]
 ```
 
-Pin the tag. Without one, npm takes whatever the default branch holds at that
-second and runs the `prepare` script in it. A tag is a name its owner can move,
-so every release states the commit it was cut from: check that against
-`git rev-parse v1.0.1^{commit}` and you know what you built.
+务必固定 tag。没有 tag 时，npm 会安装默认分支当时的内容并运行其中的 `prepare` 脚本。本仓库未发布到 npm registry，仓库内包名为 `org.mutantcat.ai3d`；安装命令用 npm 作为包管理器，而不是把 npm registry 当作来源。
 
-MeshCue is not published on the npm registry, and the names `meshcue`,
-`meshcue-mcp` and `@lzyling/meshcue` are not held by this project. **A package
-under any of those names is not this project**, whatever it claims. This
-repository, pinned to a tag, is the only way in — the install commands above use
-npm as the package manager, not as the source.
+工作台默认只监听 loopback 地址；LAN 模式绑定一个验证过的私有 IPv4，并且始终要求授权。
 
-The workbench listens on the loopback address by default. LAN mode binds one
-verified private IPv4 and always requires authorization — see
-[SECURITY.md](SECURITY.md) for the trust model, how a browser is admitted, and
-how long that lasts.
+### 七、开发进度
 
-## Roadmap
+计划不是承诺：使用中可能会调整顺序。想法和需求欢迎发到 [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions)。
 
-Plans, not promises: the order can change as people use it. Ideas and requests
-are welcome in [Discussions](https://github.com/lzyling/meshcue/discussions).
+- **1.4** — 审阅者的意图完整到达 Agent：提交携带屏幕朝上方向，标记可附简短说明，审阅者可以测量模型并把尺寸附给标记。
+- **1.5** — 所有合法 GLB 都按作者本意打开：Draco、Meshopt、KTX2 压缩，绑定姿势的绑骨模型，形态目标，GPU instancing，适配 4K PBR 的贴图预算，以及带外部文件的 `.gltf`。
+- **1.6** — 按设计显示 GLB：动画姿势、LOD 集合、材质变体。
+- **1.7** — 面向游戏资产的审阅辅助：UV 和棋盘格视图、分通道贴图视图、按网格三角面数、带可见性的节点树。
+- **2.0** — 动画播放：可以播放并逐帧查看绑骨动画。
 
-- **1.4** — what the reviewer means reaches the agent: a submission carries
-  which way was up on the reviewer's screen, a mark can carry a short note, and
-  the reviewer can measure the model and attach the dimension to a mark.
-- **1.5** — every valid GLB opens and looks as its author made it: Draco,
-  Meshopt and KTX2 compression, rigged models in their bind pose, morph
-  targets, GPU instancing, a texture budget that fits a 4K PBR set, and
-  `.gltf` with external files.
-- **1.6** — showing a GLB as intended: animation poses, LOD sets and material
-  variants.
-- **1.7** — review aids for game assets: UV and checker views, per-channel
-  texture views, per-mesh triangle counts and a node tree with visibility.
-- **2.0** — animation playback: rigged animation you can play and step through
-  frame by frame.
+### 八、文档
 
-## Documentation
+- [AGENT-INTERFACE.md](AGENT-INTERFACE.md) — Agent 实现的接口契约
+- [docs/zh/](docs/zh/) — 中文设计文档：定位、需求、版本规则、路线图
+- [English README](README.en.md) — 英文项目说明
 
-- [AGENT-INTERFACE.md](AGENT-INTERFACE.md) — the contract an agent implements
-- [SECURITY.md](SECURITY.md) — network exposure, browser trust, reporting a flaw
-- [docs/zh/](docs/zh/) — design documents, in Chinese: positioning,
-  requirements, versioning rules, roadmap
+### 九、许可证
 
-## License
+Apache-2.0，见 [LICENSE](LICENSE)。
 
-Apache-2.0. See [LICENSE](LICENSE).
-
-STEP support is the one part that is not ours. Reading a STEP means evaluating
-its surfaces, which MeshCue does with
-[occt-import-js](https://github.com/kovacsv/occt-import-js) — a WebAssembly
-build of [Open CASCADE Technology](https://github.com/Open-Cascade-SAS/OCCT).
-Both are **LGPL-2.1**, and they stay that way: from a clone or an npm install
-the library resolves as an ordinary dependency, and the OpenClaw package carries
-it as two unmodified files in `vendor/` with both licence texts beside them,
-rather than folded into a bundle. That is deliberate. Replacing it — a different
-build, a newer OCCT — is a matter of swapping those two files, and a copy inside
-a bundle would be one nobody could swap. Everything MeshCue itself is remains
-Apache-2.0.
+STEP 支持是唯一不属于本项目代码的部分。读取 STEP 需要求值其曲面，AI3D 使用 [occt-import-js](https://github.com/kovacsv/occt-import-js) 完成，它是 [Open CASCADE Technology](https://github.com/Open-Cascade-SAS/OCCT) 的 WebAssembly 构建。两者都是 **LGPL-2.1**，并保持原样：从克隆或 npm 安装时作为普通依赖解析，OpenClaw 包把它们作为 `vendor/` 中两个未修改文件与许可文本一起携带，而不是折叠进 bundle。这是有意的选择；替换它们只需换掉这两个文件。AI3D 自身的代码保持 Apache-2.0。
