@@ -4,7 +4,10 @@ import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
 
 // Asset type definitions with generation parameters
 const ASSET_TYPES = {
-  sword: { name: "Sword", parts: ["blade", "guard", "handle", "pommel"] },
+  sword: {
+    name: "Sword",
+    parts: ["blade", "tip", "guard", "handle", "pommel"],
+  },
   tree: { name: "Tree", parts: ["trunk", "foliage"] },
   rock: { name: "Rock", parts: ["body"] },
   house: { name: "House", parts: ["walls", "roof", "door", "windows"] },
@@ -18,15 +21,21 @@ const ASSET_TYPES = {
   gem: { name: "Gem", parts: ["body"] },
   barrel: { name: "Barrel", parts: ["body", "hoops"] },
   crate: { name: "Crate", parts: ["body"] },
-  tower: { name: "Tower", parts: ["base", "body", "roof", "door", "window"] },
-  flag: { name: "Flag", parts: ["pole", "cloth"] },
-  torch: { name: "Torch", parts: ["pole", "holder", "flame"] },
+  tower: { name: "Tower", parts: ["shaft", "roof", "windows"] },
+  flag: { name: "Flag", parts: ["pole", "cloth", "tail"] },
+  torch: { name: "Torch", parts: ["handle", "cup", "flame"] },
   fence: { name: "Fence", parts: ["posts", "rails"] },
   bridge: { name: "Bridge", parts: ["deck", "rails", "legs"] },
   fountain: {
     name: "Fountain",
     parts: ["basin", "water", "pillar", "bowl", "jet"],
   },
+  brazier: { name: "Brazier", parts: ["basin", "legs", "coals", "flame"] },
+  runestone: { name: "Runestone", parts: ["stone", "rune"] },
+  trap: { name: "Trap", parts: ["frame", "spikes"] },
+  turret: { name: "Turret", parts: ["base", "body", "barrel", "eye"] },
+  drone: { name: "Drone", parts: ["body", "rotors", "camera"] },
+  antenna: { name: "Antenna", parts: ["mast", "dish", "arm", "light"] },
 };
 
 // Material presets for different styles
@@ -151,16 +160,34 @@ export function generateAsset(
     case "fountain":
       buildFountain(group, size, segments, matStyle, customColor, rng);
       break;
+    case "brazier":
+      buildBrazier(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "runestone":
+      buildRunestone(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "trap":
+      buildTrap(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "turret":
+      buildTurret(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "drone":
+      buildDrone(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "antenna":
+      buildAntenna(group, size, segments, matStyle, customColor, rng);
+      break;
     default:
       buildCube(group, size, segments, matStyle, customColor, rng);
   }
 
   applyMaterialOverrides(group, material);
 
-  // Center and scale the model
+  // Scale first, then center in scaled space. Centering before scaling would
+  // leave the box offset whenever the requested size is not exactly the model
+  // span, which matters when a game engine drops the asset into a scene.
   const box = new THREE.Box3().setFromObject(group);
-  const center = box.getCenter(new THREE.Vector3());
-  group.position.sub(center);
   const maxDim = Math.max(
     box.max.x - box.min.x,
     box.max.y - box.min.y,
@@ -170,6 +197,9 @@ export function generateAsset(
     const scale = size / maxDim;
     group.scale.setScalar(scale);
   }
+  const scaledBox = new THREE.Box3().setFromObject(group);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  group.position.sub(center);
 
   return group;
 }
@@ -200,12 +230,12 @@ function applyMaterialOverrides(object, overrides = null) {
           0,
           1,
         );
+      // A chosen emissive replaces the glow on every material; leaving the
+      // picker at black keeps the generator's built-in emissive parts (fire,
+      // runes, lights) instead of erasing them.
       if (overrides.emissive) {
         mat.emissive = new THREE.Color(overrides.emissive);
         mat.emissiveIntensity = overrides.emissiveIntensity ?? 0.8;
-      } else {
-        mat.emissive = new THREE.Color(0x000000);
-        mat.emissiveIntensity = 1;
       }
     }
   });
@@ -298,6 +328,8 @@ function buildTree(
   group.add(trunk);
 
   // Foliage layers
+  const foliageGroup = new THREE.Group();
+  foliageGroup.name = "foliage";
   const layers = 3;
   for (let i = 0; i < layers; i++) {
     const radius = (1.2 - i * 0.3) * size;
@@ -306,8 +338,9 @@ function buildTree(
     const foliage = new THREE.Mesh(foliageGeo, foliageMat);
     foliage.position.y = (2 + i * 0.6) * size;
     foliage.name = `foliage-${i}`;
-    group.add(foliage);
+    foliageGroup.add(foliage);
   }
+  group.add(foliageGroup);
 }
 
 function buildRock(
@@ -373,15 +406,18 @@ function buildHouse(
 
   // Windows
   const windowGeo = new THREE.BoxGeometry(0.3 * size, 0.3 * size, 0.1 * size);
+  const windowGroup = new THREE.Group();
+  windowGroup.name = "windows";
   const windowLeft = new THREE.Mesh(windowGeo, windowMat);
   windowLeft.position.set(-0.6 * size, 0.9 * size, 0.76 * size);
   windowLeft.name = "window-left";
-  group.add(windowLeft);
+  windowGroup.add(windowLeft);
 
   const windowRight = new THREE.Mesh(windowGeo, windowMat);
   windowRight.position.set(0.6 * size, 0.9 * size, 0.76 * size);
   windowRight.name = "window-right";
-  group.add(windowRight);
+  windowGroup.add(windowRight);
+  group.add(windowGroup);
 }
 
 function buildCar(
@@ -424,6 +460,8 @@ function buildCar(
     0.2 * size,
     segments,
   );
+  const wheelGroup = new THREE.Group();
+  wheelGroup.name = "wheels";
   const wheelPositions = [
     [-0.7 * size, 0.25 * size, 0.55 * size],
     [0.7 * size, 0.25 * size, 0.55 * size],
@@ -435,8 +473,9 @@ function buildCar(
     wheel.position.set(...pos);
     wheel.rotation.x = Math.PI / 2;
     wheel.name = `wheel-${i}`;
-    group.add(wheel);
+    wheelGroup.add(wheel);
   });
+  group.add(wheelGroup);
 }
 
 function buildCharacter(
@@ -477,17 +516,20 @@ function buildCharacter(
     0.6 * size,
     segments,
   );
+  const armGroup = new THREE.Group();
+  armGroup.name = "arms";
   const leftArm = new THREE.Mesh(armGeo, skinMat);
   leftArm.position.set(-0.4 * size, 1.1 * size, 0);
   leftArm.rotation.z = Math.PI / 6;
   leftArm.name = "left-arm";
-  group.add(leftArm);
+  armGroup.add(leftArm);
 
   const rightArm = new THREE.Mesh(armGeo, skinMat);
   rightArm.position.set(0.4 * size, 1.1 * size, 0);
   rightArm.rotation.z = -Math.PI / 6;
   rightArm.name = "right-arm";
-  group.add(rightArm);
+  armGroup.add(rightArm);
+  group.add(armGroup);
 
   // Legs
   const legGeo = new THREE.CylinderGeometry(
@@ -496,15 +538,18 @@ function buildCharacter(
     0.6 * size,
     segments,
   );
+  const legGroup = new THREE.Group();
+  legGroup.name = "legs";
   const leftLeg = new THREE.Mesh(legGeo, pantsMat);
   leftLeg.position.set(-0.15 * size, 0.4 * size, 0);
   leftLeg.name = "left-leg";
-  group.add(leftLeg);
+  legGroup.add(leftLeg);
 
   const rightLeg = new THREE.Mesh(legGeo, pantsMat);
   rightLeg.position.set(0.15 * size, 0.4 * size, 0);
   rightLeg.name = "right-leg";
-  group.add(rightLeg);
+  legGroup.add(rightLeg);
+  group.add(legGroup);
 }
 
 function buildCube(
@@ -729,14 +774,17 @@ function buildBarrel(
     segments,
     segments,
   );
+  const hoopGroup = new THREE.Group();
+  hoopGroup.name = "hoops";
   const hoopPositions = [-0.3 * size, 0, 0.3 * size];
   hoopPositions.forEach((y, i) => {
     const hoop = new THREE.Mesh(hoopGeo, hoopMat);
     hoop.position.y = y;
     hoop.rotation.x = Math.PI / 2;
     hoop.name = `hoop-${i}`;
-    group.add(hoop);
+    hoopGroup.add(hoop);
   });
+  group.add(hoopGroup);
 }
 
 function buildCrate(
@@ -789,13 +837,16 @@ function buildTower(
     0.32 * size,
     0.05 * size,
   );
+  const windowGroup = new THREE.Group();
+  windowGroup.name = "windows";
   for (let i = 0; i < 3; i++) {
     const win = new THREE.Mesh(windowGeo, windowMat);
     const wy = (0.45 + i * 0.62) * size;
     win.position.set(0, wy, 0.46 * size);
     win.name = `window-${i}`;
-    group.add(win);
+    windowGroup.add(win);
   }
+  group.add(windowGroup);
 }
 
 function buildFlag(
@@ -844,7 +895,7 @@ function buildTorch(
   customColor = null,
   rng = Math.random,
 ) {
-  const handleMat = createMaterial(0x6d4c41, style);
+  const handleMat = createMaterial(customColor || 0x6d4c41, style);
   const metalMat = createMaterial(0x757575, style);
   const flameMat = createMaterial(0xff9800, style);
 
@@ -896,26 +947,32 @@ function buildFence(
   const posts = 4 + Math.floor(rng() * 3);
   const width = 3.5 * size;
 
+  const postGroup = new THREE.Group();
+  postGroup.name = "posts";
   for (let i = 0; i < posts; i++) {
     const postGeo = new THREE.BoxGeometry(0.12 * size, 1.2 * size, 0.12 * size);
     const post = new THREE.Mesh(postGeo, woodMat);
     post.position.set(-width / 2 + (i / (posts - 1)) * width, 0.6 * size, 0);
     post.rotation.y = (rng() - 0.5) * 0.04;
     post.name = `post-${i}`;
-    group.add(post);
+    postGroup.add(post);
   }
+  group.add(postGroup);
 
   const railGeo = new THREE.BoxGeometry(
     width + 0.2 * size,
     0.14 * size,
     0.06 * size,
   );
+  const railGroup = new THREE.Group();
+  railGroup.name = "rails";
   for (const ry of [0.85, 0.4]) {
     const rail = new THREE.Mesh(railGeo, railingMat);
     rail.position.y = ry * size;
     rail.name = `rail-${ry}`;
-    group.add(rail);
+    railGroup.add(rail);
   }
+  group.add(railGroup);
 }
 
 function buildBridge(
@@ -937,6 +994,8 @@ function buildBridge(
   deck.name = "deck";
   group.add(deck);
 
+  const railGroup = new THREE.Group();
+  railGroup.name = "rails";
   for (const side of [-1, 1]) {
     const postGeo = new THREE.BoxGeometry(
       0.08 * size,
@@ -951,24 +1010,28 @@ function buildBridge(
         side * 0.8 * size,
       );
       post.name = `rail-post-${side}-${i}`;
-      group.add(post);
+      railGroup.add(post);
     }
 
     const railGeo = new THREE.BoxGeometry(length, 0.08 * size, 0.05 * size);
     const rail = new THREE.Mesh(railGeo, railMat);
     rail.position.set(0, 1.0 * size, side * 0.8 * size);
     rail.name = `rail-${side}`;
-    group.add(rail);
+    railGroup.add(rail);
   }
+  group.add(railGroup);
 
   // Pier legs
   const legGeo = new THREE.BoxGeometry(0.5 * size, 0.6 * size, 1.1 * size);
+  const legGroup = new THREE.Group();
+  legGroup.name = "legs";
   for (const lx of [-length / 4, length / 4]) {
     const leg = new THREE.Mesh(legGeo, stoneMat);
     leg.position.set(lx, -0.3 * size, 0);
     leg.name = `leg-${lx}`;
-    group.add(leg);
+    legGroup.add(leg);
   }
+  group.add(legGroup);
 }
 
 function buildFountain(
@@ -1037,6 +1100,305 @@ function buildFountain(
   jet.position.y = 2.3 * size;
   jet.name = "jet";
   group.add(jet);
+}
+
+function buildBrazier(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const metalMat = createMaterial(customColor || 0x4e342e, style);
+  const coalMat = createMaterial(0xbf360c, style);
+  const flameMat = createMaterial(0xff9800, style);
+  flameMat.emissive = new THREE.Color(0xff6f00);
+  flameMat.emissiveIntensity = 1.2;
+
+  const basinGeo = new THREE.CylinderGeometry(
+    0.55 * size,
+    0.42 * size,
+    0.5 * size,
+    segments,
+    1,
+    true,
+  );
+  const basin = new THREE.Mesh(basinGeo, metalMat);
+  basin.position.y = 0.3 * size;
+  basin.name = "basin";
+  group.add(basin);
+
+  const legs = new THREE.Group();
+  legs.name = "legs";
+  for (let i = 0; i < 3; i++) {
+    const legGeo = new THREE.BoxGeometry(0.09 * size, 0.55 * size, 0.09 * size);
+    const leg = new THREE.Mesh(legGeo, metalMat);
+    const angle = (i / 3) * Math.PI * 2;
+    leg.position.set(
+      Math.cos(angle) * 0.34 * size,
+      -0.25 * size,
+      Math.sin(angle) * 0.34 * size,
+    );
+    leg.rotation.z = -Math.cos(angle) * 0.18;
+    leg.rotation.x = Math.sin(angle) * 0.18;
+    leg.name = `leg-${i}`;
+    legs.add(leg);
+  }
+  group.add(legs);
+
+  const coalsGeo = new THREE.SphereGeometry(0.3 * size, segments, segments);
+  const coals = new THREE.Mesh(coalsGeo, coalMat);
+  coals.position.y = 0.52 * size;
+  coals.scale.y = 0.4;
+  coals.name = "coals";
+  group.add(coals);
+
+  const flameGeo = new THREE.ConeGeometry(
+    (0.22 + rng() * 0.08) * size,
+    (0.75 + rng() * 0.25) * size,
+    segments,
+  );
+  const flame = new THREE.Mesh(flameGeo, flameMat);
+  flame.position.y = (0.85 + rng() * 0.1) * size;
+  flame.name = "flame";
+  group.add(flame);
+}
+
+function buildRunestone(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stoneMat = createMaterial(customColor || 0x78909c, style);
+  const runeMat = createMaterial(0x00e5ff, style);
+  runeMat.emissive = new THREE.Color(0x00b0ff);
+  runeMat.emissiveIntensity = 1.5;
+
+  const tilt = (rng() - 0.5) * 0.14;
+  const stoneGeo = new THREE.BoxGeometry(0.75 * size, 2.2 * size, 0.28 * size);
+  const stone = new THREE.Mesh(stoneGeo, stoneMat);
+  stone.position.y = 1.1 * size;
+  stone.rotation.z = tilt;
+  stone.name = "stone";
+  group.add(stone);
+
+  const runeGeo = new THREE.BoxGeometry(0.3 * size, 1.3 * size, 0.06 * size);
+  const rune = new THREE.Mesh(runeGeo, runeMat);
+  rune.position.set(0.2 * size, (1.1 + rng() * 0.12) * size, 0.17 * size);
+  rune.name = "rune";
+  group.add(rune);
+}
+
+function buildTrap(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const frameMat = createMaterial(customColor || 0x5d4037, style);
+  const spikeMat = createMaterial(0x9e9e9e, style);
+
+  const frameGeo = new THREE.BoxGeometry(2.2 * size, 0.18 * size, 2.2 * size);
+  const frame = new THREE.Mesh(frameGeo, frameMat);
+  frame.position.y = 0.09 * size;
+  frame.name = "frame";
+  group.add(frame);
+
+  const spikes = new THREE.Group();
+  spikes.name = "spikes";
+  for (let i = 0; i < 9; i++) {
+    const spikeGeo = new THREE.ConeGeometry(
+      (0.09 + rng() * 0.05) * size,
+      (0.5 + rng() * 0.3) * size,
+      6,
+    );
+    const spike = new THREE.Mesh(spikeGeo, spikeMat);
+    spike.position.set(
+      ((i % 3) - 1) * 0.6 * size,
+      0.34 * size,
+      (Math.floor(i / 3) - 1) * 0.6 * size,
+    );
+    spike.rotation.z = (rng() - 0.5) * 0.05;
+    spike.name = `spike-${i}`;
+    spikes.add(spike);
+  }
+  group.add(spikes);
+}
+
+function buildTurret(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const hullMat = createMaterial(customColor || 0x546e7a, style);
+  const accentMat = createMaterial(0xff7043, style);
+  const eyeMat = createMaterial(0x00e5ff, style);
+  eyeMat.emissive = new THREE.Color(0x00b0ff);
+  eyeMat.emissiveIntensity = 2;
+
+  const baseGeo = new THREE.CylinderGeometry(
+    0.7 * size,
+    0.85 * size,
+    0.5 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, hullMat);
+  base.position.y = 0.25 * size;
+  base.name = "base";
+  group.add(base);
+
+  const bodyGeo = new THREE.SphereGeometry(0.55 * size, segments, segments);
+  const body = new THREE.Mesh(bodyGeo, hullMat);
+  body.position.y = 0.85 * size;
+  body.scale.y = 0.8;
+  body.name = "body";
+  group.add(body);
+
+  const barrelGeo = new THREE.CylinderGeometry(
+    0.09 * size,
+    0.12 * size,
+    1.1 * size,
+    segments,
+  );
+  const barrel = new THREE.Mesh(barrelGeo, accentMat);
+  barrel.position.set(0.65 * size, 0.9 * size, 0);
+  barrel.rotation.z = Math.PI / 2;
+  barrel.name = "barrel";
+  group.add(barrel);
+
+  const eyeGeo = new THREE.SphereGeometry(0.12 * size, segments, segments);
+  const eye = new THREE.Mesh(eyeGeo, eyeMat);
+  eye.position.set(0.4 * size, 0.9 * size, 0);
+  eye.name = "eye";
+  group.add(eye);
+}
+
+function buildDrone(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const hullMat = createMaterial(customColor || 0x37474f, style);
+  const rotorMat = createMaterial(0xcfd8dc, style);
+  const cameraMat = createMaterial(0xff5252, style);
+  cameraMat.emissive = new THREE.Color(0xd50000);
+  cameraMat.emissiveIntensity = 1.4;
+
+  const bodyGeo = new THREE.SphereGeometry(0.42 * size, segments, segments);
+  const body = new THREE.Mesh(bodyGeo, hullMat);
+  body.scale.y = 0.62;
+  body.name = "body";
+  group.add(body);
+
+  const rotors = new THREE.Group();
+  rotors.name = "rotors";
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const armGeo = new THREE.BoxGeometry(0.08 * size, 0.06 * size, 0.9 * size);
+    const arm = new THREE.Mesh(armGeo, hullMat);
+    arm.position.set(
+      Math.cos(angle) * 0.35 * size,
+      0,
+      Math.sin(angle) * 0.35 * size,
+    );
+    arm.rotation.y = -angle;
+    arm.name = `arm-${i}`;
+    rotors.add(arm);
+
+    const rotorGeo = new THREE.CylinderGeometry(
+      0.34 * size,
+      0.34 * size,
+      0.03 * size,
+      4,
+    );
+    const rotor = new THREE.Mesh(rotorGeo, rotorMat);
+    rotor.position.set(
+      Math.cos(angle) * 0.8 * size,
+      0,
+      Math.sin(angle) * 0.8 * size,
+    );
+    rotor.rotation.x = Math.PI / 2;
+    rotor.name = `rotor-${i}`;
+    rotors.add(rotor);
+  }
+  group.add(rotors);
+
+  const cameraGeo = new THREE.SphereGeometry(0.14 * size, segments, segments);
+  const camera = new THREE.Mesh(cameraGeo, cameraMat);
+  camera.position.y = -0.3 * size;
+  camera.name = "camera";
+  group.add(camera);
+}
+
+function buildAntenna(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const mastMat = createMaterial(customColor || 0x78909c, style);
+  const dishMat = createMaterial(0xe0e0e0, style);
+  const lightMat = createMaterial(0xff7043, style);
+  lightMat.emissive = new THREE.Color(0xff3d00);
+  lightMat.emissiveIntensity = 1.6;
+
+  const mastGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.09 * size,
+    3.4 * size,
+    segments,
+  );
+  const mast = new THREE.Mesh(mastGeo, mastMat);
+  mast.position.y = 1.7 * size;
+  mast.name = "mast";
+  group.add(mast);
+
+  const dishGeo = new THREE.SphereGeometry(
+    0.75 * size,
+    segments,
+    segments,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI * 0.5,
+  );
+  const dish = new THREE.Mesh(dishGeo, dishMat);
+  dish.position.set(0.9 * size, (1.15 + rng() * 0.2) * size, 0);
+  dish.rotation.z = -Math.PI / 4;
+  dish.name = "dish";
+  group.add(dish);
+
+  const armGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.035 * size,
+    0.95 * size,
+    8,
+  );
+  const arm = new THREE.Mesh(armGeo, mastMat);
+  arm.position.set(0.55 * size, (1.2 + rng() * 0.18) * size, 0);
+  arm.rotation.z = -Math.PI / 7;
+  arm.name = "arm";
+  group.add(arm);
+
+  const lightGeo = new THREE.SphereGeometry(0.12 * size, segments, segments);
+  const light = new THREE.Mesh(lightGeo, lightMat);
+  light.position.y = 3.4 * size;
+  light.name = "light";
+  group.add(light);
 }
 
 /**
@@ -1173,6 +1535,41 @@ export function countTriangles(object) {
     }
   });
   return Math.floor(count);
+}
+
+/**
+ * Count vertices in a Three.js object. Useful for engine poly budgets where
+ * draw calls and vertex density matter as much as the triangle count.
+ */
+export function countVertices(object) {
+  let count = 0;
+  object.traverse((child) => {
+    if (child.isMesh && child.geometry?.attributes.position) {
+      count += child.geometry.attributes.position.count;
+    }
+  });
+  return count;
+}
+
+/**
+ * Mesh budget for a generated asset: triangles, vertices, mesh parts and the
+ * draw calls the engine will need. Game teams can read this before export.
+ */
+export function getAssetStats(object) {
+  const stats = { triangles: 0, vertices: 0, parts: 0, drawCalls: 0 };
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    stats.parts += 1;
+    stats.drawCalls += 1;
+    const geo = child.geometry;
+    if (!geo?.attributes.position) return;
+    stats.vertices += geo.attributes.position.count;
+    stats.triangles += geo.index
+      ? geo.index.count / 3
+      : geo.attributes.position.count / 3;
+  });
+  stats.triangles = Math.floor(stats.triangles);
+  return stats;
 }
 
 /**

@@ -33,6 +33,7 @@ import {
   cloneModelDeep,
   decimateMesh,
   generateLOD,
+  getAssetStats,
 } from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
@@ -2237,6 +2238,12 @@ const GEN_TYPE_KEYS = {
   fence: "gen.type.fence",
   bridge: "gen.type.bridge",
   fountain: "gen.type.fountain",
+  brazier: "gen.type.brazier",
+  runestone: "gen.type.runestone",
+  trap: "gen.type.trap",
+  turret: "gen.type.turret",
+  drone: "gen.type.drone",
+  antenna: "gen.type.antenna",
 };
 
 const GEN_ALIAS_KEYS = {
@@ -2260,6 +2267,12 @@ const GEN_ALIAS_KEYS = {
   fence: "gen.alias.fence",
   bridge: "gen.alias.bridge",
   fountain: "gen.alias.fountain",
+  brazier: "gen.alias.brazier",
+  runestone: "gen.alias.runestone",
+  trap: "gen.alias.trap",
+  turret: "gen.alias.turret",
+  drone: "gen.alias.drone",
+  antenna: "gen.alias.antenna",
 };
 
 /* Prompt matching is intentionally multilingual: an AI3D user may describe an
@@ -2374,9 +2387,9 @@ async function generateAsset() {
     genState.originalModel = cloneModelDeep(model);
     genState.lods = [];
     genState.activeLod = 0;
-    const triCount = countTriangles(model);
+    const stats = getAssetStats(model);
     setGenStatus(
-      `${t("gen.applied")} (${triCount} ${t("gen.triangles")})`,
+      `${t("gen.applied")} (${stats.triangles} ${t("gen.triangles")} · ${stats.vertices} ${t("gen.vertices")} · ${stats.parts} ${t("gen.parts")})`,
       "ok",
     );
     setGenActions(true);

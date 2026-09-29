@@ -94,7 +94,7 @@ From a clone, for development:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 241 unit and integration tests
+npm test             # 249 unit and integration tests
 npm run test:browser # 76 real-Chromium tests
 ```
 
@@ -176,6 +176,9 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   variants.
 - **1.7** - review aids for game assets: UV and checker views, per-channel
   texture views, per-mesh triangle counts and a node tree with visibility.
+- **1.8** - game prop kits: dungeon pieces (brazier, runestone, spike trap)
+  and sci-fi pieces (turret, drone, comm antenna), with triangle, vertex and
+  part counts shown per asset so teams can check engine budgets before export.
 - **2.0** - animation playback: rigged animation you can play and step through
   frame by frame.
 

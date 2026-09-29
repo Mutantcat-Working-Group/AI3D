@@ -6,6 +6,11 @@ import {
   decimateMesh,
   generateLOD,
   countTriangles,
+  generateAsset,
+  getAssetTypes,
+  getAssetTypeInfo,
+  countVertices,
+  getAssetStats,
 } from "../src/generator.js";
 
 function sampleModel() {
@@ -26,6 +31,62 @@ function firstMesh(object) {
     if (child.isMesh && !hit) hit = child;
   });
   return hit;
+}
+
+function nodeNames(object) {
+  const names = new Set();
+  object.traverse((child) => {
+    if (child.name) names.add(child.name);
+  });
+  return names;
+}
+
+function meshCount(object) {
+  let count = 0;
+  object.traverse((child) => {
+    if (child.isMesh) count += 1;
+  });
+  return count;
+}
+
+function meshMaterials(object) {
+  const materials = [];
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    if (Array.isArray(child.material)) materials.push(...child.material);
+    else if (child.material) materials.push(child.material);
+  });
+  return materials;
+}
+
+function modelFingerprint(object) {
+  const parts = [];
+  object.traverse((child) => {
+    if (!child.isMesh || !child.geometry?.attributes.position) return;
+    const color = Array.isArray(child.material)
+      ? child.material[0]?.color
+      : child.material?.color;
+    parts.push([
+      child.name,
+      child.geometry.type,
+      [...child.geometry.attributes.position.array],
+      [...child.position.toArray(), ...child.rotation.toArray()],
+      color ? color.getHexString() : null,
+    ]);
+  });
+  return JSON.stringify(parts);
+}
+
+function modelBounds(object) {
+  const box = new THREE.Box3().setFromObject(object);
+  return {
+    size: Math.max(
+      box.max.x - box.min.x,
+      box.max.y - box.min.y,
+      box.max.z - box.min.z,
+    ),
+    center: box.getCenter(new THREE.Vector3()),
+  };
 }
 
 test("cloneModelDeep edits its own geometry without touching the source", () => {
@@ -62,4 +123,129 @@ test("generateLOD keeps the original as level 0 and owns each level", () => {
   decimateMesh(firstMesh(lods[1].mesh), 0.5);
   assert.equal(countTriangles(lods[3].mesh), beforeLast);
   assert.equal(countTriangles(source), original);
+});
+
+test("every asset type builds its declared parts, centered and sized", () => {
+  for (const type of getAssetTypes()) {
+    const info = getAssetTypeInfo(type);
+    const model = generateAsset(type, { size: 2, segments: 10, seed: 7 });
+    assert.ok(meshCount(model) > 0, `${type} has meshes`);
+    const names = nodeNames(model);
+    for (const part of info.parts) {
+      assert.ok(names.has(part), `${type} has part ${part}`);
+    }
+    const bounds = modelBounds(model);
+    assert.ok(
+      Math.abs(bounds.size - 2) < 1e-5,
+      `${type} scales to the requested size`,
+    );
+    assert.ok(bounds.center.length() < 1e-5, `${type} is centered`);
+  }
+});
+
+test("same seed produces identical geometry for every type", () => {
+  for (const type of getAssetTypes()) {
+    const a = generateAsset(type, { size: 1.4, segments: 10, seed: 123 });
+    const b = generateAsset(type, { size: 1.4, segments: 10, seed: 123 });
+    assert.equal(
+      modelFingerprint(a),
+      modelFingerprint(b),
+      `${type} is deterministic per seed`,
+    );
+  }
+});
+
+test("seeded variation changes shapes built on the PRNG", () => {
+  const variantTypes = [
+    "rock",
+    "tower",
+    "flag",
+    "torch",
+    "fence",
+    "brazier",
+    "runestone",
+    "trap",
+    "antenna",
+  ];
+  for (const type of variantTypes) {
+    const a = generateAsset(type, { size: 1, seed: 1 });
+    const b = generateAsset(type, { size: 1, seed: 2 });
+    assert.notEqual(
+      modelFingerprint(a),
+      modelFingerprint(b),
+      `${type} changes with the seed`,
+    );
+  }
+});
+
+test("styles and material overrides reach every mesh", () => {
+  const realistic = generateAsset("sword", { size: 1, style: "realistic" });
+  for (const mat of meshMaterials(realistic)) {
+    assert.equal(mat.flatShading, false);
+    assert.equal(mat.roughness, 0.3);
+    assert.equal(mat.metalness, 0.6);
+  }
+
+  const stylized = generateAsset("tree", { size: 1, style: "stylized" });
+  for (const mat of meshMaterials(stylized)) {
+    assert.equal(mat.flatShading, true);
+  }
+
+  const overridden = generateAsset("shield", {
+    size: 1,
+    style: "lowpoly",
+    material: { roughness: 0.2, metalness: 0.9, emissive: "#00ff00" },
+  });
+  for (const mat of meshMaterials(overridden)) {
+    assert.equal(mat.roughness, 0.2);
+    assert.equal(mat.metalness, 0.9);
+    assert.equal(mat.emissive.getHexString(), "00ff00");
+  }
+});
+
+test("custom color lands on every asset type", () => {
+  for (const type of getAssetTypes()) {
+    const model = generateAsset(type, {
+      size: 1,
+      color: "#123456",
+      seed: 5,
+    });
+    const hexes = meshMaterials(model).map((m) => m.color.getHexString());
+    assert.ok(hexes.includes("123456"), `${type} applies the custom color`);
+  }
+});
+
+test("built-in emissive parts keep their glow by default", () => {
+  const glowTypes = ["brazier", "runestone", "turret", "drone", "antenna"];
+  for (const type of glowTypes) {
+    const model = generateAsset(type, {
+      size: 1,
+      seed: 5,
+      material: { roughness: 0.7, metalness: 0.3, emissive: null },
+    });
+    const glowing = meshMaterials(model).some(
+      (m) => m.emissive.getHexString() !== "000000",
+    );
+    assert.ok(glowing, `${type} keeps a built-in glow`);
+  }
+});
+
+test("getAssetStats reports the mesh budget for game engines", () => {
+  const model = generateAsset("turret", {
+    size: 1.5,
+    segments: 12,
+    seed: 9,
+  });
+  const stats = getAssetStats(model);
+  assert.equal(stats.triangles, countTriangles(model));
+  assert.equal(stats.vertices, countVertices(model));
+  assert.ok(stats.triangles > 0);
+  assert.ok(stats.vertices > 0);
+  assert.ok(stats.parts >= 4);
+  assert.equal(stats.parts, stats.drawCalls);
+});
+
+test("countVertices counts every mesh buffer", () => {
+  const model = sampleModel();
+  assert.ok(countVertices(model) > 0);
 });
