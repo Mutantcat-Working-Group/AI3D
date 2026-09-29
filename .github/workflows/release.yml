@@ -70,12 +70,16 @@ jobs:
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             bundles: appimage
+          - name: linux-arm64-appimage
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            bundles: appimage
           - name: macos-x64-dmg
-            os: macos-13
+            os: macos-15-intel
             target: x86_64-apple-darwin
             bundles: dmg
           - name: macos-arm64-dmg
-            os: macos-14
+            os: macos-15
             target: aarch64-apple-darwin
             bundles: dmg
           - name: windows-x64-nsis
@@ -83,7 +87,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bundles: nsis
           - name: windows-arm64-nsis
-            os: windows-latest
+            os: windows-11-arm
             target: aarch64-pc-windows-msvc
             bundles: nsis
     steps:
@@ -110,8 +114,8 @@ jobs:
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libfuse2
+            librsvg2-dev
+          (sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2) || true
       - run: npm ci
       - name: create a Windows self-signed code-signing certificate
         if: runner.os == 'Windows'
@@ -147,6 +151,58 @@ jobs:
       - name: build the ${{ matrix.bundles }} bundle
         if: runner.os != 'Windows'
         run: npx tauri build --ci --bundles "${{ matrix.bundles }}" --target "${{ matrix.target }}"
+      - name: sign the Windows installer (self-signed)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (-not $env:AI3D_SIGNING_THUMBPRINT) { throw 'code-signing certificate setup did not run' }
+          $signtool = $null
+          foreach ($kit in (Get-ChildItem -Path 'C:\Program Files (x86)\Windows Kits\10\bin' -Directory | Sort-Object Name -Descending)) {
+            $candidate = Get-ChildItem -Path $kit.FullName -Filter 'signtool.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($candidate) { $signtool = $candidate.FullName; break }
+          }
+          if (-not $signtool) { throw 'signtool.exe not found in the Windows SDK' }
+          $installers = @(Get-ChildItem -Path "src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -Filter '*-setup.exe' -File)
+          if ($installers.Count -eq 0) { throw 'no NSIS installer produced to sign' }
+          foreach ($installer in $installers) {
+            & $signtool sign /fd SHA256 /sha1 $env:AI3D_SIGNING_THUMBPRINT /d 'AI3D Installer' $installer.FullName
+            $signature = Get-AuthenticodeSignature $installer.FullName
+            if ($signature.Status -eq 'NotSigned') { throw "installer $($installer.Name) carries no signature" }
+            Write-Host "installer signed: $($installer.Name)"
+          }
+      - name: verify the macOS dmg bundle
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          app_dir="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          app="$(find "$app_dir" -maxdepth 1 -name '*.app' -print -quit)"
+          if [ -z "$app" ]; then
+            echo "::error::no .app bundle produced under $app_dir"
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -q 'Signature=adhoc'
+          exec_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+          file "$app/Contents/MacOS/$exec_name"
+          for dmg in src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg; do
+            codesign --force --sign - --timestamp=none "$dmg"
+            codesign --verify --strict --verbose=2 "$dmg"
+            codesign -dv "$dmg" 2>&1 | grep -q 'Signature=adhoc'
+            hdiutil verify "$dmg"
+            mount="$(mktemp -d)"
+            hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$dmg"
+            if [ ! -L "$mount/Applications" ]; then
+              echo "::error::$dmg has no /Applications shortcut"
+              exit 1
+            fi
+            mounted_app="$(find "$mount" -maxdepth 1 -name '*.app' -print -quit)"
+            if [ -z "$mounted_app" ]; then
+              echo "::error::$dmg contains no .app bundle"
+              exit 1
+            fi
+            hdiutil detach "$mount"
+          done
       - name: attach the bundle to the release
         shell: bash
         env:
