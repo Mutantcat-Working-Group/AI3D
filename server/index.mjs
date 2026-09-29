@@ -1035,7 +1035,11 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-const mcpId = z.string().min(1).max(100).regex(/^[a-zA-Z0-9._-]+$/);
+const mcpId = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[a-zA-Z0-9._-]+$/);
 const mcpCommand = z
   .string()
   .trim()

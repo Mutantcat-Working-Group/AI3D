@@ -30,7 +30,11 @@ export class McpSession {
   }
 
   request(method, params = {}, { timeoutMs = 20000 } = {}) {
-    if (!this.child || this.child.exitCode !== null || this.child.signalCode !== null)
+    if (
+      !this.child ||
+      this.child.exitCode !== null ||
+      this.child.signalCode !== null
+    )
       return Promise.reject(
         new Error("The MCP connection is not running; connect it first."),
       );
@@ -204,10 +208,9 @@ export class McpSession {
       if (message.error) {
         pending.reject(
           new Error(
-            String(message.error.message || JSON.stringify(message.error)).slice(
-              0,
-              300,
-            ),
+            String(
+              message.error.message || JSON.stringify(message.error),
+            ).slice(0, 300),
           ),
         );
       } else {
@@ -312,8 +315,7 @@ export class McpConnections {
   }
 
   upsert({ id, name, command, args }) {
-    const nextId =
-      id && this.connections.has(id) ? id : crypto.randomUUID();
+    const nextId = id && this.connections.has(id) ? id : crypto.randomUUID();
     const connection = {
       id: nextId,
       name: String(name || command).slice(0, 80),
@@ -333,8 +335,7 @@ export class McpConnections {
 
   async connect(id) {
     const connection = this.connections.get(id);
-    if (!connection)
-      throw new Error("No such MCP connection; save it first.");
+    if (!connection) throw new Error("No such MCP connection; save it first.");
     await this.disconnect(id);
     const session = new McpSession(connection, {
       cwd: this.workspace,

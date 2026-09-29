@@ -1892,7 +1892,11 @@ async function pollChat() {
   try {
     const res = await fetch(endpoint(`api/chat?since=${chatSince}`));
     let json;
-    try { json = await res.json(); } catch { throw new Error(t("conn.dropped")); }
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(t("conn.dropped"));
+    }
     if (!res.ok) throw new Error(serverMessage(json));
     chatConnected = !!json.connected;
     chatBusy = !!json.busy;
@@ -1924,11 +1928,13 @@ function renderChat() {
     box.innerHTML = `<div class="chat-empty">${T("chat.empty")}</div>`;
   } else {
     const sorted = [...chatMessages.values()].sort((a, b) => a._ts - b._ts);
-    box.innerHTML = sorted.map((m) => {
-      const role = m.role === "user" ? "chat-you" : "chat-agent";
-      const who = m.role === "user" ? T("chat.you") : T("chat.agent");
-      return `<div class="chat-msg ${role}"><span class="chat-who">${who}</span><span class="chat-text">${esc(m.text)}</span></div>`;
-    }).join("");
+    box.innerHTML = sorted
+      .map((m) => {
+        const role = m.role === "user" ? "chat-you" : "chat-agent";
+        const who = m.role === "user" ? T("chat.you") : T("chat.agent");
+        return `<div class="chat-msg ${role}"><span class="chat-who">${who}</span><span class="chat-text">${esc(m.text)}</span></div>`;
+      })
+      .join("");
     box.scrollTop = box.scrollHeight;
   }
   status.textContent = chatBusy ? T("chat.thinking") : "";
@@ -1975,10 +1981,14 @@ function renderMcpConnections() {
     box.innerHTML = `<div class="mcp-empty">${T("mcp.empty")}</div>`;
     return;
   }
-  box.innerHTML = mcpConnections.map((c) => {
-    const status = c.connected ? T("mcp.connected") : T("mcp.disconnected");
-    const toolCount = c.connected && c.tools ? T("mcp.toolCount", { count: c.tools.length }) : "";
-    return `<div class="mcp-connection" data-id="${esc(c.id)}">
+  box.innerHTML = mcpConnections
+    .map((c) => {
+      const status = c.connected ? T("mcp.connected") : T("mcp.disconnected");
+      const toolCount =
+        c.connected && c.tools
+          ? T("mcp.toolCount", { count: c.tools.length })
+          : "";
+      return `<div class="mcp-connection" data-id="${esc(c.id)}">
       <div class="mcp-conn-info">
         <strong>${esc(c.name)}</strong>
         <span class="mcp-conn-cmd">${esc(c.command)}</span>
@@ -1986,13 +1996,16 @@ function renderMcpConnections() {
         ${toolCount ? `<span class="mcp-conn-tools">${toolCount}</span>` : ""}
       </div>
       <div class="mcp-conn-actions">
-        ${c.connected
-          ? `<button class="quiet mcp-disconnect" data-id="${esc(c.id)}">${T("mcp.disconnect")}</button>`
-          : `<button class="quiet mcp-connect" data-id="${esc(c.id)}">${T("mcp.connect")}</button>`}
+        ${
+          c.connected
+            ? `<button class="quiet mcp-disconnect" data-id="${esc(c.id)}">${T("mcp.disconnect")}</button>`
+            : `<button class="quiet mcp-connect" data-id="${esc(c.id)}">${T("mcp.connect")}</button>`
+        }
         <button class="quiet mcp-remove" data-id="${esc(c.id)}">${T("mcp.remove")}</button>
       </div>
     </div>`;
-  }).join("");
+    })
+    .join("");
 }
 
 function renderMcpToolSelectors() {
@@ -2004,13 +2017,15 @@ function renderMcpToolSelectors() {
     return;
   }
   $("#mcp-tools").hidden = false;
-  serverSel.innerHTML = connected.map((c) =>
-    `<option value="${esc(c.id)}">${esc(c.name)}</option>`
-  ).join("");
+  serverSel.innerHTML = connected
+    .map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
+    .join("");
   const first = connected[0];
-  toolSel.innerHTML = (first.tools || []).map((tool) =>
-    `<option value="${esc(tool.name)}">${esc(tool.name)}</option>`
-  ).join("");
+  toolSel.innerHTML = (first.tools || [])
+    .map(
+      (tool) => `<option value="${esc(tool.name)}">${esc(tool.name)}</option>`,
+    )
+    .join("");
 }
 
 async function saveMcpConnection() {
@@ -2080,7 +2095,11 @@ async function mcpCallTool() {
   callBtn.disabled = true;
   callBtn.querySelector("span").textContent = T("mcp.calling");
   try {
-    const data = await api("mcp/tools/call", { id: serverId, name: toolName, args });
+    const data = await api("mcp/tools/call", {
+      id: serverId,
+      name: toolName,
+      args,
+    });
     const result = data.result;
     let text;
     if (result?.content) {
@@ -2118,9 +2137,9 @@ function initAiDock() {
 }
 
 $("#ai-button").addEventListener("click", () => setAiDock(!aiDockOpen));
-document.querySelectorAll(".ai-tab").forEach((b) =>
-  b.addEventListener("click", () => setAiTab(b.dataset.aiTab))
-);
+document
+  .querySelectorAll(".ai-tab")
+  .forEach((b) => b.addEventListener("click", () => setAiTab(b.dataset.aiTab)));
 $("#chat-send").addEventListener("click", sendChat);
 $("#chat-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
@@ -2140,9 +2159,11 @@ $("#mcp-connections").addEventListener("click", (e) => {
 $("#mcp-server").addEventListener("change", (e) => {
   const conn = mcpConnections.find((c) => c.id === e.target.value);
   const toolSel = $("#mcp-tool");
-  toolSel.innerHTML = (conn?.tools || []).map((tool) =>
-    `<option value="${esc(tool.name)}">${esc(tool.name)}</option>`
-  ).join("");
+  toolSel.innerHTML = (conn?.tools || [])
+    .map(
+      (tool) => `<option value="${esc(tool.name)}">${esc(tool.name)}</option>`,
+    )
+    .join("");
 });
 $("#mcp-call").addEventListener("click", mcpCallTool);
 
@@ -2193,7 +2214,7 @@ const assetLibrary = {
       (a) =>
         a.prompt.toLowerCase().includes(q) ||
         a.type.toLowerCase().includes(q) ||
-        a.style.toLowerCase().includes(q)
+        a.style.toLowerCase().includes(q),
     );
   },
 };
@@ -2224,7 +2245,8 @@ async function generateAsset() {
   const style = $("#gen-style").value;
   const color = $("#gen-color").value;
   const seedInput = $("#gen-seed").value.trim();
-  const seed = seedInput === "" ? null : Math.max(0, Math.floor(Number(seedInput) || 0));
+  const seed =
+    seedInput === "" ? null : Math.max(0, Math.floor(Number(seedInput) || 0));
   genState.generating = true;
   setGenStatus(t("gen.generating"), "info");
   setGenActions(false);
@@ -2239,7 +2261,10 @@ async function generateAsset() {
     });
     genState.model = { ...assetType, threeObject: model, color, seed };
     const triCount = countTriangles(model);
-    setGenStatus(`${t("gen.applied")} (${triCount} ${t("gen.triangles")})`, "ok");
+    setGenStatus(
+      `${t("gen.applied")} (${triCount} ${t("gen.triangles")})`,
+      "ok",
+    );
     setGenActions(true);
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
@@ -2302,7 +2327,9 @@ function importGenModel() {
     return;
   }
   // Dispatch event for viewer to pick up
-  window.dispatchEvent(new CustomEvent("ai3d:import-generated", { detail: genState.model }));
+  window.dispatchEvent(
+    new CustomEvent("ai3d:import-generated", { detail: genState.model }),
+  );
   setGenStatus(t("gen.applied"), "ok");
 }
 
@@ -2413,7 +2440,7 @@ function renderAssetLibrary() {
         <button class="gen-asset-delete" data-id="${a.id}">${t("mcp.remove")}</button>
       </div>
     </div>
-  `
+  `,
     )
     .join("");
   // Render thumbnails for each asset

@@ -23,7 +23,10 @@ const ASSET_TYPES = {
   torch: { name: "Torch", parts: ["pole", "holder", "flame"] },
   fence: { name: "Fence", parts: ["posts", "rails"] },
   bridge: { name: "Bridge", parts: ["deck", "rails", "legs"] },
-  fountain: { name: "Fountain", parts: ["basin", "water", "pillar", "bowl", "jet"] },
+  fountain: {
+    name: "Fountain",
+    parts: ["basin", "water", "pillar", "bowl", "jet"],
+  },
 };
 
 // Material presets for different styles
@@ -69,7 +72,13 @@ function mulberry32(a) {
  */
 export function generateAsset(
   type,
-  { size = 1, segments = 16, style = "lowpoly", color = null, seed = null } = {},
+  {
+    size = 1,
+    segments = 16,
+    style = "lowpoly",
+    color = null,
+    seed = null,
+  } = {},
 ) {
   const group = new THREE.Group();
   group.name = `asset-${type}`;
@@ -145,7 +154,11 @@ export function generateAsset(
   const box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
   group.position.sub(center);
-  const maxDim = Math.max(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z);
+  const maxDim = Math.max(
+    box.max.x - box.min.x,
+    box.max.y - box.min.y,
+    box.max.z - box.min.z,
+  );
   if (maxDim > 0) {
     const scale = size / maxDim;
     group.scale.setScalar(scale);
@@ -163,7 +176,14 @@ function createMaterial(color, style) {
   });
 }
 
-function buildSword(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildSword(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const bladeMat = createMaterial(customColor || 0xc0c0c0, style);
   const guardMat = createMaterial(0x8b4513, style);
   const handleMat = createMaterial(0x4a3728, style);
@@ -191,7 +211,12 @@ function buildSword(group, size, segments, style, customColor = null, rng = Math
   group.add(guard);
 
   // Handle
-  const handleGeo = new THREE.CylinderGeometry(0.06 * size, 0.06 * size, 0.6 * size, segments);
+  const handleGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.06 * size,
+    0.6 * size,
+    segments,
+  );
   const handle = new THREE.Mesh(handleGeo, handleMat);
   handle.position.y = -0.15 * size;
   handle.name = "handle";
@@ -205,12 +230,24 @@ function buildSword(group, size, segments, style, customColor = null, rng = Math
   group.add(pommel);
 }
 
-function buildTree(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildTree(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const trunkMat = createMaterial(0x8b4513, style);
   const foliageMat = createMaterial(customColor || 0x228b22, style);
 
   // Trunk
-  const trunkGeo = new THREE.CylinderGeometry(0.15 * size, 0.25 * size, 2 * size, segments);
+  const trunkGeo = new THREE.CylinderGeometry(
+    0.15 * size,
+    0.25 * size,
+    2 * size,
+    segments,
+  );
   const trunk = new THREE.Mesh(trunkGeo, trunkMat);
   trunk.position.y = 1 * size;
   trunk.name = "trunk";
@@ -229,7 +266,14 @@ function buildTree(group, size, segments, style, customColor = null, rng = Math.
   }
 }
 
-function buildRock(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildRock(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const rockMat = createMaterial(customColor || 0x808080, style);
 
   // Main body with noise displacement
@@ -248,7 +292,14 @@ function buildRock(group, size, segments, style, customColor = null, rng = Math.
   group.add(rock);
 }
 
-function buildHouse(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildHouse(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const wallMat = createMaterial(customColor || 0xf5f5dc, style);
   const roofMat = createMaterial(0xb22222, style);
   const doorMat = createMaterial(0x8b4513, style);
@@ -289,7 +340,14 @@ function buildHouse(group, size, segments, style, customColor = null, rng = Math
   group.add(windowRight);
 }
 
-function buildCar(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildCar(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const bodyMat = createMaterial(customColor || 0xff0000, style);
   const wheelMat = createMaterial(0x333333, style);
   const windowMat = createMaterial(0x87ceeb, style);
@@ -316,7 +374,12 @@ function buildCar(group, size, segments, style, customColor = null, rng = Math.r
   group.add(windows);
 
   // Wheels
-  const wheelGeo = new THREE.CylinderGeometry(0.25 * size, 0.25 * size, 0.2 * size, segments);
+  const wheelGeo = new THREE.CylinderGeometry(
+    0.25 * size,
+    0.25 * size,
+    0.2 * size,
+    segments,
+  );
   const wheelPositions = [
     [-0.7 * size, 0.25 * size, 0.55 * size],
     [0.7 * size, 0.25 * size, 0.55 * size],
@@ -332,7 +395,14 @@ function buildCar(group, size, segments, style, customColor = null, rng = Math.r
   });
 }
 
-function buildCharacter(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildCharacter(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const skinMat = createMaterial(0xffdbac, style);
   const shirtMat = createMaterial(customColor || 0x4169e1, style);
   const pantsMat = createMaterial(0x2f4f4f, style);
@@ -345,14 +415,24 @@ function buildCharacter(group, size, segments, style, customColor = null, rng = 
   group.add(head);
 
   // Body
-  const bodyGeo = new THREE.CylinderGeometry(0.25 * size, 0.3 * size, 0.8 * size, segments);
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.25 * size,
+    0.3 * size,
+    0.8 * size,
+    segments,
+  );
   const body = new THREE.Mesh(bodyGeo, shirtMat);
   body.position.y = 1.1 * size;
   body.name = "body";
   group.add(body);
 
   // Arms
-  const armGeo = new THREE.CylinderGeometry(0.08 * size, 0.08 * size, 0.6 * size, segments);
+  const armGeo = new THREE.CylinderGeometry(
+    0.08 * size,
+    0.08 * size,
+    0.6 * size,
+    segments,
+  );
   const leftArm = new THREE.Mesh(armGeo, skinMat);
   leftArm.position.set(-0.4 * size, 1.1 * size, 0);
   leftArm.rotation.z = Math.PI / 6;
@@ -366,7 +446,12 @@ function buildCharacter(group, size, segments, style, customColor = null, rng = 
   group.add(rightArm);
 
   // Legs
-  const legGeo = new THREE.CylinderGeometry(0.1 * size, 0.1 * size, 0.6 * size, segments);
+  const legGeo = new THREE.CylinderGeometry(
+    0.1 * size,
+    0.1 * size,
+    0.6 * size,
+    segments,
+  );
   const leftLeg = new THREE.Mesh(legGeo, pantsMat);
   leftLeg.position.set(-0.15 * size, 0.4 * size, 0);
   leftLeg.name = "left-leg";
@@ -378,7 +463,14 @@ function buildCharacter(group, size, segments, style, customColor = null, rng = 
   group.add(rightLeg);
 }
 
-function buildCube(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildCube(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const mat = createMaterial(customColor || 0x808080, style);
   const geo = new THREE.BoxGeometry(size, size, size);
   const cube = new THREE.Mesh(geo, mat);
@@ -386,13 +478,25 @@ function buildCube(group, size, segments, style, customColor = null, rng = Math.
   group.add(cube);
 }
 
-function buildShield(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildShield(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const bossMat = createMaterial(0xffd700, style);
   const rimMat = createMaterial(0xc0c0c0, style);
 
   // Body
-  const bodyGeo = new THREE.CylinderGeometry(0.8 * size, 0.8 * size, 0.1 * size, segments);
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.8 * size,
+    0.8 * size,
+    0.1 * size,
+    segments,
+  );
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.rotation.x = Math.PI / 2;
   body.name = "body";
@@ -406,13 +510,25 @@ function buildShield(group, size, segments, style, customColor = null, rng = Mat
   group.add(boss);
 
   // Rim
-  const rimGeo = new THREE.TorusGeometry(0.8 * size, 0.05 * size, segments, segments);
+  const rimGeo = new THREE.TorusGeometry(
+    0.8 * size,
+    0.05 * size,
+    segments,
+    segments,
+  );
   const rim = new THREE.Mesh(rimGeo, rimMat);
   rim.name = "rim";
   group.add(rim);
 }
 
-function buildPotion(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildPotion(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const bodyMat = createMaterial(customColor || 0x87ceeb, style);
   const neckMat = createMaterial(customColor || 0x87ceeb, style);
   const corkMat = createMaterial(0x8b4513, style);
@@ -425,21 +541,38 @@ function buildPotion(group, size, segments, style, customColor = null, rng = Mat
   group.add(body);
 
   // Neck
-  const neckGeo = new THREE.CylinderGeometry(0.1 * size, 0.15 * size, 0.3 * size, segments);
+  const neckGeo = new THREE.CylinderGeometry(
+    0.1 * size,
+    0.15 * size,
+    0.3 * size,
+    segments,
+  );
   const neck = new THREE.Mesh(neckGeo, neckMat);
   neck.position.y = 0.9 * size;
   neck.name = "neck";
   group.add(neck);
 
   // Cork
-  const corkGeo = new THREE.CylinderGeometry(0.08 * size, 0.08 * size, 0.15 * size, segments);
+  const corkGeo = new THREE.CylinderGeometry(
+    0.08 * size,
+    0.08 * size,
+    0.15 * size,
+    segments,
+  );
   const cork = new THREE.Mesh(corkGeo, corkMat);
   cork.position.y = 1.1 * size;
   cork.name = "cork";
   group.add(cork);
 }
 
-function buildChest(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildChest(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const lidMat = createMaterial(customColor || 0x8b4513, style);
   const lockMat = createMaterial(0xffd700, style);
@@ -466,18 +599,35 @@ function buildChest(group, size, segments, style, customColor = null, rng = Math
   group.add(lock);
 }
 
-function buildKey(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildKey(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const mat = createMaterial(customColor || 0xffd700, style);
 
   // Bow
-  const bowGeo = new THREE.TorusGeometry(0.2 * size, 0.05 * size, segments, segments);
+  const bowGeo = new THREE.TorusGeometry(
+    0.2 * size,
+    0.05 * size,
+    segments,
+    segments,
+  );
   const bow = new THREE.Mesh(bowGeo, mat);
   bow.position.y = 0.3 * size;
   bow.name = "bow";
   group.add(bow);
 
   // Shaft
-  const shaftGeo = new THREE.CylinderGeometry(0.05 * size, 0.05 * size, 0.6 * size, segments);
+  const shaftGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.05 * size,
+    0.6 * size,
+    segments,
+  );
   const shaft = new THREE.Mesh(shaftGeo, mat);
   shaft.position.y = -0.1 * size;
   shaft.name = "shaft";
@@ -491,7 +641,14 @@ function buildKey(group, size, segments, style, customColor = null, rng = Math.r
   group.add(bit);
 }
 
-function buildGem(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildGem(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const mat = createMaterial(customColor || 0xff00ff, style);
   const geo = new THREE.OctahedronGeometry(size, 0);
   const gem = new THREE.Mesh(geo, mat);
@@ -499,18 +656,35 @@ function buildGem(group, size, segments, style, customColor = null, rng = Math.r
   group.add(gem);
 }
 
-function buildBarrel(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildBarrel(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const bodyMat = createMaterial(customColor || 0x8b4513, style);
   const hoopMat = createMaterial(0x333333, style);
 
   // Body
-  const bodyGeo = new THREE.CylinderGeometry(0.4 * size, 0.4 * size, 1 * size, segments);
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.4 * size,
+    0.4 * size,
+    1 * size,
+    segments,
+  );
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.name = "body";
   group.add(body);
 
   // Hoops
-  const hoopGeo = new THREE.TorusGeometry(0.42 * size, 0.03 * size, segments, segments);
+  const hoopGeo = new THREE.TorusGeometry(
+    0.42 * size,
+    0.03 * size,
+    segments,
+    segments,
+  );
   const hoopPositions = [-0.3 * size, 0, 0.3 * size];
   hoopPositions.forEach((y, i) => {
     const hoop = new THREE.Mesh(hoopGeo, hoopMat);
@@ -521,7 +695,14 @@ function buildBarrel(group, size, segments, style, customColor = null, rng = Mat
   });
 }
 
-function buildCrate(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildCrate(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const mat = createMaterial(customColor || 0x8b4513, style);
   const geo = new THREE.BoxGeometry(size, size, size);
   const crate = new THREE.Mesh(geo, mat);
@@ -529,13 +710,25 @@ function buildCrate(group, size, segments, style, customColor = null, rng = Math
   group.add(crate);
 }
 
-function buildTower(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildTower(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const stoneMat = createMaterial(customColor || 0x9e9e9e, style);
   const roofMat = createMaterial(0x7f3f2f, style);
   const windowMat = createMaterial(0xffd27f, style);
   const tall = 2.5 + rng() * 0.8;
 
-  const shaftGeo = new THREE.CylinderGeometry(0.45 * size, 0.6 * size, tall * size, segments);
+  const shaftGeo = new THREE.CylinderGeometry(
+    0.45 * size,
+    0.6 * size,
+    tall * size,
+    segments,
+  );
   const shaft = new THREE.Mesh(shaftGeo, stoneMat);
   shaft.position.y = (tall / 2) * size;
   shaft.name = "shaft";
@@ -547,7 +740,11 @@ function buildTower(group, size, segments, style, customColor = null, rng = Math
   roof.name = "roof";
   group.add(roof);
 
-  const windowGeo = new THREE.BoxGeometry(0.18 * size, 0.32 * size, 0.05 * size);
+  const windowGeo = new THREE.BoxGeometry(
+    0.18 * size,
+    0.32 * size,
+    0.05 * size,
+  );
   for (let i = 0; i < 3; i++) {
     const win = new THREE.Mesh(windowGeo, windowMat);
     const wy = (0.45 + i * 0.62) * size;
@@ -557,12 +754,24 @@ function buildTower(group, size, segments, style, customColor = null, rng = Math
   }
 }
 
-function buildFlag(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildFlag(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const poleMat = createMaterial(0x8d6e63, style);
   const clothMat = createMaterial(customColor || 0xd32f2f, style);
   const tall = 3 + rng() * 0.8;
 
-  const poleGeo = new THREE.CylinderGeometry(0.04 * size, 0.05 * size, tall * size, segments);
+  const poleGeo = new THREE.CylinderGeometry(
+    0.04 * size,
+    0.05 * size,
+    tall * size,
+    segments,
+  );
   const pole = new THREE.Mesh(poleGeo, poleMat);
   pole.position.y = (tall / 2) * size;
   pole.name = "pole";
@@ -583,31 +792,61 @@ function buildFlag(group, size, segments, style, customColor = null, rng = Math.
   group.add(notch);
 }
 
-function buildTorch(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildTorch(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const handleMat = createMaterial(0x6d4c41, style);
   const metalMat = createMaterial(0x757575, style);
   const flameMat = createMaterial(0xff9800, style);
 
-  const handleGeo = new THREE.CylinderGeometry(0.06 * size, 0.08 * size, 2.2 * size, segments);
+  const handleGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.08 * size,
+    2.2 * size,
+    segments,
+  );
   const handle = new THREE.Mesh(handleGeo, handleMat);
   handle.position.y = 1.1 * size;
   handle.name = "handle";
   group.add(handle);
 
-  const cupGeo = new THREE.CylinderGeometry(0.14 * size, 0.1 * size, 0.3 * size, segments, 1, true);
+  const cupGeo = new THREE.CylinderGeometry(
+    0.14 * size,
+    0.1 * size,
+    0.3 * size,
+    segments,
+    1,
+    true,
+  );
   const cup = new THREE.Mesh(cupGeo, metalMat);
   cup.position.y = 2.2 * size;
   cup.name = "cup";
   group.add(cup);
 
-  const flameGeo = new THREE.ConeGeometry(0.16 + rng() * 0.05 * size, 0.55 * size, segments);
+  const flameGeo = new THREE.ConeGeometry(
+    0.16 + rng() * 0.05 * size,
+    0.55 * size,
+    segments,
+  );
   const flame = new THREE.Mesh(flameGeo, flameMat);
   flame.position.y = 2.55 * size;
   flame.name = "flame";
   group.add(flame);
 }
 
-function buildFence(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildFence(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const woodMat = createMaterial(customColor || 0x8d6e63, style);
   const railingMat = createMaterial(0xa1887f, style);
   const posts = 4 + Math.floor(rng() * 3);
@@ -622,7 +861,11 @@ function buildFence(group, size, segments, style, customColor = null, rng = Math
     group.add(post);
   }
 
-  const railGeo = new THREE.BoxGeometry(width + 0.2 * size, 0.14 * size, 0.06 * size);
+  const railGeo = new THREE.BoxGeometry(
+    width + 0.2 * size,
+    0.14 * size,
+    0.06 * size,
+  );
   for (const ry of [0.85, 0.4]) {
     const rail = new THREE.Mesh(railGeo, railingMat);
     rail.position.y = ry * size;
@@ -631,7 +874,14 @@ function buildFence(group, size, segments, style, customColor = null, rng = Math
   }
 }
 
-function buildBridge(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildBridge(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const deckMat = createMaterial(customColor || 0x8d6e63, style);
   const railMat = createMaterial(0xa1887f, style);
   const stoneMat = createMaterial(0x757575, style);
@@ -644,10 +894,18 @@ function buildBridge(group, size, segments, style, customColor = null, rng = Mat
   group.add(deck);
 
   for (const side of [-1, 1]) {
-    const postGeo = new THREE.BoxGeometry(0.08 * size, 0.55 * size, 0.08 * size);
+    const postGeo = new THREE.BoxGeometry(
+      0.08 * size,
+      0.55 * size,
+      0.08 * size,
+    );
     for (let i = 0; i < 5; i++) {
       const post = new THREE.Mesh(postGeo, railMat);
-      post.position.set(-length / 2 + (i / 4) * length, 0.75 * size, side * 0.8 * size);
+      post.position.set(
+        -length / 2 + (i / 4) * length,
+        0.75 * size,
+        side * 0.8 * size,
+      );
       post.name = `rail-post-${side}-${i}`;
       group.add(post);
     }
@@ -669,36 +927,68 @@ function buildBridge(group, size, segments, style, customColor = null, rng = Mat
   }
 }
 
-function buildFountain(group, size, segments, style, customColor = null, rng = Math.random) {
+function buildFountain(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
   const stoneMat = createMaterial(customColor || 0x90a4ae, style);
   const waterMat = createMaterial(0x4fc3f7, style);
   const metric = 2.2 * size;
 
-  const basinGeo = new THREE.CylinderGeometry(metric, metric * 1.05, 0.45 * size, segments);
+  const basinGeo = new THREE.CylinderGeometry(
+    metric,
+    metric * 1.05,
+    0.45 * size,
+    segments,
+  );
   const basin = new THREE.Mesh(basinGeo, stoneMat);
   basin.position.y = 0.225 * size;
   basin.name = "basin";
   group.add(basin);
 
-  const waterGeo = new THREE.CylinderGeometry(metric * 0.88, metric * 0.88, 0.12 * size, segments);
+  const waterGeo = new THREE.CylinderGeometry(
+    metric * 0.88,
+    metric * 0.88,
+    0.12 * size,
+    segments,
+  );
   const water = new THREE.Mesh(waterGeo, waterMat);
   water.position.y = 0.42 * size;
   water.name = "water";
   group.add(water);
 
-  const pillarGeo = new THREE.CylinderGeometry(0.22 * size, 0.35 * size, 1.4 * size, segments);
+  const pillarGeo = new THREE.CylinderGeometry(
+    0.22 * size,
+    0.35 * size,
+    1.4 * size,
+    segments,
+  );
   const pillar = new THREE.Mesh(pillarGeo, stoneMat);
   pillar.position.y = 1.1 * size;
   pillar.name = "pillar";
   group.add(pillar);
 
-  const bowlGeo = new THREE.CylinderGeometry(0.65 * size, 0.3 * size, 0.35 * size, segments);
+  const bowlGeo = new THREE.CylinderGeometry(
+    0.65 * size,
+    0.3 * size,
+    0.35 * size,
+    segments,
+  );
   const bowl = new THREE.Mesh(bowlGeo, stoneMat);
   bowl.position.y = 1.85 * size;
   bowl.name = "bowl";
   group.add(bowl);
 
-  const jetGeo = new THREE.CylinderGeometry(0.12 * size, 0.12 * size, 0.7 * size, segments);
+  const jetGeo = new THREE.CylinderGeometry(
+    0.12 * size,
+    0.12 * size,
+    0.7 * size,
+    segments,
+  );
   const jet = new THREE.Mesh(jetGeo, waterMat);
   jet.position.y = 2.3 * size;
   jet.name = "jet";
@@ -737,7 +1027,10 @@ export function decimateMesh(mesh, threshold = 0.1) {
   }
 
   const newGeometry = new THREE.BufferGeometry();
-  newGeometry.setAttribute("position", new THREE.Float32BufferAttribute(newPositions, 3));
+  newGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(newPositions, 3),
+  );
   newGeometry.setIndex(indices);
   newGeometry.computeVertexNormals();
 
@@ -781,7 +1074,7 @@ export function exportGLB(object) {
       object,
       (result) => resolve(result),
       (error) => reject(error),
-      { binary: true }
+      { binary: true },
     );
   });
 }

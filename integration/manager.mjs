@@ -132,9 +132,7 @@ export async function ipc(runtime, instance, route, body, timeout = IPC_IDLE) {
         });
       },
     );
-    req.setTimeout(timeout, () =>
-      req.destroy(new Error("AI3D IPC timed out")),
-    );
+    req.setTimeout(timeout, () => req.destroy(new Error("AI3D IPC timed out")));
     req.on("error", reject);
     req.end(body === undefined ? undefined : JSON.stringify(body));
   });
@@ -187,9 +185,7 @@ export function installedVersion(root) {
    A built package has its version written into the bundle; run from source,
    the code and its package.json are the same files. */
 const BUILT_VERSION =
-  typeof __AI3D_BUILD_VERSION__ === "string"
-    ? __AI3D_BUILD_VERSION__
-    : null;
+  typeof __AI3D_BUILD_VERSION__ === "string" ? __AI3D_BUILD_VERSION__ : null;
 export function runningVersion(root) {
   return BUILT_VERSION ?? installedVersion(root);
 }
@@ -614,10 +610,7 @@ export class InstanceManager {
   async run(input) {
     const origin = this.resolveOrigin();
     if (
-      !within(
-        this.allowed,
-        path.join(this.workspace, "projects/ai3d-state"),
-      ) ||
+      !within(this.allowed, path.join(this.workspace, "projects/ai3d-state")) ||
       !within(this.allowed, path.join(this.workspace, "media/3d/ai3d"))
     )
       fail(

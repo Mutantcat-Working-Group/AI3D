@@ -258,7 +258,8 @@ export default {
   "a11y.chatMessages": "チャットメッセージ",
 
   "chat.connecting": "接続中…",
-  "chat.unavailable": "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
+  "chat.unavailable":
+    "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
   "chat.empty": "まだメッセージがありません。挨拶して始めましょう。",
   "chat.placeholder": "メッセージを入力…",
   "chat.send": "送信",
@@ -266,7 +267,8 @@ export default {
   "chat.thinking": "考え中…",
   "chat.you": "あなた",
   "chat.agent": "エージェント",
-  "error.chatUnavailable": "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
+  "error.chatUnavailable":
+    "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
 
   "mcp.title": "MCP 接続",
   "mcp.add": "接続を追加",
@@ -291,7 +293,7 @@ export default {
   "mcp.chooseServer": "サーバーを選択",
   "mcp.chooseTool": "ツールを選択",
   "mcp.argsJson": "引数（JSON）",
-  "mcp.argsJsonPlaceholder": "{\"key\": \"value\"}",
+  "mcp.argsJsonPlaceholder": '{"key": "value"}',
   "mcp.result": "結果",
   "mcp.resultPlaceholder": "ツールの結果がここに表示されます。",
   "mcp.invalidJson": "JSON が無効です",
@@ -302,7 +304,8 @@ export default {
 
   "gen.title": "アセット生成",
   "gen.prompt": "説明",
-  "gen.promptPlaceholder": "ゲームアセットを説明してください。例：低ポリゴンの剣",
+  "gen.promptPlaceholder":
+    "ゲームアセットを説明してください。例：低ポリゴンの剣",
   "gen.style": "スタイル",
   "gen.styleLowPoly": "低ポリゴン",
   "gen.styleRealistic": "リアル",

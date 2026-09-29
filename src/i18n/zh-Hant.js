@@ -269,7 +269,7 @@ export default {
   "mcp.chooseServer": "選擇伺服器",
   "mcp.chooseTool": "選擇工具",
   "mcp.argsJson": "參數（JSON）",
-  "mcp.argsJsonPlaceholder": "{\"key\": \"value\"}",
+  "mcp.argsJsonPlaceholder": '{"key": "value"}',
   "mcp.result": "結果",
   "mcp.resultPlaceholder": "工具結果將顯示在這裡。",
   "mcp.invalidJson": "JSON 無效",

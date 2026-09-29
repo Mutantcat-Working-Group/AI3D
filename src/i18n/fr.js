@@ -304,7 +304,7 @@ export default {
   "mcp.chooseServer": "Choisir un serveur",
   "mcp.chooseTool": "Choisir un outil",
   "mcp.argsJson": "Arguments (JSON)",
-  "mcp.argsJsonPlaceholder": "{\"key\": \"value\"}",
+  "mcp.argsJsonPlaceholder": '{"key": "value"}',
   "mcp.result": "Résultat",
   "mcp.resultPlaceholder": "Le résultat de l'outil apparaîtra ici.",
   "mcp.invalidJson": "JSON invalide",
@@ -315,7 +315,8 @@ export default {
 
   "gen.title": "Génération d'actifs",
   "gen.prompt": "Description",
-  "gen.promptPlaceholder": "Décrivez l'actif de jeu souhaité, par ex. une épée low-poly",
+  "gen.promptPlaceholder":
+    "Décrivez l'actif de jeu souhaité, par ex. une épée low-poly",
   "gen.style": "Style",
   "gen.styleLowPoly": "Low Poly",
   "gen.styleRealistic": "Réaliste",

@@ -293,7 +293,7 @@ export default {
   "mcp.chooseServer": "Choose a server",
   "mcp.chooseTool": "Choose a tool",
   "mcp.argsJson": "Arguments (JSON)",
-  "mcp.argsJsonPlaceholder": "{\"key\": \"value\"}",
+  "mcp.argsJsonPlaceholder": '{"key": "value"}',
   "mcp.result": "Result",
   "mcp.resultPlaceholder": "The tool result will appear here.",
   "mcp.invalidJson": "Invalid JSON",
@@ -305,7 +305,8 @@ export default {
 
   "gen.title": "Asset Generation",
   "gen.prompt": "Description",
-  "gen.promptPlaceholder": "Describe the game asset you want, e.g. a low-poly sword",
+  "gen.promptPlaceholder":
+    "Describe the game asset you want, e.g. a low-poly sword",
   "gen.style": "Style",
   "gen.styleLowPoly": "Low Poly",
   "gen.styleRealistic": "Realistic",

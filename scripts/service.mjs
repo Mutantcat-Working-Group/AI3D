@@ -81,9 +81,7 @@ async function start() {
       // serving. Writing it before meant a child that died on a busy port left
       // a stale pid behind, and every later stop refused with "PID mismatch".
       fs.writeFileSync(pidFile, `${up.pid}\n`, { mode: 0o600 });
-      console.log(
-        `AI3D review service started: ${url} (runtime ${runtime})`,
-      );
+      console.log(`AI3D review service started: ${url} (runtime ${runtime})`);
       return;
     }
     if (child.exitCode !== null || child.signalCode !== null) break;

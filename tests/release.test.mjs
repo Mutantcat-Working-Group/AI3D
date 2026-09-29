@@ -22,7 +22,10 @@ function fixture(t, { id = "ai3d", extra = {} } = {}) {
   write("openclaw.plugin.json", JSON.stringify({ id, version: "0.0.0-test" }));
   write(
     "package.json",
-    JSON.stringify({ name: "org.mutantcat.ai3d.openclaw", version: "0.0.0-test" }),
+    JSON.stringify({
+      name: "org.mutantcat.ai3d.openclaw",
+      version: "0.0.0-test",
+    }),
   );
   write("runtime/server.mjs", "export const server = 1;\n");
   // A real package ships these beside the server, and the server resolves both

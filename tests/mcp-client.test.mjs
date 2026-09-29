@@ -85,7 +85,12 @@ test("McpSession connects, lists tools, and calls a tool", async (t) => {
 test("McpSession reports connection failure for a missing command", async (t) => {
   const dir = tmpDir(t);
   const session = new McpSession(
-    { id: "s2", name: "missing", command: "definitely-not-a-real-command-xyz", args: [] },
+    {
+      id: "s2",
+      name: "missing",
+      command: "definitely-not-a-real-command-xyz",
+      args: [],
+    },
     { cwd: dir },
   );
   await assert.rejects(() => session.connect());
@@ -102,7 +107,11 @@ test("McpConnections persists connections across instances", async (t) => {
   fs.mkdirSync(workspace);
 
   const conns1 = new McpConnections(runtime, { workspace });
-  const saved = conns1.upsert({ name: "test", command: "npx", args: ["-y", "some-server"] });
+  const saved = conns1.upsert({
+    name: "test",
+    command: "npx",
+    args: ["-y", "some-server"],
+  });
   assert.equal(saved.id.length > 0, true);
   assert.equal(saved.name, "test");
   assert.equal(saved.command, "npx");
@@ -140,7 +149,11 @@ test("McpConnections connect and disconnect lifecycle", async (t) => {
   const script = fakeMcpScript(dir);
 
   const conns = new McpConnections(runtime, { workspace });
-  const saved = conns.upsert({ name: "fake", command: process.execPath, args: [script] });
+  const saved = conns.upsert({
+    name: "fake",
+    command: process.execPath,
+    args: [script],
+  });
 
   const connected = await conns.connect(saved.id);
   assert.equal(connected.connected, true);

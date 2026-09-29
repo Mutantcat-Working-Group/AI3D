@@ -592,7 +592,7 @@ test("an accepted feedback response lost in transit can be retried after refresh
   expect(s.drafts[s.active.id].annotations).toHaveLength(1);
 });
 
-test("review page has no conversation copy, history polling or second message input", async ({
+test("review page keeps its conversation dock hidden and does not poll until opened", async ({
   page,
 }) => {
   const calls = [];
@@ -600,9 +600,8 @@ test("review page has no conversation copy, history polling or second message in
     if (r.url().includes("/api/chat")) calls.push(r.url());
   });
   await ready(page);
-  await expect(
-    page.locator("#chat-input, #chat-messages, .chat-panel"),
-  ).toHaveCount(0);
+  await expect(page.locator("#ai-dock")).toBeHidden();
+  await expect(page.locator("#chat-input")).toBeHidden();
   await page.waitForTimeout(5300);
   expect(calls).toEqual([]);
   expect(
@@ -614,6 +613,9 @@ test("review page has no conversation copy, history polling or second message in
     ).status,
   ).toBe(410);
   expect(fs.existsSync(path.join(dir, "fake-gateway.json"))).toBe(false);
+  await page.click("#ai-button");
+  await expect(page.locator("#ai-dock")).toBeVisible();
+  await expect(page.locator("#chat-input")).toBeVisible();
 });
 
 test("the looking tool places nothing, and the right button is what rotates", async ({
@@ -965,7 +967,7 @@ test("narrow embedded review fixture remains interactive without a duplicated co
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await expect(frame.locator("#chat-input")).toHaveCount(0);
+  await expect(frame.locator("#ai-dock")).toBeHidden();
   await frame.getByRole("button", { name: "Label tool", exact: true }).click();
   const box = await frame.locator("#viewer").boundingBox();
   await page.mouse.click(box.x + box.width * 0.55, box.y + box.height * 0.45);
@@ -1911,10 +1913,7 @@ test("many versions stay on one row, and the one being marked stays reachable", 
   expect(at).toBeGreaterThan(0);
   for (let i = 2; i <= 17; i++) {
     const bytes = Buffer.from(sample);
-    Buffer.from(`AI3DStripTest${String(i).padStart(2, "0")}`).copy(
-      bytes,
-      at,
-    );
+    Buffer.from(`AI3DStripTest${String(i).padStart(2, "0")}`).copy(bytes, at);
     const file = path.join(dir, `strip-${i}.glb`);
     fs.writeFileSync(file, bytes);
     execFileSync(
