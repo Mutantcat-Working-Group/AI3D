@@ -423,7 +423,11 @@ test("getAssetTags returns correct category tags for asset types", () => {
   assert.deepEqual(getAssetTags("tree"), ["nature", "vegetation", "outdoor"]);
   assert.deepEqual(getAssetTags("house"), ["building", "structure", "indoor"]);
   assert.deepEqual(getAssetTags("turret"), ["scifi", "defense", "metal"]);
-  assert.deepEqual(getAssetTags("character"), ["creature", "character", "animated"]);
+  assert.deepEqual(getAssetTags("character"), [
+    "creature",
+    "character",
+    "animated",
+  ]);
   assert.deepEqual(getAssetTags("car"), ["vehicle", "transport", "outdoor"]);
 });
 
@@ -454,7 +458,12 @@ test("exportAssetManifest includes tags and lodLevels when present", () => {
 
 test("exportAssetManifest handles missing lodLevels gracefully", () => {
   const assets = [
-    { id: "no-lod", type: "cube", seed: 1, stats: { triangles: 24, vertices: 8, parts: 1 } },
+    {
+      id: "no-lod",
+      type: "cube",
+      seed: 1,
+      stats: { triangles: 24, vertices: 8, parts: 1 },
+    },
   ];
   const json = exportAssetManifest(assets, "json");
   const manifest = JSON.parse(json);
