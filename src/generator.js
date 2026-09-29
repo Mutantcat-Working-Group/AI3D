@@ -11,6 +11,13 @@ const ASSET_TYPES = {
   car: { name: "Car", parts: ["body", "wheels", "windows"] },
   character: { name: "Character", parts: ["head", "body", "arms", "legs"] },
   cube: { name: "Cube", parts: ["body"] },
+  shield: { name: "Shield", parts: ["body", "boss", "rim"] },
+  potion: { name: "Potion", parts: ["body", "neck", "cork"] },
+  chest: { name: "Chest", parts: ["body", "lid", "lock"] },
+  key: { name: "Key", parts: ["bow", "shaft", "bit"] },
+  gem: { name: "Gem", parts: ["body"] },
+  barrel: { name: "Barrel", parts: ["body", "hoops"] },
+  crate: { name: "Crate", parts: ["body"] },
 };
 
 // Material presets for different styles
@@ -61,6 +68,27 @@ export function generateAsset(type, { size = 1, segments = 16, style = "lowpoly"
       break;
     case "character":
       buildCharacter(group, size, segments, matStyle);
+      break;
+    case "shield":
+      buildShield(group, size, segments, matStyle);
+      break;
+    case "potion":
+      buildPotion(group, size, segments, matStyle);
+      break;
+    case "chest":
+      buildChest(group, size, segments, matStyle);
+      break;
+    case "key":
+      buildKey(group, size, segments, matStyle);
+      break;
+    case "gem":
+      buildGem(group, size, segments, matStyle);
+      break;
+    case "barrel":
+      buildBarrel(group, size, segments, matStyle);
+      break;
+    case "crate":
+      buildCrate(group, size, segments, matStyle);
       break;
     default:
       buildCube(group, size, segments, matStyle);
@@ -309,6 +337,149 @@ function buildCube(group, size, segments, style) {
   const cube = new THREE.Mesh(geo, mat);
   cube.name = "body";
   group.add(cube);
+}
+
+function buildShield(group, size, segments, style) {
+  const bodyMat = createMaterial(0x8b4513, style);
+  const bossMat = createMaterial(0xffd700, style);
+  const rimMat = createMaterial(0xc0c0c0, style);
+
+  // Body
+  const bodyGeo = new THREE.CylinderGeometry(0.8 * size, 0.8 * size, 0.1 * size, segments);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.rotation.x = Math.PI / 2;
+  body.name = "body";
+  group.add(body);
+
+  // Boss
+  const bossGeo = new THREE.SphereGeometry(0.2 * size, segments, segments);
+  const boss = new THREE.Mesh(bossGeo, bossMat);
+  boss.position.z = 0.1 * size;
+  boss.name = "boss";
+  group.add(boss);
+
+  // Rim
+  const rimGeo = new THREE.TorusGeometry(0.8 * size, 0.05 * size, segments, segments);
+  const rim = new THREE.Mesh(rimGeo, rimMat);
+  rim.name = "rim";
+  group.add(rim);
+}
+
+function buildPotion(group, size, segments, style) {
+  const bodyMat = createMaterial(0x87ceeb, style);
+  const neckMat = createMaterial(0x87ceeb, style);
+  const corkMat = createMaterial(0x8b4513, style);
+
+  // Body
+  const bodyGeo = new THREE.SphereGeometry(0.4 * size, segments, segments);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.4 * size;
+  body.name = "body";
+  group.add(body);
+
+  // Neck
+  const neckGeo = new THREE.CylinderGeometry(0.1 * size, 0.15 * size, 0.3 * size, segments);
+  const neck = new THREE.Mesh(neckGeo, neckMat);
+  neck.position.y = 0.9 * size;
+  neck.name = "neck";
+  group.add(neck);
+
+  // Cork
+  const corkGeo = new THREE.CylinderGeometry(0.08 * size, 0.08 * size, 0.15 * size, segments);
+  const cork = new THREE.Mesh(corkGeo, corkMat);
+  cork.position.y = 1.1 * size;
+  cork.name = "cork";
+  group.add(cork);
+}
+
+function buildChest(group, size, segments, style) {
+  const bodyMat = createMaterial(0x8b4513, style);
+  const lidMat = createMaterial(0x8b4513, style);
+  const lockMat = createMaterial(0xffd700, style);
+
+  // Body
+  const bodyGeo = new THREE.BoxGeometry(1 * size, 0.6 * size, 0.6 * size);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.3 * size;
+  body.name = "body";
+  group.add(body);
+
+  // Lid
+  const lidGeo = new THREE.BoxGeometry(1 * size, 0.2 * size, 0.6 * size);
+  const lid = new THREE.Mesh(lidGeo, lidMat);
+  lid.position.y = 0.7 * size;
+  lid.name = "lid";
+  group.add(lid);
+
+  // Lock
+  const lockGeo = new THREE.BoxGeometry(0.15 * size, 0.2 * size, 0.1 * size);
+  const lock = new THREE.Mesh(lockGeo, lockMat);
+  lock.position.set(0, 0.5 * size, 0.35 * size);
+  lock.name = "lock";
+  group.add(lock);
+}
+
+function buildKey(group, size, segments, style) {
+  const mat = createMaterial(0xffd700, style);
+
+  // Bow
+  const bowGeo = new THREE.TorusGeometry(0.2 * size, 0.05 * size, segments, segments);
+  const bow = new THREE.Mesh(bowGeo, mat);
+  bow.position.y = 0.3 * size;
+  bow.name = "bow";
+  group.add(bow);
+
+  // Shaft
+  const shaftGeo = new THREE.CylinderGeometry(0.05 * size, 0.05 * size, 0.6 * size, segments);
+  const shaft = new THREE.Mesh(shaftGeo, mat);
+  shaft.position.y = -0.1 * size;
+  shaft.name = "shaft";
+  group.add(shaft);
+
+  // Bit
+  const bitGeo = new THREE.BoxGeometry(0.15 * size, 0.1 * size, 0.05 * size);
+  const bit = new THREE.Mesh(bitGeo, mat);
+  bit.position.set(0.1 * size, -0.35 * size, 0);
+  bit.name = "bit";
+  group.add(bit);
+}
+
+function buildGem(group, size, segments, style) {
+  const mat = createMaterial(0xff00ff, style);
+  const geo = new THREE.OctahedronGeometry(size, 0);
+  const gem = new THREE.Mesh(geo, mat);
+  gem.name = "body";
+  group.add(gem);
+}
+
+function buildBarrel(group, size, segments, style) {
+  const bodyMat = createMaterial(0x8b4513, style);
+  const hoopMat = createMaterial(0x333333, style);
+
+  // Body
+  const bodyGeo = new THREE.CylinderGeometry(0.4 * size, 0.4 * size, 1 * size, segments);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.name = "body";
+  group.add(body);
+
+  // Hoops
+  const hoopGeo = new THREE.TorusGeometry(0.42 * size, 0.03 * size, segments, segments);
+  const hoopPositions = [-0.3 * size, 0, 0.3 * size];
+  hoopPositions.forEach((y, i) => {
+    const hoop = new THREE.Mesh(hoopGeo, hoopMat);
+    hoop.position.y = y;
+    hoop.rotation.x = Math.PI / 2;
+    hoop.name = `hoop-${i}`;
+    group.add(hoop);
+  });
+}
+
+function buildCrate(group, size, segments, style) {
+  const mat = createMaterial(0x8b4513, style);
+  const geo = new THREE.BoxGeometry(size, size, size);
+  const crate = new THREE.Mesh(geo, mat);
+  crate.name = "body";
+  group.add(crate);
 }
 
 /**
