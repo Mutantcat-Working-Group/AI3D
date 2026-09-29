@@ -2156,10 +2156,15 @@ async function generateAsset() {
   setGenStatus(t("gen.generating"), "info");
   setGenActions(false);
   try {
-    // Parse the prompt to extract asset type and parameters
-    const asset = parseAssetPrompt(prompt, style);
-    genState.model = asset;
-    setGenStatus(t("gen.applied"), "ok");
+    const assetType = parseAssetPrompt(prompt, style);
+    const model = generateAsset(assetType.type, {
+      size: assetType.size,
+      segments: assetType.segments,
+      style: assetType.style,
+    });
+    genState.model = { ...assetType, threeObject: model };
+    const triCount = countTriangles(model);
+    setGenStatus(`${t("gen.applied")} (${triCount} ${t("gen.triangles")})`, "ok");
     setGenActions(true);
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
@@ -2204,7 +2209,7 @@ function parseAssetPrompt(prompt, style) {
 }
 
 function importGenModel() {
-  if (!genState.model) {
+  if (!genState.model || !genState.model.threeObject) {
     setGenStatus(t("gen.noModel"), "warn");
     return;
   }
@@ -2245,8 +2250,8 @@ function exportGenModel() {
   setGenExportPanel(true);
 }
 
-function downloadGenModel() {
-  if (!genState.model) {
+async function downloadGenModel() {
+  if (!genState.model || !genState.model.threeObject) {
     setGenStatus(t("gen.noModel"), "warn");
     return;
   }
@@ -2255,22 +2260,32 @@ function downloadGenModel() {
   const scale = parseFloat($("#gen-scale").value) || 1;
   const coord = $("#gen-coord").value;
 
-  // Create a simple GLB-like JSON for download
-  const data = {
-    asset: genState.model,
-    format,
-    units,
-    scale,
-    coordinateSystem: coord,
-    version: "1.0",
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `asset-${genState.model.type}-${Date.now()}.${format === "glb" ? "glb" : format}`;
-  a.click();
-  URL.revokeObjectURL(url);
+  try {
+    let blob;
+    let extension = format;
+    if (format === "glb") {
+      const result = await exportGLB(genState.model.threeObject);
+      blob = new Blob([result], { type: "application/octet-stream" });
+    } else if (format === "obj") {
+      const result = exportOBJ(genState.model.threeObject);
+      blob = new Blob([result], { type: "text/plain" });
+      extension = "obj";
+    } else {
+      // Default to GLB
+      const result = await exportGLB(genState.model.threeObject);
+      blob = new Blob([result], { type: "application/octet-stream" });
+      extension = "glb";
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `asset-${genState.model.type}-${Date.now()}.${extension}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setGenStatus(t("gen.applied"), "ok");
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  }
 }
 
 $("#gen-generate").addEventListener("click", generateAsset);
