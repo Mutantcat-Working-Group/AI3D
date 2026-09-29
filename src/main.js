@@ -30,6 +30,9 @@ import {
   countTriangles,
   renderAssetThumbnail,
   getAssetTypes,
+  cloneModelDeep,
+  decimateMesh,
+  generateLOD,
 } from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
@@ -237,6 +240,22 @@ app.innerHTML = `${SPRITE}
       <button id="gen-import" class="primary-button">${T("gen.import")}</button>
       <button id="gen-optimize" class="quiet">${T("gen.optimize")}</button>
       <button id="gen-export" class="quiet">${T("gen.export")}</button>
+    </div>
+    <div class="gen-optimize-panel" id="gen-optimize-panel" hidden>
+      <div class="gen-settings-title">${T("gen.optimize")}</div>
+      <label>${T("gen.triangles")}: <strong id="gen-tri-count">0</strong></label>
+      <label>${T("gen.targetTriangles")} <input id="gen-target-tri" type="number" value="1000" min="100" max="100000" step="100"></label>
+      <div class="gen-optimize-actions">
+        <button id="gen-decimate" class="quiet">${T("gen.decimate")}</button>
+        <button id="gen-lod" class="quiet">${T("gen.lod")}</button>
+        <button id="gen-restore" class="quiet">${T("gen.restore")}</button>
+      </div>
+      <div id="gen-lod-row" class="gen-lod-row" hidden>
+        <button type="button" data-lod="0" class="quiet">${T("gen.lodOriginal")}</button>
+        <button type="button" data-lod="1" class="quiet">${T("gen.lodLevel", { level: "1" })}</button>
+        <button type="button" data-lod="2" class="quiet">${T("gen.lodLevel", { level: "2" })}</button>
+        <button type="button" data-lod="3" class="quiet">${T("gen.lodLevel", { level: "3" })}</button>
+      </div>
     </div>
     <div class="gen-export-panel" id="gen-export-panel" hidden><div class="gen-settings-title">${T("gen.settings")}</div>
       <label>${T("gen.format")}</label>
@@ -2189,6 +2208,9 @@ const genState = {
   model: null,
   generating: false,
   optimizing: false,
+  originalModel: null,
+  lods: [],
+  activeLod: 0,
 };
 
 /* i18n catalogues carry the template labels and prompt aliases. The catalogue
@@ -2349,12 +2371,16 @@ async function generateAsset() {
       seed,
       material,
     };
+    genState.originalModel = cloneModelDeep(model);
+    genState.lods = [];
+    genState.activeLod = 0;
     const triCount = countTriangles(model);
     setGenStatus(
       `${t("gen.applied")} (${triCount} ${t("gen.triangles")})`,
       "ok",
     );
     setGenActions(true);
+    setGenOptimizePanel(false);
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
   } finally {
@@ -2408,28 +2434,100 @@ function importGenModel() {
   setGenStatus(t("gen.applied"), "ok");
 }
 
+function setGenOptimizePanel(show) {
+  $("#gen-optimize-panel").hidden = !show;
+}
+
+function refreshGenOptimizePanel() {
+  const count = genState.model?.threeObject
+    ? countTriangles(genState.model.threeObject)
+    : 0;
+  const tri = $("#gen-tri-count");
+  if (tri) tri.textContent = String(count);
+  const target = $("#gen-target-tri");
+  if (target) {
+    const next = Math.max(100, Math.floor(Number(target.value) || 0));
+    target.value = String(next);
+  }
+  const lodRow = $("#gen-lod-row");
+  if (lodRow) lodRow.hidden = genState.lods.length === 0;
+  document.querySelectorAll("#gen-lod-row [data-lod]").forEach((btn) => {
+    btn.classList.toggle(
+      "active",
+      Number(btn.dataset.lod) === genState.activeLod,
+    );
+  });
+}
+
 function optimizeGenModel() {
-  if (!genState.model || genState.optimizing) return;
-  genState.optimizing = true;
+  if (!genState.model || !genState.model.threeObject) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  setGenOptimizePanel(true);
+  refreshGenOptimizePanel();
+}
+
+function decimateGenModel() {
+  if (!genState.model || !genState.originalModel) return;
   setGenStatus(t("gen.optimizing"), "info");
-  // Show optimization options
-  const options = document.createElement("div");
-  options.className = "gen-optimize-options";
-  options.innerHTML = `
-    <label>${t("gen.triangles")}: <span id="gen-tri-count">0</span></label>
-    <label>${t("gen.targetTriangles")}: <input id="gen-target-tri" type="number" value="1000" min="100" max="100000" step="100"></label>
-    <div class="gen-optimize-actions">
-      <button id="gen-decimate" class="quiet">${t("gen.decimate")}</button>
-      <button id="gen-lod" class="quiet">${t("gen.lod")}</button>
-    </div>
-  `;
-  $("#gen-status").after(options);
-  // Simulate optimization
-  setTimeout(() => {
-    genState.optimizing = false;
-    setGenStatus(t("gen.applied"), "ok");
-    options.remove();
-  }, 1000);
+  const target = Math.max(
+    100,
+    Math.min(100000, Math.floor(Number($("#gen-target-tri").value) || 0)),
+  );
+  const working = cloneModelDeep(genState.originalModel);
+  const thresholds = [
+    0.01, 0.02, 0.04, 0.06, 0.1, 0.15, 0.25, 0.4, 0.6, 0.9, 1.4, 2.2, 3.2, 4.5,
+  ];
+  let current = countTriangles(working);
+  for (const threshold of thresholds) {
+    if (current <= target) break;
+    working.traverse((child) => {
+      if (child.isMesh) decimateMesh(child, threshold);
+    });
+    current = countTriangles(working);
+  }
+  genState.model.threeObject = working;
+  genState.lods = [];
+  genState.activeLod = 0;
+  refreshGenOptimizePanel();
+  setGenStatus(`${t("gen.applied")} (${current} ${t("gen.triangles")})`, "ok");
+}
+
+function buildGenLods() {
+  if (!genState.model || !genState.originalModel) return;
+  setGenStatus(t("gen.optimizing"), "info");
+  genState.lods = generateLOD(genState.originalModel, 4);
+  genState.activeLod = 0;
+  genState.model.threeObject = genState.lods[0].mesh;
+  refreshGenOptimizePanel();
+  const lod = genState.lods[0];
+  setGenStatus(
+    `${t("gen.applied")} (${lod.triangles} ${t("gen.triangles")})`,
+    "ok",
+  );
+}
+
+function setGenLod(level) {
+  const lod = genState.lods[level];
+  if (!lod?.mesh) return;
+  genState.model.threeObject = lod.mesh;
+  genState.activeLod = level;
+  refreshGenOptimizePanel();
+  setGenStatus(
+    `${t("gen.applied")} (${lod.triangles} ${t("gen.triangles")})`,
+    "ok",
+  );
+}
+
+function restoreGenModel() {
+  if (!genState.model || !genState.originalModel) return;
+  genState.model.threeObject = genState.originalModel;
+  genState.lods = [];
+  genState.activeLod = 0;
+  refreshGenOptimizePanel();
+  const count = countTriangles(genState.originalModel);
+  setGenStatus(`${t("gen.applied")} (${count} ${t("gen.triangles")})`, "ok");
 }
 
 function exportGenModel() {
@@ -2492,6 +2590,13 @@ function renderGenTypeChips() {
 $("#gen-generate").addEventListener("click", generateAsset);
 $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
+$("#gen-decimate").addEventListener("click", decimateGenModel);
+$("#gen-lod").addEventListener("click", buildGenLods);
+$("#gen-restore").addEventListener("click", restoreGenModel);
+$("#gen-lod-row").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-lod]");
+  if (btn) setGenLod(Number(btn.dataset.lod));
+});
 $("#gen-export").addEventListener("click", exportGenModel);
 $("#gen-download").addEventListener("click", downloadGenModel);
 $("#gen-color-reset").addEventListener("click", () => {
@@ -2616,6 +2721,10 @@ function loadAsset(id) {
     material: asset.material || null,
   });
   genState.model = { ...asset, threeObject: model };
+  genState.originalModel = cloneModelDeep(model);
+  genState.lods = [];
+  genState.activeLod = 0;
+  setGenOptimizePanel(false);
   setGenStatus(t("gen.applied"), "ok");
   setGenActions(true);
 }

@@ -1932,6 +1932,54 @@ dialog .muted {
 .gen-export-panel .primary-button {
   margin-top: 4px;
 }
+.gen-optimize-panel {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line-1);
+  padding-top: 10px;
+}
+.gen-optimize-panel label {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gen-optimize-panel input {
+  width: 120px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-family: inherit;
+}
+.gen-optimize-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gen-optimize-actions button,
+.gen-lod-row button {
+  flex: 1;
+  min-width: 72px;
+}
+.gen-lod-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.gen-lod-row button.active {
+  border-color: var(--accent-1);
+  color: var(--accent-1);
+  font-weight: 600;
+}
 /* ---------------- Asset Library ---------------- */
 
 .gen-library-header {

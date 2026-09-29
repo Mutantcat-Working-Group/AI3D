@@ -1040,69 +1040,95 @@ function buildFountain(
 }
 
 /**
- * Decimate a mesh by merging vertices based on a threshold.
- * This is a simple vertex clustering decimation.
+ * Clone an object tree with geometry that is safe to edit or dispose: the
+ * clones keep their own buffers instead of sharing the source geometry.
+ */
+export function cloneModelDeep(object) {
+  const clone = object.clone(true);
+  clone.traverse((child) => {
+    if (child.isMesh && child.geometry) {
+      child.geometry = child.geometry.clone();
+    }
+  });
+  return clone;
+}
+
+/**
+ * Decimate a mesh by vertex clustering: vertices inside one cell merge, and
+ * triangles whose three corners collapse into the same cell are dropped. The
+ * mesh keeps its transforms and material; only its geometry is replaced.
  */
 export function decimateMesh(mesh, threshold = 0.1) {
   const geometry = mesh.geometry;
-  if (!geometry || !geometry.attributes.position) return mesh;
+  if (!geometry?.attributes.position) return mesh;
 
+  const step = Math.max(Number(threshold) || 0.1, 1e-6);
   const positions = geometry.attributes.position;
-  const vertexMap = new Map();
-  const newPositions = [];
-  const indices = [];
+  const cellMap = new Map();
+  const representatives = [];
+  const cellOf = new Int32Array(positions.count);
 
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const y = positions.getY(i);
     const z = positions.getZ(i);
-
-    // Quantize position to grid
-    const qx = Math.round(x / threshold);
-    const qy = Math.round(y / threshold);
-    const qz = Math.round(z / threshold);
-    const key = `${qx},${qy},${qz}`;
-
-    if (!vertexMap.has(key)) {
-      vertexMap.set(key, newPositions.length / 3);
-      newPositions.push(x, y, z);
+    const key = `${Math.round(x / step)},${Math.round(y / step)},${Math.round(z / step)}`;
+    let representative = cellMap.get(key);
+    if (representative === undefined) {
+      representative = representatives.length / 3;
+      cellMap.set(key, representative);
+      representatives.push(x, y, z);
     }
-    indices.push(vertexMap.get(key));
+    cellOf[i] = representative;
   }
 
-  const newGeometry = new THREE.BufferGeometry();
-  newGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(newPositions, 3),
-  );
-  newGeometry.setIndex(indices);
-  newGeometry.computeVertexNormals();
+  const sourceIndex = geometry.index ? geometry.index.array : null;
+  const triangleCount = sourceIndex ? sourceIndex.length : positions.count;
+  const kept = [];
+  for (let face = 0; face < triangleCount; face += 3) {
+    const a = sourceIndex ? sourceIndex[face] : face;
+    const b = sourceIndex ? sourceIndex[face + 1] : face + 1;
+    const c = sourceIndex ? sourceIndex[face + 2] : face + 2;
+    const ra = cellOf[a];
+    const rb = cellOf[b];
+    const rc = cellOf[c];
+    if (ra === rb || rb === rc || ra === rc) continue;
+    kept.push(ra, rb, rc);
+  }
 
-  const newMesh = new THREE.Mesh(newGeometry, mesh.material);
-  newMesh.name = mesh.name;
-  return newMesh;
+  const next = new THREE.BufferGeometry();
+  next.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(representatives, 3),
+  );
+  if (kept.length) next.setIndex(kept);
+  next.computeVertexNormals();
+  mesh.geometry = next;
+  return mesh;
 }
 
 /**
- * Generate LOD levels for a model.
- * Returns an array of { level, mesh } objects.
+ * Generate LOD levels for a model. Level 0 is the untouched original; each
+ * later level is a deeper vertex-clustering decimation. Every level owns its
+ * geometry, so switching or disposing one never harms the others.
  */
 export function generateLOD(group, levels = 3) {
   const lodLevels = [];
-  const thresholds = [0.05, 0.15, 0.3];
+  const thresholds = [0, 0.06, 0.15, 0.3];
 
-  for (let i = 0; i < levels; i++) {
-    const lodGroup = group.clone();
-    const threshold = thresholds[i] || 0.3;
-
-    lodGroup.traverse((child) => {
-      if (child.isMesh) {
-        const decimated = decimateMesh(child, threshold);
-        child.geometry = decimated.geometry;
-      }
+  for (let i = 0; i < Math.max(1, Math.min(4, levels)); i++) {
+    const lodGroup = cloneModelDeep(group);
+    const threshold = thresholds[i] ?? 0.3;
+    if (threshold > 0) {
+      lodGroup.traverse((child) => {
+        if (child.isMesh) decimateMesh(child, threshold);
+      });
+    }
+    lodLevels.push({
+      level: i,
+      triangles: countTriangles(lodGroup),
+      mesh: lodGroup,
     });
-
-    lodLevels.push({ level: i, mesh: lodGroup });
   }
 
   return lodLevels;
@@ -1185,7 +1211,7 @@ export function renderAssetThumbnail(model, width = 120, height = 90) {
     camera.far = radius * 20;
     camera.lookAt(sphere.center);
 
-    const preview = model.clone();
+    const preview = cloneModelDeep(model);
     scene.add(preview);
     renderer.render(scene, camera);
     const dataUrl = renderer.domElement.toDataURL("image/png");
