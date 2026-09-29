@@ -199,6 +199,7 @@ app.innerHTML = `${SPRITE}
     </div>
     <div id="gen-library" class="gen-library"></div>
     <div class="gen-actions" id="gen-actions" hidden>
+      <button id="gen-batch-export" class="quiet">${t("gen.export")}</button>
       <button id="gen-import" class="primary-button">${T("gen.import")}</button>
       <button id="gen-optimize" class="quiet">${T("gen.optimize")}</button>
       <button id="gen-export" class="quiet">${T("gen.export")}</button>
@@ -2415,6 +2416,54 @@ $("#gen-library").addEventListener("click", (e) => {
   if (btn.classList.contains("gen-asset-load")) loadAsset(id);
   else if (btn.classList.contains("gen-asset-delete")) deleteAsset(id);
 });
+
+// --- Batch Export ---
+async function batchExportAssets() {
+  const assets = assetLibrary.assets;
+  if (assets.length === 0) {
+    setGenStatus(t("gen.empty"), "warn");
+    return;
+  }
+  const format = $("#gen-format").value;
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    for (let i = 0; i < assets.length; i++) {
+      const asset = assets[i];
+      const model = generateAsset(asset.type, {
+        size: asset.size,
+        segments: asset.segments,
+        style: asset.style,
+      });
+      let blob;
+      let extension = format;
+      if (format === "glb") {
+        const result = await exportGLB(model);
+        blob = new Blob([result], { type: "application/octet-stream" });
+      } else if (format === "obj") {
+        const result = exportOBJ(model);
+        blob = new Blob([result], { type: "text/plain" });
+        extension = "obj";
+      } else {
+        const result = await exportGLB(model);
+        blob = new Blob([result], { type: "application/octet-stream" });
+        extension = "glb";
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `asset-${asset.type}-${asset.id.slice(0, 8)}.${extension}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      // Small delay between downloads
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    setGenStatus(t("gen.applied"), "ok");
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+$("#gen-batch-export").addEventListener("click", batchExportAssets);
 
 renderAssetLibrary();
 
