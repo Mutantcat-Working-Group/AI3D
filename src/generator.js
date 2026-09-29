@@ -506,6 +506,51 @@ const GAME_KITS = {
       { type: "tower", size: 0.9 },
     ],
   },
+  battle: {
+    name: "Battlefield",
+    groundColor: 0x6e5647,
+    props: [
+      { type: "monster", size: 1.1 },
+      { type: "dragon", size: 1 },
+      { type: "shield", size: 0.95 },
+      { type: "spear", size: 1 },
+      { type: "sword", size: 0.9 },
+      { type: "axe", size: 0.95 },
+      { type: "brazier", size: 1.1 },
+      { type: "flag", size: 1.05 },
+      { type: "trap", size: 1.1 },
+    ],
+  },
+  wilderness: {
+    name: "Wilderness",
+    groundColor: 0x5d7d58,
+    props: [
+      { type: "campfire", size: 1.1 },
+      { type: "mushroom", size: 0.9 },
+      { type: "tree", size: 1.2 },
+      { type: "rock", size: 0.9 },
+      { type: "crystal", size: 0.95 },
+      { type: "tree_stump", size: 1.05 },
+      { type: "tent", size: 1.1 },
+      { type: "sign", size: 0.9 },
+      { type: "well", size: 1.05 },
+    ],
+  },
+  town: {
+    name: "Town",
+    groundColor: 0x8b8372,
+    props: [
+      { type: "house", size: 1.1 },
+      { type: "tower", size: 0.95 },
+      { type: "fountain", size: 1.05 },
+      { type: "statue", size: 0.95 },
+      { type: "sign", size: 0.85 },
+      { type: "crate", size: 0.85 },
+      { type: "barrel", size: 0.8 },
+      { type: "torch", size: 1 },
+      { type: "bridge", size: 1.2 },
+    ],
+  },
 };
 
 const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
@@ -3093,7 +3138,9 @@ export function getAssetTypes() {
 export function exportAssetManifest(assets, format = "json") {
   const records = assets.map((asset, index) => ({
     id: asset.id || `asset-${index}`,
+    name: asset.name || null,
     type: asset.type,
+    favorite: asset.favorite ?? false,
     seed: asset.seed ?? null,
     size: asset.size ?? 1,
     segments: asset.segments ?? 16,
@@ -3117,7 +3164,9 @@ export function exportAssetManifest(assets, format = "json") {
   if (format === "csv") {
     const headers = [
       "id",
+      "name",
       "type",
+      "favorite",
       "seed",
       "size",
       "segments",

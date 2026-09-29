@@ -95,6 +95,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-play" fill="currentColor" stroke="none"><path d="M7 4.8v14.4c0 .9 1 1.5 1.8 1L20 13a1.2 1.2 0 0 0 0-2L8.8 3.8c-.8-.5-1.8.1-1.8 1z"/></g>
 <g id="mc-gen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9l-9 5-9-5v-9z"/><path d="M12 2.5v19M3 7.5l9 5 9-5"/><path d="M7.5 5l9 5" opacity=".5"/></g>
 <g id="mc-scene" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></g>
+<g id="mc-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.7.8-4.1 4 .9 5.7-5-2.7-5 2.7.9-5.7-4.1-4 5.7-.8z"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -259,6 +260,7 @@ app.innerHTML = `${SPRITE}
       <select id="gen-tag-filter" class="gen-tag-filter" aria-label="Filter by tag">
         <option value="">All tags</option>
       </select>
+      <label class="gen-check"><input type="checkbox" id="gen-favorites-only">${t("gen.favoritesOnly")}</label>
       <button id="gen-save" class="quiet">${t("mcp.save")}</button>
       <select id="gen-manifest-format" class="gen-manifest-format" aria-label="${T("gen.manifestFormat")}">
         <option value="json">${T("gen.manifestJson")}</option>
@@ -308,6 +310,7 @@ app.innerHTML = `${SPRITE}
         <option value="yup">${T("gen.yUp")}</option>
         <option value="zup">${T("gen.zUp")}</option>
       </select>
+      <label class="gen-check"><input type="checkbox" id="gen-export-lod" checked>${T("gen.exportLod")}</label>
       <button id="gen-download" class="primary-button">${T("gen.download")}</button>
     </div>
   </div>
@@ -2330,6 +2333,9 @@ const GEN_KIT_KEYS = {
   outpost: "gen.kit.outpost",
   village: "gen.kit.village",
   temple: "gen.kit.temple",
+  battle: "gen.kit.battle",
+  wilderness: "gen.kit.wilderness",
+  town: "gen.kit.town",
 };
 
 /* Prompt matching is intentionally multilingual: an AI3D user may describe an
@@ -2376,6 +2382,20 @@ const assetLibrary = {
   remove(id) {
     this.assets = this.assets.filter((a) => a.id !== id);
     this.save();
+  },
+  toggleFavorite(id) {
+    const asset = this.assets.find((a) => a.id === id);
+    if (asset) {
+      asset.favorite = !asset.favorite;
+      this.save();
+    }
+  },
+  rename(id, name) {
+    const asset = this.assets.find((a) => a.id === id);
+    if (asset) {
+      asset.name = name;
+      this.save();
+    }
   },
   clear() {
     this.assets = [];
@@ -2743,47 +2763,65 @@ function exportGenModel() {
   setGenExportPanel(true);
 }
 
+async function downloadObjectAsFile(object, filename, format, options = {}) {
+  let blob;
+  let extension = format;
+  if (format === "glb") {
+    const result = await exportGLB(object, options);
+    blob = new Blob([result], { type: "application/octet-stream" });
+  } else if (format === "obj") {
+    const result = exportOBJ(object, options);
+    blob = new Blob([result], { type: "text/plain" });
+  } else {
+    const result = await exportGLB(object, options);
+    blob = new Blob([result], { type: "application/octet-stream" });
+    extension = "glb";
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.${extension}`;
+  a.click();
+  URL.revokeObjectURL(url);
+  await new Promise((r) => setTimeout(r, 120));
+}
+
+function exportOptionsForCurrentModel() {
+  return {
+    upAxis: $("#gen-coord").value === "zup" ? "Z" : "Y",
+    scale: parseFloat($("#gen-scale").value) || 1,
+  };
+}
+
 async function downloadGenModel() {
   if (!genState.model || !genState.model.threeObject) {
     setGenStatus(t("gen.noModel"), "warn");
     return;
   }
   const format = $("#gen-format").value;
-  const units = $("#gen-units").value;
-  const scale = parseFloat($("#gen-scale").value) || 1;
-  const coord = $("#gen-coord").value;
-
+  const options = exportOptionsForCurrentModel();
+  const withLod = $("#gen-export-lod")?.checked || false;
+  const source = genState.originalModel || genState.model.threeObject;
+  const baseName = `asset-${genState.model.type}`;
   try {
-    let blob;
-    let extension = format;
-    if (format === "glb") {
-      const result = await exportGLB(genState.model.threeObject, {
-        upAxis: coord === "zup" ? "Z" : "Y",
-        scale,
-      });
-      blob = new Blob([result], { type: "application/octet-stream" });
-    } else if (format === "obj") {
-      const result = exportOBJ(genState.model.threeObject, {
-        upAxis: coord === "zup" ? "Z" : "Y",
-        scale,
-      });
-      blob = new Blob([result], { type: "text/plain" });
-      extension = "obj";
+    if (withLod) {
+      const lods = generateLOD(source, 4);
+      for (const lod of lods) {
+        await downloadObjectAsFile(
+          lod.mesh,
+          `${baseName}-LOD${lod.level}`,
+          format,
+          options,
+        );
+      }
     } else {
-      // Default to GLB
-      const result = await exportGLB(genState.model.threeObject, {
-        upAxis: coord === "zup" ? "Z" : "Y",
-        scale,
-      });
-      blob = new Blob([result], { type: "application/octet-stream" });
-      extension = "glb";
+      await downloadObjectAsFile(
+        genState.model.threeObject,
+        baseName,
+        format,
+        options,
+      );
     }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `asset-${genState.model.type}-${Date.now()}.${extension}`;
-    a.click();
-    URL.revokeObjectURL(url);
     setGenStatus(t("gen.applied"), "ok");
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
@@ -2922,9 +2960,17 @@ function renderAssetLibrary() {
   populateTagFilter();
   const query = $("#gen-search").value.trim();
   const tagFilter = $("#gen-tag-filter")?.value || "";
+  const favoritesOnly = $("#gen-favorites-only")?.checked || false;
   let assets = query ? assetLibrary.search(query) : assetLibrary.assets;
   if (tagFilter) {
     assets = assets.filter((a) => a.tags && a.tags.includes(tagFilter));
+  }
+  if (favoritesOnly) {
+    assets = assets.filter((a) => a.favorite);
+  } else {
+    assets = [...assets].sort(
+      (a, b) => Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)),
+    );
   }
   if (assets.length === 0) {
     container.innerHTML = `<div class="gen-library-empty">${t("gen.empty")}</div>`;
@@ -2936,12 +2982,14 @@ function renderAssetLibrary() {
     <div class="gen-asset-card" data-id="${a.id}">
       <div class="gen-asset-preview" data-preview="${a.id}"></div>
       <div class="gen-asset-info">
-        <strong>${a.type}</strong>
+        <strong>${esc(a.name || a.type)}</strong>
         <span>${a.prompt.slice(0, 50)}${a.prompt.length > 50 ? "..." : ""}</span>
         <small>${new Date(a.createdAt).toLocaleDateString()}</small>
         <div class="gen-asset-tags">${(a.tags || []).map((tag) => `<span class="gen-tag">${tag}</span>`).join("")}</div>
       </div>
       <div class="gen-asset-actions">
+        <button class="gen-asset-fav${a.favorite ? " active" : ""}" data-id="${a.id}" title="${t(a.favorite ? "gen.unfavorite" : "gen.favorite")}" aria-label="${t(a.favorite ? "gen.unfavorite" : "gen.favorite")}">${icon("star")}</button>
+        <button class="gen-asset-rename" data-id="${a.id}" title="${t("gen.rename")}">${t("gen.rename")}</button>
         <button class="gen-asset-load" data-id="${a.id}">${t("gen.import")}</button>
         <button class="gen-asset-delete" data-id="${a.id}">${t("mcp.remove")}</button>
       </div>
@@ -3041,15 +3089,32 @@ function deleteAsset(id) {
   renderAssetLibrary();
 }
 
+function toggleAssetFavorite(id) {
+  assetLibrary.toggleFavorite(id);
+  renderAssetLibrary();
+}
+
+function renameAsset(id) {
+  const asset = assetLibrary.assets.find((a) => a.id === id);
+  if (!asset) return;
+  const name = window.prompt(t("gen.renamePrompt"), asset.name || asset.type);
+  if (name === null) return;
+  assetLibrary.rename(id, name.trim());
+  renderAssetLibrary();
+}
+
 $("#gen-save").addEventListener("click", saveCurrentAsset);
 $("#gen-search").addEventListener("input", renderAssetLibrary);
 $("#gen-tag-filter").addEventListener("change", renderAssetLibrary);
+$("#gen-favorites-only").addEventListener("change", renderAssetLibrary);
 $("#gen-library").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
   const id = btn.dataset.id;
   if (btn.classList.contains("gen-asset-load")) loadAsset(id);
   else if (btn.classList.contains("gen-asset-delete")) deleteAsset(id);
+  else if (btn.classList.contains("gen-asset-fav")) toggleAssetFavorite(id);
+  else if (btn.classList.contains("gen-asset-rename")) renameAsset(id);
 });
 
 // --- Batch Export ---
@@ -3060,6 +3125,7 @@ async function batchExportAssets() {
     return;
   }
   const format = $("#gen-format").value;
+  const withLod = $("#gen-export-lod")?.checked || false;
   setGenStatus(t("gen.generating"), "info");
   try {
     for (let i = 0; i < assets.length; i++) {
@@ -3072,28 +3138,19 @@ async function batchExportAssets() {
         seed: asset.seed ?? null,
         material: asset.material || null,
       });
-      let blob;
-      let extension = format;
-      if (format === "glb") {
-        const result = await exportGLB(model);
-        blob = new Blob([result], { type: "application/octet-stream" });
-      } else if (format === "obj") {
-        const result = exportOBJ(model);
-        blob = new Blob([result], { type: "text/plain" });
-        extension = "obj";
+      const baseName = `asset-${asset.type}-${asset.id.slice(0, 8)}`;
+      if (withLod) {
+        const lods = generateLOD(model, 4);
+        for (const lod of lods) {
+          await downloadObjectAsFile(
+            lod.mesh,
+            `${baseName}-LOD${lod.level}`,
+            format,
+          );
+        }
       } else {
-        const result = await exportGLB(model);
-        blob = new Blob([result], { type: "application/octet-stream" });
-        extension = "glb";
+        await downloadObjectAsFile(model, baseName, format);
       }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `asset-${asset.type}-${asset.id.slice(0, 8)}.${extension}`;
-      a.click();
-      URL.revokeObjectURL(url);
-      // Small delay between downloads
-      await new Promise((r) => setTimeout(r, 100));
     }
     setGenStatus(t("gen.applied"), "ok");
   } catch (err) {

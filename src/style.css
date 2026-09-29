@@ -2030,6 +2030,20 @@ dialog .muted {
 .gen-export-panel .primary-button {
   margin-top: 4px;
 }
+.gen-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.gen-export-panel .gen-check input,
+.gen-library-header .gen-check input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
 .gen-optimize-panel {
   padding: 0 12px 12px;
   display: flex;
@@ -2180,6 +2194,24 @@ dialog .muted {
   flex: 1;
   padding: 4px 8px;
   font-size: 11px;
+}
+.gen-asset-actions .gen-asset-fav {
+  flex: 0 0 auto;
+  width: 30px;
+  padding: 4px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+.gen-asset-actions .gen-asset-fav:hover {
+  color: var(--accent);
+}
+.gen-asset-actions .gen-asset-fav.active {
+  color: var(--accent);
+}
+.gen-asset-actions .gen-asset-fav.active svg use {
+  fill: currentColor;
 }
 .gen-asset-preview {
   width: 100%;

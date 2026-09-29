@@ -304,6 +304,25 @@ test("game kits are deterministic per seed and vary with it", () => {
   }
 });
 
+test("game kits include battle, wilderness and town presets", () => {
+  const ids = getGameKits().map((k) => k.id);
+  assert.ok(ids.includes("battle"));
+  assert.ok(ids.includes("wilderness"));
+  assert.ok(ids.includes("town"));
+  const themed = { battle: "monster", wilderness: "campfire", town: "house" };
+  for (const [id, expected] of Object.entries(themed)) {
+    const scene = composeGameKit(id, { seed: 23 });
+    const propNodes = scene.children.filter((child) =>
+      child.name.startsWith(`${id}-`),
+    );
+    assert.equal(propNodes.length, 9, `${id} places every prop`);
+    assert.ok(
+      propNodes.some((node) => node.name.includes(expected)),
+      `${id} keeps themed props`,
+    );
+  }
+});
+
 test("scene export options wrap without mutating the original", async () => {
   const scene = composeGameKit("camp", { seed: 3 });
   const before = modelFingerprint(scene);
@@ -410,10 +429,12 @@ test("exportAssetManifest produces valid CSV with headers and rows", () => {
   const csv = exportAssetManifest(assets, "csv");
   const lines = csv.split("\n");
   assert.equal(lines.length, 2);
-  assert.ok(lines[0].includes("id,type,seed,size,segments,style"));
+  assert.ok(
+    lines[0].includes("id,name,type,favorite,seed,size,segments,style"),
+  );
   assert.ok(lines[0].includes("tags"));
   assert.ok(lines[0].includes("lodLevels"));
-  assert.ok(lines[1].includes("test-1,sword,42,1.5,12,lowpoly"));
+  assert.ok(lines[1].includes("test-1,,sword,false,42,1.5,12,lowpoly"));
   assert.ok(lines[1].includes("100,50,3"));
   assert.ok(lines[1].includes("weapon"));
 });
@@ -515,4 +536,29 @@ test("exportAssetManifest handles missing lodLevels gracefully", () => {
   const json = exportAssetManifest(assets, "json");
   const manifest = JSON.parse(json);
   assert.equal(manifest.assets[0].lodLevels, null);
+});
+
+test("exportAssetManifest includes names and favorite flags", () => {
+  const assets = [
+    {
+      id: "named",
+      name: "Hero Blade",
+      type: "sword",
+      favorite: true,
+      seed: 3,
+      stats: { triangles: 10, vertices: 6, parts: 1 },
+    },
+    {
+      id: "plain",
+      type: "rock",
+      seed: 4,
+      stats: { triangles: 20, vertices: 8, parts: 1 },
+    },
+  ];
+  const json = exportAssetManifest(assets, "json");
+  const manifest = JSON.parse(json);
+  assert.equal(manifest.assets[0].name, "Hero Blade");
+  assert.equal(manifest.assets[0].favorite, true);
+  assert.equal(manifest.assets[1].name, null);
+  assert.equal(manifest.assets[1].favorite, false);
 });
