@@ -1369,6 +1369,313 @@ export function composeGameKit(
   return group;
 }
 
+/* Modular scene presets snap the measured kit pieces together. A courtyard,
+   a tower room and a corridor are the three spaces a team usually starts
+   with: an open yard, an enclosed cell, and a run between two others. Every
+   preset states which piece types it needs, so the panel and the tests can
+   check a scene actually contains its promised building blocks. */
+export const MODULAR_SCENE_PRESETS = {
+  courtyard: {
+    name: "Courtyard",
+    required: ["wall", "wall_door", "floor", "arch"],
+    options: { cell: 2, cells: 4, height: 2, depth: 4, thickness: 0.2 },
+    pieces({ cell, cells, depth }) {
+      const length = cells * cell;
+      const width = depth * cell;
+      const edge = width / 2;
+      return [
+        { name: "courtyard-floor", type: "floor" },
+        { name: "courtyard-wall-south", type: "wall", z: -edge },
+        { name: "courtyard-wall-north", type: "wall_door", z: edge },
+        {
+          name: "courtyard-wall-west",
+          type: "wall",
+          x: -edge,
+          rotationY: Math.PI / 2,
+        },
+        {
+          name: "courtyard-wall-east",
+          type: "wall",
+          x: edge,
+          rotationY: Math.PI / 2,
+        },
+        { name: "courtyard-arch-north", type: "arch", z: edge + cell },
+      ];
+    },
+    props() {
+      return [
+        { type: "crate", size: 0.85, x: -1.6, z: -1.6 },
+        { type: "brazier", size: 1.05, x: 1.6, z: 1.6 },
+        { type: "torch", size: 1, x: -2.6, z: 2.4 },
+      ];
+    },
+  },
+  tower_room: {
+    name: "Tower Room",
+    required: ["wall", "wall_door", "floor"],
+    options: { cell: 2, cells: 3, height: 2, depth: 3, thickness: 0.2 },
+    pieces({ cell, cells, depth }) {
+      const length = cells * cell;
+      const width = depth * cell;
+      const edge = width / 2;
+      return [
+        { name: "tower-room-floor", type: "floor" },
+        { name: "tower-room-wall-south", type: "wall", z: -edge },
+        { name: "tower-room-wall-north", type: "wall", z: edge },
+        {
+          name: "tower-room-wall-west",
+          type: "wall",
+          x: -edge,
+          rotationY: Math.PI / 2,
+        },
+        {
+          name: "tower-room-wall-east",
+          type: "wall_door",
+          x: edge,
+          rotationY: Math.PI / 2,
+        },
+      ];
+    },
+    props() {
+      return [
+        { type: "crate", size: 0.8, x: 0, z: 0 },
+        { type: "brazier", size: 1.05, x: -1.8, z: 1.6 },
+      ];
+    },
+  },
+  corridor: {
+    name: "Corridor",
+    required: ["wall", "wall_door", "floor", "arch", "stairs"],
+    options: { cell: 2, cells: 6, height: 2, depth: 2, thickness: 0.2 },
+    pieces({ cell, cells, depth }) {
+      const length = cells * cell;
+      const width = depth * cell;
+      const edge = width / 2;
+      return [
+        { name: "corridor-floor", type: "floor" },
+        { name: "corridor-wall-north", type: "wall", z: -edge },
+        { name: "corridor-wall-south", type: "wall", z: edge },
+        { name: "corridor-arch-end", type: "arch", x: length / 2 },
+        {
+          name: "corridor-door-end",
+          type: "wall_door",
+          x: -length / 2,
+          rotationY: Math.PI,
+        },
+        { name: "corridor-stairs", type: "stairs" },
+      ];
+    },
+  },
+};
+
+export function getModularScenePresets() {
+  return Object.entries(MODULAR_SCENE_PRESETS).map(([id, preset]) => ({
+    id,
+    name: preset.name,
+    required: [...preset.required],
+    options: { ...preset.options },
+  }));
+}
+
+/**
+ * Compose a preset modular scene from measured kit pieces. The returned group
+ * is centered, every piece keeps its ground pivot, and the same preset plus
+ * the same options and seed always rebuilds the same layout.
+ * @param {string} presetId - Preset id from MODULAR_SCENE_PRESETS
+ * @param {object} options - Composition options
+ * @param {number} options.seed - Deterministic arrangement seed
+ * @param {number} options.segments - Mesh segment budget shared by props
+ * @param {number} options.quality - Scene quality pass-through
+ * @param {string} options.style - Material style passed to every piece
+ * @param {string} options.color - Hex colour passed to every piece
+ * @param {object} options.material - Material overrides passed to every piece
+ * @param {string} options.texture - Procedural texture preset or "auto"/"none"
+ * @param {number} options.textureStrength - Procedural texture strength 0..1
+ * @param {number} options.spacing - Grid spacing multiplier
+ * @param {number} options.groundPadding - Ground margin on each side
+ * @param {number} options.propScale - Global prop scale multiplier
+ * @param {object} options.modular - Modular grid options (cell, cells, ...)
+ * @param {Array<object>} options.props - Saved prop placements. When supplied,
+ *   these replace the preset defaults so deleted or edited props survive a
+ *   reload.
+ */
+export function composeModularScene(
+  presetId,
+  {
+    seed = 1,
+    segments = 12,
+    quality = 1,
+    style = "lowpoly",
+    color = null,
+    material = null,
+    texture = "auto",
+    textureStrength = 0.8,
+    spacing = 1,
+    groundPadding = 0.6,
+    propScale = 1,
+    modular = {},
+    props = null,
+  } = {},
+) {
+  const preset = MODULAR_SCENE_PRESETS[presetId];
+  if (!preset) throw new Error(`Unknown modular scene preset: ${presetId}`);
+  const clamp = (value, fallback, min, max) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(max, Math.max(min, numeric));
+  };
+  const spacingScale = clamp(spacing, 1, 0.5, 2);
+  const groundMargin = clamp(groundPadding, 0.6, 0, 3);
+  const propScaleValue = clamp(propScale, 1, 0.25, 3);
+  const modularOptions = normalizeModularOptions({
+    ...preset.options,
+    ...(modular || {}),
+  });
+  const rng = mulberry32(seed);
+  const group = new THREE.Group();
+  group.name = `modular-scene-${presetId}`;
+  group.userData.preset = presetId;
+  group.userData.sceneKind = "modular-scene";
+  group.userData.theme = {
+    style,
+    color,
+    material,
+    texture,
+    textureStrength,
+    segments,
+    quality,
+    spacing: spacingScale,
+    groundPadding: groundMargin,
+    propScale: propScaleValue,
+  };
+  group.userData.modular = { ...modularOptions, preset: presetId };
+
+  const cell = modularOptions.cell;
+  const length = modularOptions.cells * cell;
+  const width = modularOptions.depth * cell;
+  const slab = Math.min(Math.max(modularOptions.thickness, 0.05), 0.5);
+  const pieceList = [];
+  for (const placement of preset.pieces(modularOptions)) {
+    const model = generateAsset(placement.type, {
+      options: modularOptions,
+      pivot: "ground",
+      style,
+      color,
+      seed,
+      material,
+      texture,
+      textureStrength,
+    });
+    model.name = placement.name;
+    model.traverse((child) => {
+      if (child.isMesh) child.name = `${placement.name}-${child.name}`;
+    });
+    model.position.set(placement.x ?? 0, placement.y ?? 0, placement.z ?? 0);
+    if (placement.rotationY) model.rotation.y = placement.rotationY;
+    const placedBox = new THREE.Box3().setFromObject(model);
+    pieceList.push({
+      name: model.name,
+      type: placement.type,
+      x: Math.round(model.position.x * 1000) / 1000,
+      y: Math.round(model.position.y * 1000) / 1000,
+      z: Math.round(model.position.z * 1000) / 1000,
+      rotationY: Math.round(model.rotation.y * 10000) / 10000,
+      bounds: {
+        width: Math.round((placedBox.max.x - placedBox.min.x) * 1000) / 1000,
+        height: Math.round((placedBox.max.y - placedBox.min.y) * 1000) / 1000,
+        depth: Math.round((placedBox.max.z - placedBox.min.z) * 1000) / 1000,
+      },
+    });
+    group.add(model);
+  }
+  group.userData.pieceList = pieceList;
+
+  const propList = [];
+  const usingSavedProps = Array.isArray(props);
+  const sourceProps = usingSavedProps
+    ? props
+    : preset.props
+      ? preset.props(rng, { length, width })
+      : [];
+  sourceProps.forEach((placement, index) => {
+    const requestedType =
+      placement && ASSET_TYPES[placement.type] ? placement.type : "crate";
+    const requestedSize = Number(placement?.size);
+    const sizeValue = Number.isFinite(requestedSize)
+      ? requestedSize
+      : (propScaleValue * (0.7 + rng() * 0.6)).toFixed(3);
+    const size =
+      Math.round(Math.min(100, Math.max(0.01, sizeValue)) * 1000) / 1000;
+    const randomX = (rng() - 0.5) * (length - cell * 1.6);
+    const randomZ = (rng() - 0.5) * (width - cell * 1.6);
+    const x = Number.isFinite(Number(placement?.x))
+      ? Number(placement.x)
+      : randomX;
+    const z = Number.isFinite(Number(placement?.z))
+      ? Number(placement.z)
+      : randomZ;
+    const propSeed = Number.isFinite(Number(placement?.seed))
+      ? Math.floor(Number(placement.seed))
+      : Math.floor(rng() * 100000);
+    const model = generateAsset(requestedType, {
+      size,
+      segments,
+      style,
+      color,
+      seed: propSeed,
+      material,
+      texture,
+      textureStrength,
+    });
+    model.name = `${presetId}-${requestedType}-${index + 1}`;
+    model.traverse((child) => {
+      if (child.isMesh) child.name = `${model.name}-${child.name}`;
+    });
+    const randomRotation = Math.floor(rng() * 8) * (Math.PI / 4);
+    const rotationY = Number.isFinite(Number(placement?.rotationY))
+      ? Number(placement.rotationY)
+      : randomRotation;
+    model.rotation.y = rotationY;
+    const restingBox = new THREE.Box3().setFromObject(model);
+    const restingY = Number.isFinite(Number(placement?.y))
+      ? Number(placement.y)
+      : slab - restingBox.min.y;
+    model.position.set(x, restingY, z);
+    const placedBox = new THREE.Box3().setFromObject(model);
+    propList.push({
+      name: model.name,
+      type: requestedType,
+      size,
+      seed: propSeed,
+      x: Math.round(x * 1000) / 1000,
+      y: Math.round(model.position.y * 1000) / 1000,
+      z: Math.round(z * 1000) / 1000,
+      rotationY: Math.round(rotationY * 10000) / 10000,
+      bounds: {
+        width: Math.round((placedBox.max.x - placedBox.min.x) * 1000) / 1000,
+        height: Math.round((placedBox.max.y - placedBox.min.y) * 1000) / 1000,
+        depth: Math.round((placedBox.max.z - placedBox.min.z) * 1000) / 1000,
+      },
+      collision: getColliderShape(requestedType),
+    });
+    group.add(model);
+  });
+  group.userData.propList = propList;
+  group.userData.props = propList.length;
+
+  // Center the whole scene after pieces and props settle, then measure it.
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  group.position.sub(center);
+  const centeredBox = new THREE.Box3().setFromObject(group);
+  group.userData.extent = {
+    width: centeredBox.max.x - centeredBox.min.x,
+    depth: centeredBox.max.z - centeredBox.min.z,
+    height: centeredBox.max.y - centeredBox.min.y,
+  };
+  return group;
+}
+
 /**
  * Edit one prop inside a composed scene and keep its export metadata in sync.
  * Coordinates use the same layout space as composeGameKit, so saving the
@@ -5202,6 +5509,11 @@ function engineReadme(preset, records) {
 function buildSceneRecord(asset) {
   return {
     kit: asset.type,
+    sceneKind:
+      asset.scene?.sceneKind === "modular-scene" ||
+      (asset.scene?.modular && asset.scene.modular.preset)
+        ? "modular-scene"
+        : null,
     seed: asset.seed ?? null,
     groundColor: asset.scene?.groundColor ?? null,
     quality: asset.scene?.quality ?? null,
@@ -5209,6 +5521,7 @@ function buildSceneRecord(asset) {
     groundPadding:
       asset.scene?.groundPadding ?? asset.theme?.groundPadding ?? 0.6,
     propScale: asset.scene?.propScale ?? asset.theme?.propScale ?? 1,
+    modular: asset.scene?.modular ?? null,
     theme: asset.scene?.theme ||
       (asset.theme ?? null) || {
         style: asset.style ?? "lowpoly",
@@ -5384,6 +5697,11 @@ export async function exportGamePack({
   const sceneMeta = isScene
     ? {
         kit: asset.type,
+        sceneKind:
+          asset.scene?.sceneKind === "modular-scene" ||
+          (asset.scene?.modular && asset.scene.modular.preset)
+            ? "modular-scene"
+            : null,
         seed: asset.seed ?? null,
         groundColor:
           asset.scene?.groundColor ?? model.userData?.groundColor ?? null,
@@ -5395,6 +5713,7 @@ export async function exportGamePack({
           0.6,
         propScale:
           asset.scene?.propScale ?? model.userData?.theme?.propScale ?? 1,
+        modular: asset.scene?.modular ?? model.userData?.modular ?? null,
         theme: asset.scene?.theme ||
           model.userData?.theme || {
             style: asset.style ?? "lowpoly",

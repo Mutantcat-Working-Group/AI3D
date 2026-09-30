@@ -73,6 +73,9 @@ each one, and save the ones you like to the asset library.
 - **Modular kit** - wall, window wall, door wall, corner wall, floor, stairs
   and arch pieces tile exactly on a grid with cell size, run length, height and
   thickness controls.
+- **Modular scene** - courtyard, tower room and corridor presets combine those
+  pieces on the same grid, deterministic from a seed and exportable as a whole
+  scene.
 - **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
   vertex, part and draw-call counts, per-level LOD budgets and collider info.
 - **Download formats** - GLB, JSON glTF (`.gltf` with embedded resources) and
@@ -193,7 +196,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 326 unit and integration tests
+npm test             # 333 unit and integration tests
 npm run test:browser # 84 real-Chromium tests
 ```
 

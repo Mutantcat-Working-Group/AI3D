@@ -41,6 +41,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：用一句�
 - **引擎包**：Unity、Godot、Unreal 三种预设。Godot 包带可直接实例化 `LOD0.glb` 的 `.tscn` 场景；Unity 与 Unreal 目前输出 GLB、材质与导入元数据清单，不伪造引擎原生 `.prefab`／`.meta`／`.uasset`。导出包内含网格、材质、碰撞体、动画清单与 manifest，并汇总整包三角形、顶点、部件与绘制调用预算，命名直接进引擎。
 - **套装**：地牢、营地、前哨站、村庄、神庙、战场、荒野、城镇等场景套装，按种子确定性摆放多件道具，可整场景导出。
 - **模块化组件**：墙、窗墙、门墙、转角墙、地板、楼梯、拱门按网格尺寸精确拼接，支持格距、长度、高度与墙厚参数。
+- **模块化场景**：庭院、塔楼房间、走廊等预设组合这些组件，在同一格子上按种子确定性排布，并支持整套场景导出。
 - **素材清单**：导出 JSON／CSV manifest，记录资产名、类型、标签、面数、顶点数、部件数、绘制调用、逐级 LOD 与碰撞体信息。
 - **下载格式**：GLB、JSON glTF（`.gltf`，资源内嵌）与 OBJ。界面不再提供并未真正实现的 FBX 选项。
 
@@ -108,7 +109,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 326 unit and integration tests
+npm test             # 333 unit and integration tests
 npm run test:browser # 84 real-Chromium tests
 ```
 

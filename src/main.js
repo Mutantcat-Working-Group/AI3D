@@ -34,10 +34,12 @@ import {
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
+  composeModularScene,
   editSceneProp,
   removeSceneProp,
   addSceneProp,
   getGameKits,
+  getModularScenePresets,
   exportGLB,
   exportGLTF,
   exportOBJ,
@@ -284,6 +286,11 @@ app.innerHTML = `${SPRITE}
         <label>${T("gen.modularSteps")}<input type="number" id="gen-modular-steps" min="2" max="24" step="1" value="6"></label>
       </div>
       <label class="gen-check gen-modular-crenel">${T("gen.modularCrenel")}<input type="checkbox" id="gen-modular-crenel"></label>
+      <div class="gen-modular-scenes">
+        <div class="gen-types-title">${T("gen.modularScene")}</div>
+        <div id="gen-modular-scenes" class="gen-type-chips"></div>
+        <button id="gen-modular-scene-compose" class="quiet" type="button">${icon("scene")}<span>${T("gen.modularSceneCompose")}</span></button>
+      </div>
       <div id="gen-modular-metric" class="gen-modular-metric"></div>
     </div>
     <div class="gen-form">
@@ -2484,6 +2491,7 @@ const genState = {
 };
 let selectedGenKit = "dungeon";
 let selectedGenModular = null;
+let selectedModularScene = "courtyard";
 let lastGenPivot = "center";
 let selectedSceneProp = 0;
 
@@ -2499,6 +2507,12 @@ const GEN_KIT_KEYS = {
   battle: "gen.kit.battle",
   wilderness: "gen.kit.wilderness",
   town: "gen.kit.town",
+};
+
+const MODULAR_SCENE_KEYS = {
+  courtyard: "gen.modularScene.courtyard",
+  tower_room: "gen.modularScene.towerRoom",
+  corridor: "gen.modularScene.corridor",
 };
 
 /* The hint names the style a sentence asked for, and the select already owns
@@ -2595,6 +2609,32 @@ assetLibrary.load();
 function modelFromAssetRecord(asset, { preview = false } = {}) {
   const theme = asset.scene?.theme || asset.theme || {};
   const segments = preview ? Math.min(asset.segments || 8, 8) : asset.segments;
+  const modularScene =
+    asset.kind === "scene" &&
+    (asset.scene?.sceneKind === "modular-scene" ||
+      (asset.scene?.modular && asset.scene.modular.preset));
+  if (modularScene) {
+    return composeModularScene(asset.scene?.modular?.preset || asset.type, {
+      seed: asset.seed ?? 1,
+      segments: segments ?? theme.segments ?? 12,
+      quality: asset.quality ?? asset.scene?.quality ?? theme.quality ?? 1,
+      spacing: asset.spacing ?? asset.scene?.spacing ?? theme.spacing ?? 1,
+      groundPadding:
+        asset.groundPadding ??
+        asset.scene?.groundPadding ??
+        theme.groundPadding ??
+        0.6,
+      propScale:
+        asset.propScale ?? asset.scene?.propScale ?? theme.propScale ?? 1,
+      style: asset.style ?? theme.style ?? "lowpoly",
+      color: asset.color || theme.color || null,
+      material: asset.material || theme.material || null,
+      texture: asset.texture ?? theme.texture ?? "auto",
+      textureStrength: asset.textureStrength ?? theme.textureStrength ?? 0.8,
+      modular: asset.scene?.modular ?? null,
+      props: Array.isArray(asset.scene?.props) ? asset.scene.props : null,
+    });
+  }
   return asset.kind === "scene"
     ? composeGameKit(asset.type, {
         seed: asset.seed ?? 1,
@@ -3362,6 +3402,17 @@ function renderGenModularPieces() {
   ).join("");
 }
 
+function renderGenModularSceneChips() {
+  const container = $("#gen-modular-scenes");
+  if (!container) return;
+  container.innerHTML = getModularScenePresets()
+    .map(
+      (preset) =>
+        `<button type="button" class="gen-type-chip${preset.id === selectedModularScene ? " active" : ""}" data-scene="${esc(preset.id)}">${esc(t(MODULAR_SCENE_KEYS[preset.id]))}</button>`,
+    )
+    .join("");
+}
+
 function readGenKitOptions() {
   const read = (selector, fallback, min, max) => {
     const value = Number($(selector)?.value);
@@ -3394,6 +3445,23 @@ function readModularSettings() {
     steps: Math.round(read("#gen-modular-steps", 6, 2, 24)),
     crenel: $("#gen-modular-crenel")?.checked,
   });
+}
+
+function setGenModularInputs(options) {
+  const normalized = normalizeModularOptions(options);
+  const set = (selector, value) => {
+    const input = $(selector);
+    if (input && value != null) input.value = String(value);
+  };
+  set("#gen-modular-cell", normalized.cell);
+  set("#gen-modular-cells", normalized.cells);
+  set("#gen-modular-height", normalized.height);
+  set("#gen-modular-depth", normalized.depth);
+  set("#gen-modular-thickness", normalized.thickness);
+  set("#gen-modular-steps", normalized.steps);
+  if ($("#gen-modular-crenel")) {
+    $("#gen-modular-crenel").checked = !!normalized.crenel;
+  }
 }
 
 function updateGenModularMetric() {
@@ -3452,7 +3520,11 @@ function renderGenPropEditor() {
   const editor = $("#gen-prop-editor");
   if (!editor) return;
   const props = getSceneProps();
-  if (genState.model?.kind !== "scene" || props.length === 0) {
+  if (
+    genState.model?.kind !== "scene" ||
+    genState.model?.scene?.sceneKind === "modular-scene" ||
+    props.length === 0
+  ) {
     editor.hidden = true;
     return;
   }
@@ -3580,6 +3652,82 @@ function composeGameKitScene(kitId) {
   }
 }
 
+function composeModularSceneScene(presetId) {
+  if (genState.generating) return;
+  genState.generating = true;
+  setGenActions(false);
+  setGenStatus(t("gen.composing"), "info");
+  try {
+    const seedInput = $("#gen-seed").value.trim();
+    const seed =
+      seedInput === ""
+        ? Math.floor(Math.random() * 1_000_000)
+        : Math.max(0, Math.floor(Number(seedInput) || 0));
+    const style = $("#gen-style").value;
+    const color = $("#gen-color").value;
+    const material = readMaterialSettings();
+    const modular = readModularSettings();
+    const scene = composeModularScene(presetId, {
+      seed,
+      style,
+      color,
+      material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
+      modular,
+    });
+    const stats = getAssetStats(scene);
+    genState.model = {
+      type: presetId,
+      kind: "scene",
+      id: `${presetId}-${seed}`,
+      name: t(MODULAR_SCENE_KEYS[presetId]),
+      prompt: t(MODULAR_SCENE_KEYS[presetId]),
+      threeObject: scene,
+      color,
+      seed,
+      style,
+      material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
+      segments: scene.userData.theme.segments ?? 12,
+      quality: scene.userData.theme.quality ?? 1,
+      spacing: scene.userData.theme.spacing ?? 1,
+      groundPadding: scene.userData.theme.groundPadding ?? 0.6,
+      propScale: scene.userData.theme.propScale ?? 1,
+      tags: ["scene", "modular", presetId],
+      scene: {
+        sceneKind: "modular-scene",
+        modular: scene.userData.modular,
+        quality: scene.userData.theme.quality ?? 1,
+        spacing: scene.userData.theme.spacing ?? 1,
+        groundPadding: scene.userData.theme.groundPadding ?? 0.6,
+        propScale: scene.userData.theme.propScale ?? 1,
+        groundColor: scene.userData.groundColor ?? null,
+        theme: scene.userData.theme,
+        props: scene.userData.propList || [],
+      },
+    };
+    genState.originalModel = null;
+    genState.lods = [];
+    genState.activeLod = 0;
+    selectedSceneProp = 0;
+    setGenOptimizePanel(false);
+    setGenExportPanel(false);
+    setGenActions(true);
+    updateGenScenePackButton();
+    setGenStatus(
+      `${t("gen.sceneReady")} (${scene.userData.pieceList.length} ${t("gen.parts")} · ${stats.triangles} ${t("gen.triangles")})`,
+      "ok",
+    );
+    showGenPreview();
+  } catch {
+    setGenStatus(t("gen.error"), "error");
+  } finally {
+    genState.generating = false;
+  }
+}
+
 function updateGenScenePackButton() {
   const button = $("#gen-scene-pack");
   if (button) button.hidden = genState.model?.kind !== "scene";
@@ -3661,6 +3809,15 @@ $("#gen-modular-pieces").addEventListener("click", (e) => {
   renderPromptHint();
   generateAsset();
 });
+$("#gen-modular-scenes").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-scene]");
+  if (!btn) return;
+  selectedModularScene = btn.dataset.scene;
+  renderGenModularSceneChips();
+});
+$("#gen-modular-scene-compose").addEventListener("click", () =>
+  composeModularSceneScene(selectedModularScene),
+);
 for (const selector of [
   "#gen-modular-cell",
   "#gen-modular-cells",
@@ -3898,6 +4055,9 @@ function loadAsset(id) {
   genState.model = { ...asset, threeObject: model };
   if (asset.kind === "scene") {
     genState.model.scene = {
+      sceneKind:
+        asset.scene?.sceneKind === "modular-scene" ? "modular-scene" : null,
+      modular: asset.scene?.modular ?? model.userData?.modular ?? null,
       quality: asset.scene?.quality ?? model.userData.theme?.quality ?? 1,
       spacing: asset.scene?.spacing ?? model.userData.theme?.spacing ?? 1,
       groundPadding:
@@ -3915,32 +4075,41 @@ function loadAsset(id) {
     // A saved scene is only editable if the controls that built it come back
     // with the same numbers. Without this a re-compose would draw a different
     // scene from the same card, which reads as the load having failed.
-    selectedGenKit = asset.type;
-    renderGenKitChips();
     const sceneTheme = model.userData.theme || {};
-    const setKitOption = (selector, value) => {
-      const input = $(selector);
-      if (input && Number.isFinite(Number(value))) input.value = String(value);
-    };
-    setKitOption("#gen-kit-segments", asset.segments ?? sceneTheme.segments);
-    setKitOption("#gen-kit-spacing", genState.model.scene.spacing);
-    setKitOption("#gen-kit-ground", genState.model.scene.groundPadding);
-    setKitOption("#gen-kit-prop-scale", genState.model.scene.propScale);
+    if (genState.model.scene.sceneKind === "modular-scene") {
+      const preset = genState.model.scene.modular?.preset || asset.type;
+      if (getModularScenePresets().some((p) => p.id === preset)) {
+        selectedModularScene = preset;
+        renderGenModularSceneChips();
+      }
+      const options = normalizeModularOptions(
+        genState.model.scene.modular ?? asset.scene?.modular ?? {},
+      );
+      setGenModularInputs(options);
+      $("#gen-prompt").value =
+        asset.prompt ||
+        t(MODULAR_SCENE_KEYS[selectedModularScene] ?? "gen.modular");
+    } else {
+      selectedGenKit = asset.type;
+      renderGenKitChips();
+      const setKitOption = (selector, value) => {
+        const input = $(selector);
+        if (input && Number.isFinite(Number(value)))
+          input.value = String(value);
+      };
+      setKitOption("#gen-kit-segments", asset.segments ?? sceneTheme.segments);
+      setKitOption("#gen-kit-spacing", genState.model.scene.spacing);
+      setKitOption("#gen-kit-ground", genState.model.scene.groundPadding);
+      setKitOption("#gen-kit-prop-scale", genState.model.scene.propScale);
+    }
     genState.originalModel = null;
     selectedSceneProp = 0;
   } else {
     genState.originalModel = cloneModelDeep(model);
   }
   if (isModularType(asset.type)) {
-    const options = normalizeModularOptions(asset.options);
+    setGenModularInputs(normalizeModularOptions(asset.options));
     $("#gen-prompt").value = asset.prompt || t(GEN_TYPE_KEYS[asset.type]);
-    $("#gen-modular-cell").value = String(options.cell);
-    $("#gen-modular-cells").value = String(options.cells);
-    $("#gen-modular-height").value = String(options.height);
-    $("#gen-modular-depth").value = String(options.depth);
-    $("#gen-modular-thickness").value = String(options.thickness);
-    $("#gen-modular-steps").value = String(options.steps);
-    $("#gen-modular-crenel").checked = options.crenel;
   }
   syncGenModularUI(asset.type);
   genState.lods = [];
@@ -4200,6 +4369,7 @@ $("#gen-library-file").addEventListener("change", (event) => {
 
 renderGenTypeChips();
 renderGenKitChips();
+renderGenModularSceneChips();
 renderAssetLibrary();
 renderVariantGrid();
 renderTextureStrip();
