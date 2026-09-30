@@ -57,6 +57,13 @@ import {
   buildGamePackFiles,
   getAssetTextureInfo,
 } from "./generator.js";
+import {
+  parseAssetPrompt,
+  buildPromptLexicon,
+  splitTerms,
+  GEN_TYPE_KEYS,
+  GEN_COLOR_KEYS,
+} from "./asset-prompt.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
    the reviewer's own preferences have been read. Correcting it here is what
@@ -255,6 +262,7 @@ app.innerHTML = `${SPRITE}
     <div class="gen-form">
       <label>${T("gen.prompt")}</label>
       <textarea id="gen-prompt" placeholder="${T("gen.promptPlaceholder")}" rows="3"></textarea>
+      <div id="gen-prompt-hint" class="gen-prompt-hint" hidden></div>
       <label>${T("gen.style")}</label>
       <select id="gen-style">
         <option value="lowpoly">${T("gen.styleLowPoly")}</option>
@@ -2349,105 +2357,9 @@ const genState = {
 let selectedGenKit = "dungeon";
 let selectedSceneProp = 0;
 
-/* i18n catalogues carry the template labels and prompt aliases. The catalogue
-   keys themselves are written out here so the i18n checker can see every
-   translation is reachable from the code. */
-const GEN_TYPE_KEYS = {
-  cube: "gen.type.cube",
-  sword: "gen.type.sword",
-  tree: "gen.type.tree",
-  rock: "gen.type.rock",
-  house: "gen.type.house",
-  car: "gen.type.car",
-  character: "gen.type.character",
-  shield: "gen.type.shield",
-  potion: "gen.type.potion",
-  chest: "gen.type.chest",
-  key: "gen.type.key",
-  gem: "gen.type.gem",
-  barrel: "gen.type.barrel",
-  crate: "gen.type.crate",
-  tower: "gen.type.tower",
-  flag: "gen.type.flag",
-  torch: "gen.type.torch",
-  fence: "gen.type.fence",
-  bridge: "gen.type.bridge",
-  fountain: "gen.type.fountain",
-  brazier: "gen.type.brazier",
-  runestone: "gen.type.runestone",
-  trap: "gen.type.trap",
-  turret: "gen.type.turret",
-  drone: "gen.type.drone",
-  antenna: "gen.type.antenna",
-  axe: "gen.type.axe",
-  bow: "gen.type.bow",
-  hammer: "gen.type.hammer",
-  spear: "gen.type.spear",
-  tent: "gen.type.tent",
-  statue: "gen.type.statue",
-  pillar: "gen.type.pillar",
-  well: "gen.type.well",
-  monster: "gen.type.monster",
-  dragon: "gen.type.dragon",
-  boat: "gen.type.boat",
-  plane: "gen.type.plane",
-  bike: "gen.type.bike",
-  campfire: "gen.type.campfire",
-  sign: "gen.type.sign",
-  crystal: "gen.type.crystal",
-  mushroom: "gen.type.mushroom",
-  tree_stump: "gen.type.treeStump",
-  barrel_variants: "gen.type.barrelVariants",
-};
-
-const GEN_ALIAS_KEYS = {
-  cube: "gen.alias.cube",
-  sword: "gen.alias.sword",
-  tree: "gen.alias.tree",
-  rock: "gen.alias.rock",
-  house: "gen.alias.house",
-  car: "gen.alias.car",
-  character: "gen.alias.character",
-  shield: "gen.alias.shield",
-  potion: "gen.alias.potion",
-  chest: "gen.alias.chest",
-  key: "gen.alias.key",
-  gem: "gen.alias.gem",
-  barrel: "gen.alias.barrel",
-  crate: "gen.alias.crate",
-  tower: "gen.alias.tower",
-  flag: "gen.alias.flag",
-  torch: "gen.alias.torch",
-  fence: "gen.alias.fence",
-  bridge: "gen.alias.bridge",
-  fountain: "gen.alias.fountain",
-  brazier: "gen.alias.brazier",
-  runestone: "gen.alias.runestone",
-  trap: "gen.alias.trap",
-  turret: "gen.alias.turret",
-  drone: "gen.alias.drone",
-  antenna: "gen.alias.antenna",
-  axe: "gen.alias.axe",
-  bow: "gen.alias.bow",
-  hammer: "gen.alias.hammer",
-  spear: "gen.alias.spear",
-  tent: "gen.alias.tent",
-  statue: "gen.alias.statue",
-  pillar: "gen.alias.pillar",
-  well: "gen.alias.well",
-  monster: "gen.alias.monster",
-  dragon: "gen.alias.dragon",
-  boat: "gen.alias.boat",
-  plane: "gen.alias.plane",
-  bike: "gen.alias.bike",
-  campfire: "gen.alias.campfire",
-  sign: "gen.alias.sign",
-  crystal: "gen.alias.crystal",
-  mushroom: "gen.alias.mushroom",
-  tree_stump: "gen.alias.treeStump",
-  barrel_variants: "gen.alias.barrelVariants",
-};
-
+/* The asset labels, aliases and colour, style and size words live beside the
+   matcher that reads them, so the panel, the tests and the i18n checker all
+   work from one table. */
 const GEN_KIT_KEYS = {
   dungeon: "gen.kit.dungeon",
   camp: "gen.kit.camp",
@@ -2459,20 +2371,18 @@ const GEN_KIT_KEYS = {
   town: "gen.kit.town",
 };
 
+/* The hint names the style a sentence asked for, and the select already owns
+   those three words. Reusing them keeps one label per style. */
+const GEN_STYLE_LABEL_KEYS = {
+  lowpoly: "gen.styleLowPoly",
+  realistic: "gen.styleRealistic",
+  stylized: "gen.styleStylized",
+};
+
 /* Prompt matching is intentionally multilingual: an AI3D user may describe an
-   asset in any of the six shipped languages. Longest aliases are tried first
-   so "板条箱" beats the shorter "箱子" that also appears in it. */
-const PROMPT_ALIASES = [];
-for (const table of Object.values(CATALOGUES)) {
-  for (const [type, key] of Object.entries(GEN_ALIAS_KEYS)) {
-    for (const alias of String(table[key] || "").split(",")) {
-      const clean = alias.trim().toLowerCase();
-      if (!clean) continue;
-      PROMPT_ALIASES.push({ alias: clean, type });
-    }
-  }
-}
-PROMPT_ALIASES.sort((a, b) => b.alias.length - a.alias.length);
+   asset in any of the six shipped languages, and the lexicon merges all of
+   them at once. It is built once and never depends on the active locale. */
+const promptLexicon = buildPromptLexicon(CATALOGUES);
 
 // --- Asset Library ---
 const assetLibrary = {
@@ -2669,8 +2579,7 @@ async function generateAsset() {
     setGenStatus(t("gen.empty"), "warn");
     return;
   }
-  const style = $("#gen-style").value;
-  const color = $("#gen-color").value;
+  const { assetType, color } = readPromptSettings();
   const material = readMaterialSettings();
   const seedInput = $("#gen-seed").value.trim();
   const seed =
@@ -2679,7 +2588,6 @@ async function generateAsset() {
   setGenStatus(t("gen.generating"), "info");
   setGenActions(false);
   try {
-    const assetType = parseAssetPrompt(prompt, style);
     const model = generateThreeAsset(assetType.type, {
       size: assetType.size,
       segments: assetType.segments,
@@ -2726,8 +2634,7 @@ function generateVariants() {
     setGenStatus(t("gen.empty"), "warn");
     return;
   }
-  const style = $("#gen-style").value;
-  const color = $("#gen-color").value;
+  const { assetType, color } = readPromptSettings();
   const material = readMaterialSettings();
   const seedInput = $("#gen-seed").value.trim();
   const baseSeed =
@@ -2741,7 +2648,6 @@ function generateVariants() {
   genState.generating = true;
   setGenStatus(t("gen.generating"), "info");
   try {
-    const assetType = parseAssetPrompt(prompt, style);
     const variants = generateVariantSet(assetType.type, {
       size: assetType.size,
       segments: assetType.segments,
@@ -2892,29 +2798,59 @@ function renderTextureStrip() {
     .join("");
 }
 
-function parseAssetPrompt(prompt, style) {
-  const lower = prompt.toLowerCase();
-  let type = "cube";
-  let size = 1;
-  let segments = 16;
-
-  for (const { alias, type: matched } of PROMPT_ALIASES) {
-    if (lower.includes(alias)) {
-      type = matched;
-      break;
-    }
+/* The description box is the one place a sentence becomes geometry. Reading it
+   through a single helper keeps the generated asset, the variant grid and the
+   live hint below the box answering the same question the same way. */
+function readPromptSettings() {
+  const prompt = $("#gen-prompt").value.trim();
+  const parsed = parseAssetPrompt(prompt, $("#gen-style").value, promptLexicon);
+  // A style named in the sentence is a deliberate instruction, so it moves the
+  // select and its material presets instead of being quietly outvoted by them.
+  if (parsed.styleMatched && $("#gen-style").value !== parsed.style) {
+    $("#gen-style").value = parsed.style;
+    $("#gen-style").dispatchEvent(new Event("change"));
   }
+  if (parsed.color) $("#gen-color").value = parsed.color;
+  return {
+    assetType: {
+      type: parsed.type,
+      size: parsed.size,
+      segments: parsed.segments,
+      style: parsed.style,
+      prompt,
+    },
+    color: parsed.color || $("#gen-color").value,
+    parsed,
+  };
+}
 
-  // Extract size hints
-  const sizeMatch = lower.match(/(\d+(?:\.\d+)?)\s*(m|meter)/);
-  if (sizeMatch) size = parseFloat(sizeMatch[1]);
-
-  // Extract segment hints for low-poly
-  if (style === "lowpoly") segments = 8;
-  else if (style === "realistic") segments = 32;
-  else segments = 16;
-
-  return { type, size, segments, style, prompt };
+/* The hint is the receipt for that reading: an alias that silently picked the
+   wrong template is invisible until the model is already built, so the panel
+   says which template, size and colour it took from the sentence. */
+function renderPromptHint() {
+  const hint = $("#gen-prompt-hint");
+  if (!hint) return;
+  const prompt = $("#gen-prompt").value.trim();
+  if (!prompt) {
+    hint.hidden = true;
+    hint.innerHTML = "";
+    return;
+  }
+  const { parsed } = readPromptSettings();
+  const parts = [`<strong>${esc(t(GEN_TYPE_KEYS[parsed.type]))}</strong>`];
+  parts.push(`${parsed.size} m`);
+  if (parsed.color) {
+    // The catalogue lists synonyms so a description can use any of them; the
+    // hint names the colour once, which is what the swatch next to it shows.
+    const [label] = splitTerms(t(GEN_COLOR_KEYS[parsed.colorName]));
+    parts.push(
+      `<span class="gen-prompt-swatch" style="background:${esc(parsed.color)}"></span>${esc(label)}`,
+    );
+  }
+  if (parsed.styleMatched)
+    parts.push(esc(t(GEN_STYLE_LABEL_KEYS[parsed.style])));
+  hint.innerHTML = `<span class="gen-prompt-hint-label">${T("gen.understanding")}</span>${parts.join(" · ")}`;
+  hint.hidden = false;
 }
 
 function importGenModel() {
@@ -3360,6 +3296,7 @@ function updateGenScenePackButton() {
 }
 
 $("#gen-generate").addEventListener("click", generateAsset);
+$("#gen-prompt").addEventListener("input", renderPromptHint);
 $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
 $("#gen-decimate").addEventListener("click", decimateGenModel);
@@ -3415,6 +3352,7 @@ $("#gen-types").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
   $("#gen-prompt").value = t(GEN_TYPE_KEYS[btn.dataset.type]);
+  renderPromptHint();
   generateAsset();
 });
 $("#gen-kits").addEventListener("click", (e) => {

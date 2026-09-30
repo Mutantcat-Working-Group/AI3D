@@ -147,6 +147,32 @@ test("quick template chips resolve their own asset instead of the default cube",
   }
 });
 
+/* The description box is the whole interface for someone who has not clicked a
+ * template chip, so what it understood has to be visible before the model is
+ * built, and the style and colour it read have to reach the controls rather
+ * than being discarded after the sentence is parsed. */
+test("a description names the template, size, colour and style it will use", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator("#gen-prompt").fill("a red low-poly sword 1.5 m");
+  const hint = page.locator("#gen-prompt-hint");
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText("Sword");
+  await expect(hint).toContainText("1.5 m");
+  await expect(hint).toContainText("red");
+
+  await expect(page.locator("#gen-style")).toHaveValue("lowpoly");
+  await expect(page.locator("#gen-color")).toHaveValue("#c0392b");
+
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await expect(page.locator("#gen-status")).toHaveClass(/ok/);
+});
+
 /* The library only ever lived in browser storage, so the one file that leaves
    the browser is the only thing a teammate or a build machine can be handed.
    This drives the export control, wipes storage the way a cleared profile

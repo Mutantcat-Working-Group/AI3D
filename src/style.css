@@ -1931,6 +1931,29 @@ dialog .muted {
 .gen-form .primary-button {
   margin-top: 4px;
 }
+.gen-prompt-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.gen-prompt-hint strong {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.gen-prompt-hint-label {
+  opacity: 0.75;
+}
+.gen-prompt-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--line-1);
+  border-radius: 2px;
+}
 .gen-preview {
   padding: 8px 12px 10px;
   border-top: 1px solid var(--line-1);
