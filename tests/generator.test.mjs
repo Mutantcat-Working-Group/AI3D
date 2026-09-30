@@ -25,6 +25,7 @@ import {
   buildColliderModel,
   buildGamePackFiles,
   exportGamePack,
+  getAssetTextureInfo,
 } from "../src/generator.js";
 import { unzipSync } from "fflate";
 
@@ -235,6 +236,65 @@ test("styles and material overrides reach every mesh", () => {
     assert.equal(mat.metalness, 0.9);
     assert.equal(mat.emissive.getHexString(), "00ff00");
   }
+});
+
+test("generated assets carry a full procedural PBR texture set", () => {
+  const model = generateAsset("sword", { size: 1, seed: 7 });
+  const mats = meshMaterials(model);
+  assert.ok(mats.length > 0);
+  for (const mat of mats) {
+    assert.ok(mat.map, "materials have an albedo map");
+    assert.ok(mat.normalMap, "materials have a normal map");
+    assert.ok(mat.roughnessMap, "materials have a roughness map");
+    assert.ok(mat.metalnessMap, "materials have a metalness map");
+  }
+});
+
+test("texture PNGs are deterministic per seed", () => {
+  const a = getAssetTextureInfo(
+    { type: "sword", texture: "metal", textureStrength: 0.8 },
+    9,
+  );
+  const b = getAssetTextureInfo(
+    { type: "sword", texture: "metal", textureStrength: 0.8 },
+    9,
+  );
+  const c = getAssetTextureInfo(
+    { type: "sword", texture: "metal", textureStrength: 0.8 },
+    10,
+  );
+  assert.ok(a);
+  assert.deepEqual(a.textures.albedo, b.textures.albedo);
+  assert.deepEqual(a.textures.normal, b.textures.normal);
+  assert.notDeepEqual(a.textures.albedo, c.textures.albedo);
+  for (const name of ["albedo", "normal", "roughness", "metalness"]) {
+    const png = a.textures[name];
+    assert.deepEqual(
+      [...png.slice(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name} starts with a PNG signature`,
+    );
+  }
+  assert.equal(
+    getAssetTextureInfo({ type: "sword", texture: "none" }, 9),
+    null,
+  );
+});
+
+test("GLB export embeds procedural texture images", async () => {
+  const model = generateAsset("tree", { size: 1, seed: 4 });
+  const raw = await exportGLB(model, { upAxis: "Y", scale: 1 });
+  const glb = new Uint8Array(raw);
+  assert.ok(glb.byteLength > 0);
+  const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
+  const jsonLength = view.getUint32(12, true);
+  const json = JSON.parse(
+    new TextDecoder().decode(glb.subarray(20, 20 + jsonLength)),
+  );
+  assert.ok(
+    JSON.stringify(json).includes("image/png"),
+    "GLB carries PNG texture data",
+  );
 });
 
 test("custom color lands on every asset type", () => {
@@ -775,6 +835,47 @@ test("exportGamePack exports a real GLB at the preset scale", async () => {
     getAssetStats(source).triangles,
   );
   assert.equal(String.fromCharCode(...glb.slice(0, 4)), "glTF");
+});
+
+test("exportGamePack ships standalone PBR textures and manifest metadata", async () => {
+  const source = generateAsset("sword", {
+    size: 1,
+    seed: 7,
+    texture: "metal",
+    textureStrength: 0.9,
+  });
+  const zip = await exportGamePack({
+    model: source,
+    asset: {
+      id: "sword-tex",
+      type: "sword",
+      seed: 7,
+      texture: "metal",
+      textureStrength: 0.9,
+    },
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  for (const name of ["albedo", "normal", "roughness", "metalness"]) {
+    const png = files[`textures/sword-tex/${name}.png`];
+    assert.ok(png, `${name} texture is in the pack`);
+    assert.deepEqual(
+      [...png.slice(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      `${name} starts with a PNG signature`,
+    );
+  }
+  assert.equal(manifest.assets[0].texture.kind, "metal");
+  assert.equal(manifest.assets[0].texture.strength, 0.9);
+  assert.deepEqual(manifest.assets[0].files.textures, [
+    "textures/sword-tex/albedo.png",
+    "textures/sword-tex/normal.png",
+    "textures/sword-tex/roughness.png",
+    "textures/sword-tex/metalness.png",
+  ]);
 });
 
 test("exportGamePack writes colliders and respects the none choice", async () => {

@@ -2,6 +2,11 @@ import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
 import { zipSync } from "fflate";
+import {
+  createProceduralTextures,
+  resolveTextureKind,
+  ensureNodeCanvasPolyfill,
+} from "./procedural-textures.js";
 
 // Asset type definitions with generation parameters
 const ASSET_TYPES = {
@@ -503,6 +508,8 @@ function mulberry32(a) {
  * @param {number} options.material.roughness - Surface roughness 0..1
  * @param {number} options.material.metalness - Metallness 0..1
  * @param {string} options.material.emissive - Hex emissive color or null
+ * @param {string} options.texture - Texture preset or "auto"/"none"
+ * @param {number} options.textureStrength - Procedural texture strength 0..1
  */
 export function generateAsset(
   type,
@@ -513,6 +520,8 @@ export function generateAsset(
     color = null,
     seed = null,
     material = null,
+    texture = "auto",
+    textureStrength = 0.8,
   } = {},
 ) {
   const group = new THREE.Group();
@@ -661,6 +670,11 @@ export function generateAsset(
   }
 
   applyMaterialOverrides(group, material);
+  applyProceduralTextureSet(group, type, {
+    texture,
+    strength: textureStrength,
+    seed,
+  });
 
   // Scale first, then center in scaled space. Centering before scaling would
   // leave the box offset whenever the requested size is not exactly the model
@@ -691,6 +705,8 @@ export function generateAsset(
  * @param {object} options - Generation options shared by every variant
  * @param {number} options.count - Number of variants (clamped to 1..12)
  * @param {number} options.baseSeed - First seed in the batch
+ * @param {string} options.texture - Texture preset or "auto"/"none"
+ * @param {number} options.textureStrength - Procedural texture strength 0..1
  * @returns {Array<{seed: number, index: number, model: THREE.Group, stats: object}>}
  */
 export function generateVariantSet(
@@ -701,6 +717,8 @@ export function generateVariantSet(
     style = "lowpoly",
     color = null,
     material = null,
+    texture = "auto",
+    textureStrength = 0.8,
     count = 4,
     baseSeed = 0,
   } = {},
@@ -717,6 +735,8 @@ export function generateVariantSet(
       color,
       seed,
       material,
+      texture,
+      textureStrength,
     });
     variants.push({ seed, index, model, stats: getAssetStats(model) });
   }
@@ -767,6 +787,70 @@ function createMaterial(color, style) {
     roughness: style.roughness,
     metalness: style.metalness,
   });
+}
+
+/**
+ * Apply one procedural PBR texture set to every mesh in an object. Albedo is
+ * grayscale so the per-part material color tints it; normal, roughness and
+ * metalness maps then modulate the engine material.
+ */
+function applyProceduralTextureSet(
+  object,
+  type,
+  { texture = "auto", strength = 0.8, seed = null } = {},
+) {
+  const kind = resolveTextureKind(type, texture);
+  if (!kind) return;
+  const textureSeed = seed == null ? 1 : Math.max(1, Math.floor(seed) + 1);
+  const set = createProceduralTextures(kind, {
+    size: 128,
+    strength: Math.max(0, Math.min(1, Number(strength) || 0)),
+    seed: textureSeed,
+  });
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    const mats = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    for (const mat of mats) {
+      if (!mat?.isMaterial) continue;
+      mat.map = set.textures.albedo;
+      mat.normalMap = set.textures.normal;
+      mat.roughnessMap = set.textures.roughness;
+      mat.metalnessMap = set.textures.metalness;
+      mat.normalScale.set(1, 1);
+      mat.needsUpdate = true;
+    }
+  });
+}
+
+/**
+ * Rebuild the PNG texture files for an asset record. Engine packs keep both
+ * the GLB-embedded maps and standalone PNGs so teams can rewire shaders.
+ * @returns {object|null} { texture, textures } or null when disabled
+ */
+export function getAssetTextureInfo(asset = {}, seed = null) {
+  const kind = resolveTextureKind(asset.type, asset.texture ?? "auto");
+  if (!kind) return null;
+  const strength = Math.max(
+    0,
+    Math.min(1, Number(asset.textureStrength ?? 0.8) || 0),
+  );
+  const textureSeed = seed == null ? 1 : Math.max(1, Math.floor(seed) + 1);
+  const set = createProceduralTextures(kind, {
+    size: 128,
+    strength,
+    seed: textureSeed,
+    png: true,
+  });
+  return {
+    texture: {
+      kind,
+      strength,
+      size: set.size,
+    },
+    textures: set.pngs,
+  };
 }
 
 // Preset game-scene kits. Props are placed on a fixed grid and given small
@@ -3285,6 +3369,7 @@ export function exportGLB(object, options = {}) {
   // GLTFExporter converts the up axis itself; only the scale needs a wrapper.
   const wrapped = scale !== 1 ? wrapForExport(object, options, false) : object;
   ensureNodeFileReader();
+  ensureNodeCanvasPolyfill();
   return new Promise((resolve, reject) => {
     const exporter = new GLTFExporter();
     exporter.parse(
@@ -3700,6 +3785,8 @@ export function buildGamePackFiles({
       style: asset.style ?? "lowpoly",
       color: asset.color || null,
       material: asset.material || null,
+      texture: asset.texture || null,
+      textureStrength: asset.textureStrength ?? 0.8,
       tags: getAssetTags(asset.type),
       stats,
       collision: asset.collision || null,
@@ -3726,6 +3813,11 @@ export function buildGamePackFiles({
         })),
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
+        textures: asset.textures
+          ? ["albedo", "normal", "roughness", "metalness"]
+              .filter((name) => asset.textures[name])
+              .map((name) => `textures/${slug}/${name}.png`)
+          : null,
       },
     };
   });
@@ -3768,6 +3860,11 @@ export function buildGamePackFiles({
     if (asset.colliderBytes) {
       files[`colliders/${slug}.glb`] = asset.colliderBytes;
     }
+    if (asset.textures) {
+      for (const [name, bytes] of Object.entries(asset.textures)) {
+        files[`textures/${slug}/${name}.png`] = bytes;
+      }
+    }
   }
 
   return zipSync(files, { level: 6 });
@@ -3792,6 +3889,7 @@ export async function exportGamePack({
 }) {
   const preset = getEnginePreset(engine);
   const options = { upAxis: preset.upAxis, scale: preset.scale };
+  const textureInfo = getAssetTextureInfo(asset, asset.seed ?? null);
   const selectedAnimations = selectAnimations(model, animation);
   const animationInfo = selectedAnimations.map((clip) => ({
     name: clip.name,
@@ -3863,6 +3961,7 @@ export async function exportGamePack({
     animations: animationInfo,
     collision: collisionInfo,
     colliderBytes,
+    ...(textureInfo || {}),
   };
   return buildGamePackFiles({
     assets: [packAsset],

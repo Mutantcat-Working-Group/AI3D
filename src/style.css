@@ -2038,6 +2038,45 @@ dialog .muted {
   width: 100%;
   accent-color: var(--accent);
 }
+.gen-texture-strength {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gen-texture-strength input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.gen-texture-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  min-width: 0;
+}
+.gen-texture-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.gen-texture-swatch img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--line-1);
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--bg-1);
+}
+.gen-texture-swatch small {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--text-2);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .gen-status {
   padding: 6px 12px;
   font-size: 11px;

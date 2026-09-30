@@ -47,6 +47,7 @@ import {
   getEnginePresets,
   exportGamePack,
   buildGamePackFiles,
+  getAssetTextureInfo,
 } from "./generator.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
@@ -243,6 +244,22 @@ app.innerHTML = `${SPRITE}
         <input type="color" id="gen-emissive" value="#000000">
         <button type="button" id="gen-emissive-reset" class="quiet">${T("gen.colorReset")}</button>
       </div>
+      <label>${T("gen.texture")}</label>
+      <select id="gen-texture">
+        <option value="auto">${T("gen.textureAuto")}</option>
+        <option value="wood">${T("gen.textureWood")}</option>
+        <option value="stone">${T("gen.textureStone")}</option>
+        <option value="metal">${T("gen.textureMetal")}</option>
+        <option value="cloth">${T("gen.textureCloth")}</option>
+        <option value="leather">${T("gen.textureLeather")}</option>
+        <option value="leaf">${T("gen.textureLeaf")}</option>
+        <option value="scale">${T("gen.textureScale")}</option>
+        <option value="crystal">${T("gen.textureCrystal")}</option>
+        <option value="sand">${T("gen.textureSand")}</option>
+        <option value="none">${T("gen.textureNone")}</option>
+      </select>
+      <label class="gen-texture-strength">${T("gen.textureStrength")} <input type="range" id="gen-texture-strength" min="0" max="1" step="0.05" value="0.8"></label>
+      <div id="gen-texture-strip" class="gen-texture-strip" aria-label="${T("gen.textureStrip")}"></div>
       <label>${T("gen.seed")}</label>
       <div class="gen-color-row">
         <input type="number" id="gen-seed" min="0" step="1" placeholder="${T("gen.seedPlaceholder")}">
@@ -2571,6 +2588,8 @@ async function generateAsset() {
       color: color,
       seed,
       material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
     });
     genState.model = {
       ...assetType,
@@ -2578,6 +2597,8 @@ async function generateAsset() {
       color,
       seed,
       material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
       tags: getAssetTags(assetType.type),
     };
     genState.originalModel = cloneModelDeep(model);
@@ -2627,6 +2648,8 @@ function generateVariants() {
       style: assetType.style,
       color,
       material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
       count,
       baseSeed,
     });
@@ -2637,6 +2660,8 @@ function generateVariants() {
       threeObject: variant.model,
       color,
       material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
     }));
     renderVariantGrid();
     setGenStatus(
@@ -2728,7 +2753,42 @@ function readMaterialSettings() {
     roughness: parseFloat($("#gen-roughness").value),
     metalness: parseFloat($("#gen-metalness").value),
     emissive: emissive === "#000000" ? null : emissive,
+    texture: $("#gen-texture").value || "auto",
+    textureStrength: parseFloat($("#gen-texture-strength").value) || 0.8,
   };
+}
+
+function pngBytesToDataUrl(bytes) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(i, Math.min(i + chunk, bytes.length)),
+    );
+  }
+  return `data:image/png;base64,${btoa(binary)}`;
+}
+
+function renderTextureStrip() {
+  const strip = $("#gen-texture-strip");
+  if (!strip) return;
+  const choice = $("#gen-texture").value || "auto";
+  const strength = parseFloat($("#gen-texture-strength").value) || 0.8;
+  const info = getAssetTextureInfo(
+    { type: "cube", texture: choice, textureStrength: strength },
+    1,
+  );
+  if (!info) {
+    strip.innerHTML = "";
+    return;
+  }
+  strip.innerHTML = ["albedo", "normal", "roughness", "metalness"]
+    .filter((name) => info.textures[name])
+    .map(
+      (name) =>
+        `<span class="gen-texture-swatch"><img src="${pngBytesToDataUrl(info.textures[name])}" alt="" draggable="false"><small>${name}</small></span>`,
+    )
+    .join("");
 }
 
 function parseAssetPrompt(prompt, style) {
@@ -2978,6 +3038,8 @@ async function downloadGenPack() {
     style: genState.model.style ?? "lowpoly",
     color: genState.model.color || null,
     material: genState.model.material || null,
+    texture: genState.model.texture ?? "auto",
+    textureStrength: genState.model.textureStrength ?? 0.8,
   };
   setGenStatus(t("gen.generating"), "info");
   try {
@@ -3109,6 +3171,8 @@ $("#gen-variants").addEventListener("click", (e) => {
 $("#gen-emissive-reset").addEventListener("click", () => {
   $("#gen-emissive").value = "#000000";
 });
+$("#gen-texture").addEventListener("change", renderTextureStrip);
+$("#gen-texture-strength").addEventListener("input", renderTextureStrip);
 $("#gen-style").addEventListener("change", (e) => {
   const presets = {
     lowpoly: { roughness: 0.8, metalness: 0.1 },
@@ -3239,6 +3303,8 @@ function renderAssetPreview(asset) {
       color: asset.color || null,
       seed: asset.seed ?? null,
       material: asset.material || null,
+      texture: asset.texture ?? "auto",
+      textureStrength: asset.textureStrength ?? 0.8,
     });
     const dataUrl = renderAssetThumbnail(model, 120, 90);
     if (dataUrl) {
@@ -3283,6 +3349,8 @@ function loadAsset(id) {
     color: asset.color || null,
     seed: asset.seed ?? null,
     material: asset.material || null,
+    texture: asset.texture ?? "auto",
+    textureStrength: asset.textureStrength ?? 0.8,
   });
   genState.model = { ...asset, threeObject: model };
   genState.originalModel = cloneModelDeep(model);
@@ -3347,6 +3415,8 @@ async function batchExportAssets() {
         color: asset.color || null,
         seed: asset.seed ?? null,
         material: asset.material || null,
+        texture: asset.texture ?? "auto",
+        textureStrength: asset.textureStrength ?? 0.8,
       });
       const baseName = `asset-${asset.type}-${asset.id.slice(0, 8)}`;
       if (withLod) {
@@ -3418,6 +3488,8 @@ async function exportLibraryPack() {
           color: asset.color || null,
           seed: asset.seed ?? null,
           material: asset.material || null,
+          texture: asset.texture ?? "auto",
+          textureStrength: asset.textureStrength ?? 0.8,
         });
         const selectedAnimations = selectAnimations(model, animationChoice);
         const animations = selectedAnimations.map((clip) => ({
@@ -3495,6 +3567,7 @@ renderGenTypeChips();
 renderGenKitChips();
 renderAssetLibrary();
 renderVariantGrid();
+renderTextureStrip();
 
 initAiDock();
 loadMcpConnections();
