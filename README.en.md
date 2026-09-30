@@ -173,8 +173,8 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # unit and integration tests
-npm run test:browser # real-Chromium browser tests
+npm test             # 307 unit and integration tests
+npm run test:browser # 82 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
