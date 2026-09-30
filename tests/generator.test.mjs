@@ -426,6 +426,9 @@ test("game kits apply the chosen theme to every prop", () => {
     textureStrength: 0.9,
     segments: 12,
     quality: 1,
+    spacing: 1,
+    groundPadding: 0.6,
+    propScale: 1,
   });
   assert.equal(scene.userData.propList.length, 9);
   const prop = scene.children.find((child) =>
@@ -447,6 +450,43 @@ test("game kits apply the chosen theme to every prop", () => {
   const groundMat = firstMesh(scene).material;
   assert.equal(groundMat.roughness, 0.2);
   assert.ok(groundMat.map, "ground follows the scene theme");
+});
+
+test("scene kit options scale spacing, ground and props with placement metadata", () => {
+  const compact = composeGameKit("camp", {
+    seed: 4,
+    segments: 8,
+    spacing: 0.6,
+    groundPadding: 0.2,
+    propScale: 0.5,
+  });
+  const roomy = composeGameKit("camp", {
+    seed: 4,
+    segments: 8,
+    spacing: 1.4,
+    groundPadding: 1.2,
+    propScale: 1.5,
+  });
+
+  assert.ok(
+    roomy.userData.extent.width > compact.userData.extent.width,
+    "wider spacing and ground margin produce a larger scene",
+  );
+  assert.equal(compact.userData.theme.spacing, 0.6);
+  assert.equal(compact.userData.theme.groundPadding, 0.2);
+  assert.equal(compact.userData.theme.propScale, 0.5);
+  assert.ok(
+    roomy.userData.propList[0].bounds.height >
+      compact.userData.propList[0].bounds.height,
+    "prop scale reaches the placement bounds",
+  );
+  assert.ok(compact.userData.propList[0].name.startsWith("camp-"));
+  assert.equal(
+    compact.userData.propList[0].collision,
+    getColliderShape("house"),
+  );
+  assert.ok(compact.userData.propList[0].bounds.width > 0);
+  assert.ok(compact.userData.propList[0].bounds.depth > 0);
 });
 
 test("exportGamePack exports composed scenes with props and theme", async () => {
@@ -489,6 +529,11 @@ test("exportGamePack exports composed scenes with props and theme", async () => 
   assert.equal(manifest.assets[0].scene.props.length, 9);
   assert.equal(manifest.assets[0].scene.theme.style, "realistic");
   assert.equal(manifest.assets[0].scene.theme.texture, "wood");
+  assert.equal(manifest.assets[0].scene.spacing, 1);
+  assert.equal(manifest.assets[0].scene.groundPadding, 0.6);
+  assert.equal(manifest.assets[0].scene.propScale, 1);
+  assert.ok(manifest.assets[0].scene.props[0].rotationY >= 0);
+  assert.ok(manifest.assets[0].scene.props[0].bounds.width > 0);
   assert.equal(manifest.assets[0].collision, null);
   assert.ok(files["models/camp-scene/LOD0.glb"]);
   const readme = new TextDecoder().decode(files["README.md"]);

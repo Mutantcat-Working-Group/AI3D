@@ -140,7 +140,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 280 unit and integration tests
+npm test             # 281 unit and integration tests
 npm run test:browser # 78 real-Chromium tests
 ```
 

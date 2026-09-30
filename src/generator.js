@@ -994,6 +994,9 @@ const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
  * @param {object} options.material - Material overrides passed to every prop
  * @param {string} options.texture - Procedural texture preset or "auto"/"none"
  * @param {number} options.textureStrength - Procedural texture strength 0..1
+ * @param {number} options.spacing - Grid spacing multiplier
+ * @param {number} options.groundPadding - Ground margin on each side
+ * @param {number} options.propScale - Global prop scale multiplier
  */
 export function composeGameKit(
   kit,
@@ -1006,10 +1009,21 @@ export function composeGameKit(
     material = null,
     texture = "auto",
     textureStrength = 0.8,
+    spacing = 1,
+    groundPadding = 0.6,
+    propScale = 1,
   } = {},
 ) {
   const def = GAME_KITS[kit];
   if (!def) throw new Error(`Unknown game kit: ${kit}`);
+  const clamp = (value, fallback, min, max) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(max, Math.max(min, numeric));
+  };
+  const spacingScale = clamp(spacing, 1, 0.5, 2);
+  const groundMargin = clamp(groundPadding, 0.6, 0, 3);
+  const propScaleValue = clamp(propScale, 1, 0.25, 3);
   const rng = mulberry32(seed);
   const group = new THREE.Group();
   group.name = `kit-${kit}`;
@@ -1023,14 +1037,17 @@ export function composeGameKit(
     textureStrength,
     segments,
     quality,
+    spacing: spacingScale,
+    groundPadding: groundMargin,
+    propScale: propScaleValue,
   };
 
   const grid = 3;
-  const cell = 2.4;
+  const cell = 2.4 * spacingScale;
   const slot = cell / grid;
   const positions = [];
-  const groundW = cell + 1.2;
-  const groundD = cell + 1.2;
+  const groundW = cell + groundMargin * 2;
+  const groundD = cell + groundMargin * 2;
   const groundStyle = STYLE_MATERIALS[style] || KIT_STYLE;
   const ground = new THREE.Group();
   ground.name = "ground";
@@ -1078,8 +1095,9 @@ export function composeGameKit(
     const x = baseX + (rng() - 0.5) * jitter;
     const z = baseZ + (rng() - 0.5) * jitter;
     const propSeed = Math.floor(rng() * 100000);
+    const size = Math.round(prop.size * propScaleValue * 1000) / 1000;
     const model = generateAsset(prop.type, {
-      size: prop.size,
+      size,
       segments,
       style,
       color,
@@ -1092,19 +1110,30 @@ export function composeGameKit(
     model.traverse((child) => {
       if (child.isMesh) child.name = `${model.name}-${child.name}`;
     });
-    propList.push({
-      type: prop.type,
-      size: prop.size,
-      seed: propSeed,
-      x: Math.round(x * 1000) / 1000,
-      z: Math.round(z * 1000) / 1000,
-    });
     // Generated assets are centered on their origin, so lift each prop until
     // its lowest vertex rests on the ground instead of sinking into it.
-    const propBox = new THREE.Box3().setFromObject(model);
-    const groundLift = 0.06 - propBox.min.y;
+    const restingBox = new THREE.Box3().setFromObject(model);
+    const groundLift = 0.06 - restingBox.min.y;
+    const rotationY = Math.floor(rng() * 8) * (Math.PI / 4);
     model.position.set(x, model.position.y + groundLift, z);
-    model.rotation.y = Math.floor(rng() * 8) * (Math.PI / 4);
+    model.rotation.y = rotationY;
+    const placedBox = new THREE.Box3().setFromObject(model);
+    propList.push({
+      name: model.name,
+      type: prop.type,
+      size,
+      seed: propSeed,
+      x: Math.round(x * 1000) / 1000,
+      y: Math.round(model.position.y * 1000) / 1000,
+      z: Math.round(z * 1000) / 1000,
+      rotationY: Math.round(rotationY * 10000) / 10000,
+      bounds: {
+        width: Math.round((placedBox.max.x - placedBox.min.x) * 1000) / 1000,
+        height: Math.round((placedBox.max.y - placedBox.min.y) * 1000) / 1000,
+        depth: Math.round((placedBox.max.z - placedBox.min.z) * 1000) / 1000,
+      },
+      collision: getColliderShape(prop.type),
+    });
     group.add(model);
     positions.push({ index, x, z });
   });
@@ -3828,6 +3857,10 @@ function buildSceneRecord(asset) {
     seed: asset.seed ?? null,
     groundColor: asset.scene?.groundColor ?? null,
     quality: asset.scene?.quality ?? null,
+    spacing: asset.scene?.spacing ?? asset.theme?.spacing ?? 1,
+    groundPadding:
+      asset.scene?.groundPadding ?? asset.theme?.groundPadding ?? 0.6,
+    propScale: asset.scene?.propScale ?? asset.theme?.propScale ?? 1,
     theme: asset.scene?.theme ||
       (asset.theme ?? null) || {
         style: asset.style ?? "lowpoly",
@@ -3996,6 +4029,13 @@ export async function exportGamePack({
         groundColor:
           asset.scene?.groundColor ?? model.userData?.groundColor ?? null,
         quality: asset.scene?.quality ?? model.userData?.theme?.quality ?? null,
+        spacing: asset.scene?.spacing ?? model.userData?.theme?.spacing ?? 1,
+        groundPadding:
+          asset.scene?.groundPadding ??
+          model.userData?.theme?.groundPadding ??
+          0.6,
+        propScale:
+          asset.scene?.propScale ?? model.userData?.theme?.propScale ?? 1,
         theme: asset.scene?.theme ||
           model.userData?.theme || {
             style: asset.style ?? "lowpoly",

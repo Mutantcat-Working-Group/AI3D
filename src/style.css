@@ -1835,6 +1835,29 @@ dialog .muted {
   gap: 6px;
   margin-bottom: 8px;
 }
+.gen-kit-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gen-kit-options label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.gen-kit-options input {
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-family: inherit;
+}
 .gen-kit .primary-button {
   margin-top: 2px;
 }

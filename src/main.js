@@ -218,6 +218,12 @@ app.innerHTML = `${SPRITE}
     <div class="gen-kit">
       <div class="gen-types-title">${T("gen.kit")}</div>
       <div id="gen-kits" class="gen-kit-chips"></div>
+      <div class="gen-kit-options">
+        <label>${T("gen.sceneDetail")}<input type="number" id="gen-kit-segments" min="6" max="32" step="1" value="12"></label>
+        <label>${T("gen.sceneSpacing")}<input type="number" id="gen-kit-spacing" min="0.5" max="2" step="0.05" value="1"></label>
+        <label>${T("gen.sceneGround")}<input type="number" id="gen-kit-ground" min="0" max="3" step="0.05" value="0.6"></label>
+        <label>${T("gen.scenePropScale")}<input type="number" id="gen-kit-prop-scale" min="0.25" max="3" step="0.05" value="1"></label>
+      </div>
       <button id="gen-compose" class="primary-button">${icon("scene")}<span>${T("gen.compose")}</span></button>
       <button id="gen-scene-pack" class="quiet" hidden>${icon("download")}<span>${T("gen.exportScenePack")}</span></button>
     </div>
@@ -2512,17 +2518,26 @@ const assetLibrary = {
 assetLibrary.load();
 
 function modelFromAssetRecord(asset, { preview = false } = {}) {
+  const theme = asset.scene?.theme || asset.theme || {};
   const segments = preview ? Math.min(asset.segments || 8, 8) : asset.segments;
   return asset.kind === "scene"
     ? composeGameKit(asset.type, {
         seed: asset.seed ?? 1,
-        segments: segments ?? 12,
-        quality: asset.quality ?? 1,
-        style: asset.style ?? "lowpoly",
-        color: asset.color || null,
-        material: asset.material || null,
-        texture: asset.texture ?? "auto",
-        textureStrength: asset.textureStrength ?? 0.8,
+        segments: segments ?? theme.segments ?? 12,
+        quality: asset.quality ?? asset.scene?.quality ?? theme.quality ?? 1,
+        spacing: asset.spacing ?? asset.scene?.spacing ?? theme.spacing ?? 1,
+        groundPadding:
+          asset.groundPadding ??
+          asset.scene?.groundPadding ??
+          theme.groundPadding ??
+          0.6,
+        propScale:
+          asset.propScale ?? asset.scene?.propScale ?? theme.propScale ?? 1,
+        style: asset.style ?? theme.style ?? "lowpoly",
+        color: asset.color || theme.color || null,
+        material: asset.material || theme.material || null,
+        texture: asset.texture ?? theme.texture ?? "auto",
+        textureStrength: asset.textureStrength ?? theme.textureStrength ?? 0.8,
       })
     : generateThreeAsset(asset.type, {
         size: asset.size,
@@ -3086,6 +3101,12 @@ async function downloadGenPack() {
     seed: genState.model.seed ?? null,
     size: genState.model.size ?? 1,
     segments: genState.model.segments ?? 16,
+    spacing: genState.model.spacing ?? genState.model.scene?.spacing ?? 1,
+    groundPadding:
+      genState.model.groundPadding ??
+      genState.model.scene?.groundPadding ??
+      0.6,
+    propScale: genState.model.propScale ?? genState.model.scene?.propScale ?? 1,
     style: genState.model.style ?? "lowpoly",
     color: genState.model.color || null,
     material: genState.model.material || null,
@@ -3143,6 +3164,20 @@ function renderGenKitChips() {
     .join("");
 }
 
+function readGenKitOptions() {
+  const read = (selector, fallback, min, max) => {
+    const value = Number($(selector)?.value);
+    if (!Number.isFinite(value)) return fallback;
+    return Math.min(max, Math.max(min, value));
+  };
+  return {
+    segments: Math.round(read("#gen-kit-segments", 12, 6, 32)),
+    spacing: read("#gen-kit-spacing", 1, 0.5, 2),
+    groundPadding: read("#gen-kit-ground", 0.6, 0, 3),
+    propScale: read("#gen-kit-prop-scale", 1, 0.25, 3),
+  };
+}
+
 function composeGameKitScene(kitId) {
   if (genState.generating) return;
   genState.generating = true;
@@ -3157,6 +3192,7 @@ function composeGameKitScene(kitId) {
     const style = $("#gen-style").value;
     const color = $("#gen-color").value;
     const material = readMaterialSettings();
+    const kitOptions = readGenKitOptions();
     const scene = composeGameKit(kitId, {
       seed,
       style,
@@ -3164,6 +3200,7 @@ function composeGameKitScene(kitId) {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      ...kitOptions,
     });
     const stats = getAssetStats(scene);
     genState.model = {
@@ -3179,11 +3216,19 @@ function composeGameKitScene(kitId) {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
-      segments: scene.userData.theme.segments ?? 12,
+      segments: scene.userData.theme.segments ?? kitOptions.segments,
       quality: scene.userData.theme.quality ?? 1,
+      spacing: scene.userData.theme.spacing ?? kitOptions.spacing,
+      groundPadding:
+        scene.userData.theme.groundPadding ?? kitOptions.groundPadding,
+      propScale: scene.userData.theme.propScale ?? kitOptions.propScale,
       tags: ["scene", kitId],
       scene: {
         quality: scene.userData.theme.quality ?? 1,
+        spacing: scene.userData.theme.spacing ?? kitOptions.spacing,
+        groundPadding:
+          scene.userData.theme.groundPadding ?? kitOptions.groundPadding,
+        propScale: scene.userData.theme.propScale ?? kitOptions.propScale,
         groundColor: scene.userData.groundColor ?? null,
         theme: scene.userData.theme,
         props: scene.userData.propList || [],
@@ -3421,6 +3466,12 @@ function loadAsset(id) {
   if (asset.kind === "scene") {
     genState.model.scene = {
       quality: asset.scene?.quality ?? model.userData.theme?.quality ?? 1,
+      spacing: asset.scene?.spacing ?? model.userData.theme?.spacing ?? 1,
+      groundPadding:
+        asset.scene?.groundPadding ??
+        model.userData.theme?.groundPadding ??
+        0.6,
+      propScale: asset.scene?.propScale ?? model.userData.theme?.propScale ?? 1,
       groundColor:
         asset.scene?.groundColor ?? model.userData.groundColor ?? null,
       theme: model.userData.theme || asset.scene?.theme || null,

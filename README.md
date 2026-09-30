@@ -93,7 +93,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 280 unit and integration tests
+npm test             # 281 unit and integration tests
 npm run test:browser # 78 real-Chromium tests
 ```
 
