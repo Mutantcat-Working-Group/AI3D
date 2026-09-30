@@ -147,13 +147,23 @@ export class AssetPreview {
     const box = new THREE.Box3().setFromObject(this.model);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z, 1e-4);
-    this.camera.position
-      .set(2.6, 1.8, 3.4)
-      .sub(center)
-      .multiplyScalar(2.2 / maxDim);
-    this.camera.lookAt(center);
+    // The turntable spins the model, so the bounding sphere is the honest
+    // measure of the room the asset needs from any angle.
+    const radius = Math.max(size.length() / 2, 1e-4);
+    // The old code scaled a fixed direction vector by 2.2, which put the
+    // camera 2.2 * |(2.6, 1.8, 3.4)| away instead of 2.2, and ignored the
+    // field of view entirely. On the wide preview strip that left the asset
+    // a few pixels tall in the middle of the frame. Frame against the
+    // tighter of the two FOV axes so the model actually fills the stage.
+    this.resize();
+    const vFov = THREE.MathUtils.degToRad(this.camera.fov);
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect);
+    const fov = Math.min(vFov, hFov);
+    const distance = (radius / Math.sin(fov / 2)) * 1.12;
+    const direction = new THREE.Vector3(2.6, 1.8, 3.4).normalize();
     this.model.position.copy(center).multiplyScalar(-1);
+    this.camera.position.copy(direction).multiplyScalar(distance);
+    this.camera.lookAt(0, 0, 0);
   }
 
   frame() {
