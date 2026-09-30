@@ -462,6 +462,7 @@ export default {
   "gen.compose": "シーンを合成",
   "gen.composing": "シーンを合成中...",
   "gen.sceneReady": "シーンの準備ができました",
+  "gen.exportScenePack": "シーンパックをエクスポート",
   "gen.settings": "エクスポート設定",
   "gen.units": "単位",
   "gen.unitsMeters": "メートル",

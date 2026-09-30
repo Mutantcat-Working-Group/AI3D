@@ -219,6 +219,7 @@ app.innerHTML = `${SPRITE}
       <div class="gen-types-title">${T("gen.kit")}</div>
       <div id="gen-kits" class="gen-kit-chips"></div>
       <button id="gen-compose" class="primary-button">${icon("scene")}<span>${T("gen.compose")}</span></button>
+      <button id="gen-scene-pack" class="quiet" hidden>${icon("download")}<span>${T("gen.exportScenePack")}</span></button>
     </div>
     <div class="gen-form">
       <label>${T("gen.prompt")}</label>
@@ -2510,6 +2511,31 @@ const assetLibrary = {
 
 assetLibrary.load();
 
+function modelFromAssetRecord(asset, { preview = false } = {}) {
+  const segments = preview ? Math.min(asset.segments || 8, 8) : asset.segments;
+  return asset.kind === "scene"
+    ? composeGameKit(asset.type, {
+        seed: asset.seed ?? 1,
+        segments: segments ?? 12,
+        quality: asset.quality ?? 1,
+        style: asset.style ?? "lowpoly",
+        color: asset.color || null,
+        material: asset.material || null,
+        texture: asset.texture ?? "auto",
+        textureStrength: asset.textureStrength ?? 0.8,
+      })
+    : generateThreeAsset(asset.type, {
+        size: asset.size,
+        segments: asset.segments,
+        style: asset.style,
+        color: asset.color || null,
+        seed: asset.seed ?? null,
+        material: asset.material || null,
+        texture: asset.texture ?? "auto",
+        textureStrength: asset.textureStrength ?? 0.8,
+      });
+}
+
 function setGenStatus(message, type = "") {
   const status = $("#gen-status");
   status.textContent = message;
@@ -3052,7 +3078,10 @@ async function downloadGenPack() {
   const asset = {
     id: genState.model.id || `${genState.model.type}-${Date.now()}`,
     name: genState.model.name || null,
+    kind: genState.model.kind || "asset",
     type: genState.model.type,
+    scene:
+      genState.model.kind === "scene" ? genState.model.scene || null : null,
     favorite: genState.model.favorite ?? false,
     seed: genState.model.seed ?? null,
     size: genState.model.size ?? 1,
@@ -3125,15 +3154,40 @@ function composeGameKitScene(kitId) {
       seedInput === ""
         ? Math.floor(Math.random() * 1_000_000)
         : Math.max(0, Math.floor(Number(seedInput) || 0));
-    const scene = composeGameKit(kitId, { seed });
+    const style = $("#gen-style").value;
+    const color = $("#gen-color").value;
+    const material = readMaterialSettings();
+    const scene = composeGameKit(kitId, {
+      seed,
+      style,
+      color,
+      material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
+    });
     const stats = getAssetStats(scene);
     genState.model = {
       type: kitId,
       kind: "scene",
+      id: `${kitId}-${seed}`,
+      name: t(GEN_KIT_KEYS[kitId]),
+      prompt: t(GEN_KIT_KEYS[kitId]),
       threeObject: scene,
-      color: null,
+      color,
       seed,
-      material: null,
+      style,
+      material,
+      texture: material.texture,
+      textureStrength: material.textureStrength,
+      segments: scene.userData.theme.segments ?? 12,
+      quality: scene.userData.theme.quality ?? 1,
+      tags: ["scene", kitId],
+      scene: {
+        quality: scene.userData.theme.quality ?? 1,
+        groundColor: scene.userData.groundColor ?? null,
+        theme: scene.userData.theme,
+        props: scene.userData.propList || [],
+      },
     };
     genState.originalModel = null;
     genState.lods = [];
@@ -3141,6 +3195,7 @@ function composeGameKitScene(kitId) {
     setGenOptimizePanel(false);
     setGenExportPanel(false);
     setGenActions(true);
+    updateGenScenePackButton();
     setGenStatus(
       `${t("gen.sceneReady")} (${scene.userData.props} ${t("gen.parts")} · ${stats.triangles} ${t("gen.triangles")})`,
       "ok",
@@ -3151,6 +3206,11 @@ function composeGameKitScene(kitId) {
   } finally {
     genState.generating = false;
   }
+}
+
+function updateGenScenePackButton() {
+  const button = $("#gen-scene-pack");
+  if (button) button.hidden = genState.model?.kind !== "scene";
 }
 
 $("#gen-generate").addEventListener("click", generateAsset);
@@ -3220,6 +3280,7 @@ $("#gen-kits").addEventListener("click", (e) => {
 $("#gen-compose").addEventListener("click", () =>
   composeGameKitScene(selectedGenKit),
 );
+$("#gen-scene-pack").addEventListener("click", downloadGenPack);
 
 // --- Generated asset preview ---
 const genPreviewStage = $("#gen-preview-stage");
@@ -3318,21 +3379,12 @@ function renderAssetPreview(asset) {
   const container = document.querySelector(`[data-preview="${asset.id}"]`);
   if (!container) return;
   try {
-    const model = generateThreeAsset(asset.type, {
-      size: asset.size,
-      segments: Math.min(asset.segments || 8, 8), // Low segments for preview
-      style: asset.style,
-      color: asset.color || null,
-      seed: asset.seed ?? null,
-      material: asset.material || null,
-      texture: asset.texture ?? "auto",
-      textureStrength: asset.textureStrength ?? 0.8,
-    });
+    const model = modelFromAssetRecord(asset, { preview: true });
     const dataUrl = renderAssetThumbnail(model, 120, 90);
     if (dataUrl) {
       const img = document.createElement("img");
       img.src = dataUrl;
-      img.alt = asset.type;
+      img.alt = asset.name || asset.type;
       img.className = "gen-asset-thumbnail";
       container.appendChild(img);
     } else {
@@ -3364,23 +3416,28 @@ function saveCurrentAsset() {
 function loadAsset(id) {
   const asset = assetLibrary.assets.find((a) => a.id === id);
   if (!asset) return;
-  const model = generateThreeAsset(asset.type, {
-    size: asset.size,
-    segments: asset.segments,
-    style: asset.style,
-    color: asset.color || null,
-    seed: asset.seed ?? null,
-    material: asset.material || null,
-    texture: asset.texture ?? "auto",
-    textureStrength: asset.textureStrength ?? 0.8,
-  });
+  const model = modelFromAssetRecord(asset);
   genState.model = { ...asset, threeObject: model };
-  genState.originalModel = cloneModelDeep(model);
+  if (asset.kind === "scene") {
+    genState.model.scene = {
+      quality: asset.scene?.quality ?? model.userData.theme?.quality ?? 1,
+      groundColor:
+        asset.scene?.groundColor ?? model.userData.groundColor ?? null,
+      theme: model.userData.theme || asset.scene?.theme || null,
+      props: Array.isArray(asset.scene?.props)
+        ? asset.scene.props
+        : model.userData.propList || [],
+    };
+    genState.originalModel = null;
+  } else {
+    genState.originalModel = cloneModelDeep(model);
+  }
   genState.lods = [];
   genState.activeLod = 0;
   setGenOptimizePanel(false);
   setGenStatus(t("gen.applied"), "ok");
   setGenActions(true);
+  updateGenScenePackButton();
   syncGenPreview();
 }
 
@@ -3430,17 +3487,8 @@ async function batchExportAssets() {
   try {
     for (let i = 0; i < assets.length; i++) {
       const asset = assets[i];
-      const model = generateThreeAsset(asset.type, {
-        size: asset.size,
-        segments: asset.segments,
-        style: asset.style,
-        color: asset.color || null,
-        seed: asset.seed ?? null,
-        material: asset.material || null,
-        texture: asset.texture ?? "auto",
-        textureStrength: asset.textureStrength ?? 0.8,
-      });
-      const baseName = `asset-${asset.type}-${asset.id.slice(0, 8)}`;
+      const model = modelFromAssetRecord(asset);
+      const baseName = `${asset.kind === "scene" ? "scene" : "asset"}-${asset.type}-${asset.id.slice(0, 8)}`;
       if (withLod) {
         const lods = generateLOD(model, 4);
         for (const lod of lods) {
@@ -3503,16 +3551,8 @@ async function exportLibraryPack() {
   try {
     const packAssets = await Promise.all(
       assets.map(async (asset) => {
-        const model = generateThreeAsset(asset.type, {
-          size: asset.size,
-          segments: asset.segments,
-          style: asset.style,
-          color: asset.color || null,
-          seed: asset.seed ?? null,
-          material: asset.material || null,
-          texture: asset.texture ?? "auto",
-          textureStrength: asset.textureStrength ?? 0.8,
-        });
+        const isScene = asset.kind === "scene";
+        const model = modelFromAssetRecord(asset);
         const selectedAnimations = selectAnimations(model, animationChoice);
         const animations = selectedAnimations.map((clip) => ({
           name: clip.name,
@@ -3528,7 +3568,7 @@ async function exportLibraryPack() {
         let collision = null;
         let colliderBytes = null;
         const collisionShape =
-          collisionChoice === "none"
+          collisionChoice === "none" || (isScene && collisionChoice === "auto")
             ? null
             : collisionChoice === "auto"
               ? getColliderShape(asset.type)
@@ -3550,6 +3590,17 @@ async function exportLibraryPack() {
           : null;
         return {
           ...asset,
+          kind: isScene ? "scene" : asset.kind || "asset",
+          scene: isScene
+            ? asset.scene || {
+                kit: asset.type,
+                seed: asset.seed ?? null,
+                groundColor: model.userData?.groundColor ?? null,
+                quality: asset.quality ?? model.userData?.theme?.quality ?? 1,
+                theme: model.userData?.theme || null,
+                props: model.userData?.propList || [],
+              }
+            : null,
           stats: getAssetStats(model),
           glbBytes,
           thumbnailBytes,

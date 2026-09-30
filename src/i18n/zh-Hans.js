@@ -437,6 +437,7 @@ export default {
   "gen.compose": "合成场景",
   "gen.composing": "场景合成中...",
   "gen.sceneReady": "场景已就绪",
+  "gen.exportScenePack": "导出场景包",
   "gen.settings": "导出设置",
   "gen.units": "单位",
   "gen.unitsMeters": "米",

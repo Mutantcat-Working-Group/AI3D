@@ -408,6 +408,128 @@ test("game kits include battle, wilderness and town presets", () => {
   }
 });
 
+test("game kits apply the chosen theme to every prop", () => {
+  const material = { roughness: 0.2, metalness: 0.85, emissive: null };
+  const scene = composeGameKit("dungeon", {
+    seed: 5,
+    style: "realistic",
+    color: "#2b3a4a",
+    material,
+    texture: "metal",
+    textureStrength: 0.9,
+  });
+  assert.deepEqual(scene.userData.theme, {
+    style: "realistic",
+    color: "#2b3a4a",
+    material,
+    texture: "metal",
+    textureStrength: 0.9,
+    segments: 12,
+    quality: 1,
+  });
+  assert.equal(scene.userData.propList.length, 9);
+  const prop = scene.children.find((child) =>
+    child.name.startsWith("dungeon-"),
+  );
+  assert.ok(prop, "kit props stay direct children");
+  let seen = 0;
+  prop.traverse((child) => {
+    if (!child.isMesh) return;
+    seen += 1;
+    const mat = Array.isArray(child.material)
+      ? child.material[0]
+      : child.material;
+    assert.equal(mat.roughness, 0.2);
+    assert.equal(mat.metalness, 0.85);
+    assert.ok(mat.map, "prop receives the chosen procedural texture");
+  });
+  assert.ok(seen > 0);
+  const groundMat = firstMesh(scene).material;
+  assert.equal(groundMat.roughness, 0.2);
+  assert.ok(groundMat.map, "ground follows the scene theme");
+});
+
+test("exportGamePack exports composed scenes with props and theme", async () => {
+  const scene = composeGameKit("camp", {
+    seed: 8,
+    style: "realistic",
+    color: "#3c2f2a",
+    material: { roughness: 0.4, metalness: 0.3, emissive: null },
+    texture: "wood",
+    textureStrength: 0.75,
+  });
+  const zip = await exportGamePack({
+    model: scene,
+    asset: {
+      kind: "scene",
+      id: "camp-scene",
+      name: "Camp Scene",
+      type: "camp",
+      seed: 8,
+      style: "realistic",
+      color: "#3c2f2a",
+      material: { roughness: 0.4, metalness: 0.3, emissive: null },
+      texture: "wood",
+      textureStrength: 0.75,
+      scene: {
+        groundColor: scene.userData.groundColor,
+        quality: 1,
+        theme: scene.userData.theme,
+        props: scene.userData.propList,
+      },
+    },
+    engine: "unity",
+    exportedAt: "2026-09-30T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.equal(manifest.assets[0].kind, "scene");
+  assert.equal(manifest.assets[0].scene.kit, "camp");
+  assert.equal(manifest.assets[0].scene.props.length, 9);
+  assert.equal(manifest.assets[0].scene.theme.style, "realistic");
+  assert.equal(manifest.assets[0].scene.theme.texture, "wood");
+  assert.equal(manifest.assets[0].collision, null);
+  assert.ok(files["models/camp-scene/LOD0.glb"]);
+  const readme = new TextDecoder().decode(files["README.md"]);
+  assert.ok(readme.includes("Camp Scene"));
+  assert.ok(readme.includes("house"));
+});
+
+test("buildGamePackFiles records saved scene library assets", () => {
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        kind: "scene",
+        id: "town-scene-1",
+        name: "Town Kit",
+        type: "town",
+        tags: ["scene", "town"],
+        scene: {
+          kit: "town",
+          seed: 9,
+          quality: 1,
+          theme: { style: "stylized", texture: "stone" },
+          props: [
+            { type: "house", size: 1.1 },
+            { type: "tower", size: 0.95 },
+          ],
+        },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-30T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.equal(manifest.assets[0].kind, "scene");
+  assert.equal(manifest.assets[0].scene.props.length, 2);
+  assert.equal(manifest.assets[0].scene.theme.style, "stylized");
+  assert.deepEqual(manifest.assets[0].tags, ["scene", "town"]);
+  assert.ok(files["models/town-scene-1/LOD0.glb"]);
+});
+
 test("scene export options wrap without mutating the original", async () => {
   const scene = composeGameKit("camp", { seed: 3 });
   const before = modelFingerprint(scene);

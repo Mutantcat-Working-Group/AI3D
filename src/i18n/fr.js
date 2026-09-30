@@ -474,6 +474,7 @@ export default {
   "gen.compose": "Composer la scène",
   "gen.composing": "Composition de la scène...",
   "gen.sceneReady": "Scène prête",
+  "gen.exportScenePack": "Exporter le pack de scène",
   "gen.settings": "Paramètres d'exportation",
   "gen.units": "Unités",
   "gen.unitsMeters": "Mètres",

@@ -437,6 +437,7 @@ export default {
   "gen.compose": "合成場景",
   "gen.composing": "場景合成中...",
   "gen.sceneReady": "場景已就緒",
+  "gen.exportScenePack": "匯出場景包",
   "gen.settings": "匯出設定",
   "gen.units": "單位",
   "gen.unitsMeters": "公尺",

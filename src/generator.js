@@ -989,10 +989,24 @@ const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
  * @param {number} options.seed - Deterministic arrangement seed
  * @param {number} options.segments - Mesh segment budget shared by props
  * @param {number} options.quality - 1 places 3x3 props, 2 adds a wider ground
+ * @param {string} options.style - Material style passed to every prop
+ * @param {string} options.color - Hex colour passed to every prop
+ * @param {object} options.material - Material overrides passed to every prop
+ * @param {string} options.texture - Procedural texture preset or "auto"/"none"
+ * @param {number} options.textureStrength - Procedural texture strength 0..1
  */
 export function composeGameKit(
   kit,
-  { seed = 1, segments = 12, quality = 1 } = {},
+  {
+    seed = 1,
+    segments = 12,
+    quality = 1,
+    style = "lowpoly",
+    color = null,
+    material = null,
+    texture = "auto",
+    textureStrength = 0.8,
+  } = {},
 ) {
   const def = GAME_KITS[kit];
   if (!def) throw new Error(`Unknown game kit: ${kit}`);
@@ -1000,6 +1014,16 @@ export function composeGameKit(
   const group = new THREE.Group();
   group.name = `kit-${kit}`;
   group.userData.kit = kit;
+  group.userData.groundColor = def.groundColor;
+  group.userData.theme = {
+    style,
+    color,
+    material,
+    texture,
+    textureStrength,
+    segments,
+    quality,
+  };
 
   const grid = 3;
   const cell = 2.4;
@@ -1007,6 +1031,9 @@ export function composeGameKit(
   const positions = [];
   const groundW = cell + 1.2;
   const groundD = cell + 1.2;
+  const groundStyle = STYLE_MATERIALS[style] || KIT_STYLE;
+  const ground = new THREE.Group();
+  ground.name = "ground";
 
   // Ground pavers with a deterministic per-tile tint so the floor reads as
   // built terrain instead of a flat colour.
@@ -1021,19 +1048,27 @@ export function composeGameKit(
             0,
             (rng() - 0.5) * 0.06,
           ),
-          ...KIT_STYLE,
+          ...groundStyle,
         }),
       );
-      tile.name = "ground";
+      tile.name = "ground-tile";
       tile.position.set(
         -groundW / 2 + groundW / tiles / 2 + i * (groundW / tiles),
         0.03,
         -groundD / 2 + groundD / tiles / 2 + j * (groundD / tiles),
       );
-      group.add(tile);
+      ground.add(tile);
     }
   }
+  applyMaterialOverrides(ground, material);
+  applyProceduralTextureSet(ground, kit, {
+    texture,
+    strength: textureStrength,
+    seed,
+  });
+  group.add(ground);
 
+  const propList = [];
   def.props.forEach((prop, index) => {
     const row = Math.floor(index / grid);
     const col = index % grid;
@@ -1042,15 +1077,27 @@ export function composeGameKit(
     const jitter = 0.16 * cell;
     const x = baseX + (rng() - 0.5) * jitter;
     const z = baseZ + (rng() - 0.5) * jitter;
+    const propSeed = Math.floor(rng() * 100000);
     const model = generateAsset(prop.type, {
       size: prop.size,
       segments,
-      style: "lowpoly",
-      seed: Math.floor(rng() * 100000),
+      style,
+      color,
+      seed: propSeed,
+      material,
+      texture,
+      textureStrength,
     });
     model.name = `${kit}-${prop.type}-${index + 1}`;
     model.traverse((child) => {
       if (child.isMesh) child.name = `${model.name}-${child.name}`;
+    });
+    propList.push({
+      type: prop.type,
+      size: prop.size,
+      seed: propSeed,
+      x: Math.round(x * 1000) / 1000,
+      z: Math.round(z * 1000) / 1000,
     });
     // Generated assets are centered on their origin, so lift each prop until
     // its lowest vertex rests on the ground instead of sinking into it.
@@ -1067,6 +1114,7 @@ export function composeGameKit(
   const center = box.getCenter(new THREE.Vector3());
   group.position.sub(center);
   group.userData.props = positions.length;
+  group.userData.propList = propList;
   group.userData.extent = {
     width: box.max.x - box.min.x,
     depth: box.max.z - box.min.z,
@@ -3718,13 +3766,35 @@ function sanitiseAssetName(name, fallback) {
   return cleaned || fallback;
 }
 
-function engineReadme(preset, count) {
-  const heading =
+function engineReadme(preset, records) {
+  const count = records.length;
+  let heading =
     "# AI3D game engine pack\n" +
     "\u8fd9\u4e2a\u5305\u5305\u542b\u53ef\u76f4\u63a5\u5bfc\u5165\u4e3b\u6d41\u6e38\u620f\u5f15\u64ce\u7684\u6a21\u578b\u3001\u7f29\u7565\u56fe\u548c\u6e05\u5355\u3002\n" +
     "\n" +
     `Engine preset: ${preset.name} (${preset.upAxis}-up, ${preset.scale}x, ${preset.units})\n` +
     `Assets: ${count}\n`;
+
+  const scenes = records.filter(
+    (record) => record.kind === "scene" && record.scene,
+  );
+  if (scenes.length > 0) {
+    heading += `Scenes: ${scenes.length}\n`;
+    for (const scene of scenes) {
+      const props = Array.isArray(scene.scene.props) ? scene.scene.props : [];
+      heading +=
+        `\n## ${scene.name}\n` +
+        `Kit: ${scene.scene.kit} - Seed: ${scene.scene.seed ?? "random"} - Props: ${props.length}\n`;
+      if (props.length > 0) {
+        heading +=
+          props
+            .map(
+              (prop) => `- ${prop.type}${prop.size ? ` (${prop.size}x)` : ""}`,
+            )
+            .join("\n") + "\n";
+      }
+    }
+  }
 
   const unity =
     "\n## Unity\n" +
@@ -3751,6 +3821,25 @@ function engineReadme(preset, count) {
   return `${heading}${unity}${china}`;
 }
 
+/** Build the manifest block for a composed scene pack. */
+function buildSceneRecord(asset) {
+  return {
+    kit: asset.type,
+    seed: asset.seed ?? null,
+    groundColor: asset.scene?.groundColor ?? null,
+    quality: asset.scene?.quality ?? null,
+    theme: asset.scene?.theme ||
+      (asset.theme ?? null) || {
+        style: asset.style ?? "lowpoly",
+        color: asset.color || null,
+        material: asset.material || null,
+        texture: asset.texture ?? "auto",
+        textureStrength: asset.textureStrength ?? 0.8,
+      },
+    props: Array.isArray(asset.scene?.props) ? asset.scene.props : [],
+  };
+}
+
 /**
  * Assemble a game engine import pack from already-converted files. The GLB
  * conversion is separate so tests and CLI pipelines can hand in bytes without
@@ -3767,6 +3856,7 @@ export function buildGamePackFiles({
   const records = assets.map((asset) => {
     const slug = assetSlug(asset.id || asset.type);
     const name = sanitiseAssetName(asset.name, slug);
+    const isScene = asset.kind === "scene";
     const stats = asset.stats || {
       triangles: 0,
       vertices: 0,
@@ -3776,6 +3866,7 @@ export function buildGamePackFiles({
     return {
       id: asset.id || `${asset.type}-${slug}`,
       name,
+      kind: isScene ? "scene" : asset.kind || "asset",
       type: asset.type,
       animations: Array.isArray(asset.animations) ? asset.animations : [],
       favorite: asset.favorite ?? false,
@@ -3787,7 +3878,12 @@ export function buildGamePackFiles({
       material: asset.material || null,
       texture: asset.texture || null,
       textureStrength: asset.textureStrength ?? 0.8,
-      tags: getAssetTags(asset.type),
+      tags: isScene
+        ? Array.isArray(asset.tags)
+          ? asset.tags
+          : ["scene", asset.type]
+        : getAssetTags(asset.type),
+      scene: isScene ? buildSceneRecord(asset) : null,
       stats,
       collision: asset.collision || null,
       lodLevels: asset.lodLevels
@@ -3844,7 +3940,7 @@ export function buildGamePackFiles({
       2,
     ),
   );
-  files["README.md"] = encoder.encode(engineReadme(preset, records.length));
+  files["README.md"] = encoder.encode(engineReadme(preset, records));
 
   for (const asset of assets) {
     const slug = assetSlug(asset.id || asset.type);
@@ -3889,7 +3985,32 @@ export async function exportGamePack({
 }) {
   const preset = getEnginePreset(engine);
   const options = { upAxis: preset.upAxis, scale: preset.scale };
-  const textureInfo = getAssetTextureInfo(asset, asset.seed ?? null);
+  const isScene = asset.kind === "scene";
+  const textureInfo = isScene
+    ? null
+    : getAssetTextureInfo(asset, asset.seed ?? null);
+  const sceneMeta = isScene
+    ? {
+        kit: asset.type,
+        seed: asset.seed ?? null,
+        groundColor:
+          asset.scene?.groundColor ?? model.userData?.groundColor ?? null,
+        quality: asset.scene?.quality ?? model.userData?.theme?.quality ?? null,
+        theme: asset.scene?.theme ||
+          model.userData?.theme || {
+            style: asset.style ?? "lowpoly",
+            color: asset.color || null,
+            material: asset.material || null,
+            texture: asset.texture ?? "auto",
+            textureStrength: asset.textureStrength ?? 0.8,
+          },
+        props: Array.isArray(asset.scene?.props)
+          ? asset.scene.props
+          : Array.isArray(model.userData?.propList)
+            ? model.userData.propList
+            : [],
+      }
+    : null;
   const selectedAnimations = selectAnimations(model, animation);
   const animationInfo = selectedAnimations.map((clip) => ({
     name: clip.name,
@@ -3901,7 +4022,7 @@ export async function exportGamePack({
   let colliderBytes = null;
 
   const collisionShape =
-    collision && collision !== "none"
+    collision && collision !== "none" && !(isScene && collision === "auto")
       ? collision === "auto"
         ? getColliderShape(asset.type)
         : collision
@@ -3954,6 +4075,8 @@ export async function exportGamePack({
   const thumbnailBytes = pngDataUrlToBytes(thumbnailDataUrl);
   const packAsset = {
     ...asset,
+    kind: isScene ? "scene" : asset.kind || "asset",
+    scene: sceneMeta,
     stats: getAssetStats(model),
     lodLevels,
     glbBytes,
@@ -3978,30 +4101,41 @@ export async function exportGamePack({
  * @returns {string} Manifest content
  */
 export function exportAssetManifest(assets, format = "json") {
-  const records = assets.map((asset, index) => ({
-    id: asset.id || `asset-${index}`,
-    name: asset.name || null,
-    type: asset.type,
-    favorite: asset.favorite ?? false,
-    seed: asset.seed ?? null,
-    size: asset.size ?? 1,
-    segments: asset.segments ?? 16,
-    style: asset.style ?? "lowpoly",
-    color: asset.color || null,
-    roughness: asset.material?.roughness ?? null,
-    metalness: asset.material?.metalness ?? null,
-    emissive: asset.material?.emissive ?? null,
-    triangles: asset.stats?.triangles ?? null,
-    vertices: asset.stats?.vertices ?? null,
-    parts: asset.stats?.parts ?? null,
-    tags: getAssetTags(asset.type),
-    lodLevels: asset.lodLevels
-      ? asset.lodLevels.map((l) => ({
-          level: l.level,
-          triangles: l.triangles,
-        }))
-      : null,
-  }));
+  const records = assets.map((asset, index) => {
+    const isScene = asset.kind === "scene";
+    return {
+      id: asset.id || `asset-${index}`,
+      name: asset.name || null,
+      kind: isScene ? "scene" : asset.kind || "asset",
+      type: asset.type,
+      favorite: asset.favorite ?? false,
+      seed: asset.seed ?? null,
+      size: asset.size ?? 1,
+      segments: asset.segments ?? 16,
+      style: asset.style ?? "lowpoly",
+      color: asset.color || null,
+      roughness: asset.material?.roughness ?? null,
+      metalness: asset.material?.metalness ?? null,
+      emissive: asset.material?.emissive ?? null,
+      texture: asset.texture ?? "auto",
+      textureStrength: asset.textureStrength ?? 0.8,
+      scene: isScene ? asset.scene || null : null,
+      triangles: asset.stats?.triangles ?? null,
+      vertices: asset.stats?.vertices ?? null,
+      parts: asset.stats?.parts ?? null,
+      tags: isScene
+        ? Array.isArray(asset.tags)
+          ? asset.tags
+          : ["scene", asset.type]
+        : getAssetTags(asset.type),
+      lodLevels: asset.lodLevels
+        ? asset.lodLevels.map((l) => ({
+            level: l.level,
+            triangles: l.triangles,
+          }))
+        : null,
+    };
+  });
 
   if (format === "csv") {
     const headers = [
@@ -4014,6 +4148,9 @@ export function exportAssetManifest(assets, format = "json") {
       "segments",
       "style",
       "color",
+      "kind",
+      "texture",
+      "textureStrength",
       "roughness",
       "metalness",
       "emissive",
@@ -4025,7 +4162,8 @@ export function exportAssetManifest(assets, format = "json") {
     ];
     const escape = (value) => {
       if (value === null || value === undefined) return "";
-      const str = String(value);
+      const str =
+        typeof value === "object" ? JSON.stringify(value) : String(value);
       if (str.includes(",") || str.includes('"') || str.includes("\n")) {
         return `"${str.replace(/"/g, '""')}"`;
       }
