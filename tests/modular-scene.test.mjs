@@ -8,6 +8,9 @@ import {
   exportGamePack,
   normalizeModularOptions,
   MODULAR_SCENE_PRESETS,
+  editSceneProp,
+  removeSceneProp,
+  addSceneProp,
 } from "../src/generator.js";
 
 function bounds(model) {
@@ -195,4 +198,48 @@ test("modular scene options clamp like modular pieces", () => {
   });
   assert.equal(scene.userData.modular.cell, 20);
   assert.ok(getAssetStats(scene).triangles > 0);
+});
+
+test("modular scene props can be edited, added and removed", () => {
+  const scene = composeModularScene("courtyard", {
+    seed: 11,
+    modular: presetOptions.courtyard,
+  });
+  const floorY = scene.userData.floorY;
+  assert.ok(floorY > 0, "modular scenes should know their floor height");
+
+  const edited = editSceneProp(scene, 0, { type: "tower", size: 1.5 });
+  const editedModel = scene.children.find(
+    (child) => child.name === edited.name,
+  );
+  assert.ok(editedModel, "edited prop should stay in the scene");
+  const localBaseY = (model) => bounds(model).min.y - scene.position.y;
+  assert.ok(
+    localBaseY(editedModel) >= floorY - 1e-6,
+    "edited props should rest on the modular floor",
+  );
+
+  const added = addSceneProp(scene, {
+    type: "crate",
+    size: 0.9,
+    x: 2,
+    z: 0,
+    seed: 7,
+  });
+  const addedModel = scene.children.find((child) => child.name === added.name);
+  assert.ok(addedModel, "added prop should appear in the scene");
+  assert.ok(
+    localBaseY(addedModel) >= floorY - 1e-6,
+    "added props should sit on the modular floor",
+  );
+
+  const removed = removeSceneProp(scene, 0);
+  assert.ok(removed);
+  const saved = scene.userData.propList.map((prop) => ({ ...prop }));
+  const rebuilt = composeModularScene("courtyard", {
+    seed: 99,
+    modular: presetOptions.courtyard,
+    props: saved,
+  });
+  assert.deepEqual(rebuilt.userData.propList, saved);
 });

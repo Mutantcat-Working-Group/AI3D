@@ -3520,11 +3520,7 @@ function renderGenPropEditor() {
   const editor = $("#gen-prop-editor");
   if (!editor) return;
   const props = getSceneProps();
-  if (
-    genState.model?.kind !== "scene" ||
-    genState.model?.scene?.sceneKind === "modular-scene" ||
-    props.length === 0
-  ) {
+  if (genState.model?.kind !== "scene" || props.length === 0) {
     editor.hidden = true;
     return;
   }

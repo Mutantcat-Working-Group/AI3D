@@ -1535,6 +1535,7 @@ export function composeModularScene(
   const group = new THREE.Group();
   group.name = `modular-scene-${presetId}`;
   group.userData.preset = presetId;
+  group.userData.kit = presetId;
   group.userData.sceneKind = "modular-scene";
   group.userData.theme = {
     style,
@@ -1554,6 +1555,7 @@ export function composeModularScene(
   const length = modularOptions.cells * cell;
   const width = modularOptions.depth * cell;
   const slab = Math.min(Math.max(modularOptions.thickness, 0.05), 0.5);
+  group.userData.floorY = slab;
   const pieceList = [];
   for (const placement of preset.pieces(modularOptions)) {
     const model = generateAsset(placement.type, {
@@ -1740,9 +1742,15 @@ export function editSceneProp(scene, propIndex, changes = {}) {
   }
 
   model.position.set(x, y ?? 0, z);
-  const restingBox = new THREE.Box3().setFromObject(model);
-  if (y === null) model.position.y = 0.06 - restingBox.min.y;
   model.rotation.y = rotationY;
+  // The composed scene group is centered after assembly, so measure the prop
+  // against its own geometry instead of the shifted world bounds. Otherwise
+  // edits inherit the centering offset and float above the floor.
+  const restingBox = new THREE.Box3().setFromObject(model);
+  if (y === null)
+    model.position.y =
+      (scene.userData.floorY ?? 0.06) -
+      (restingBox.min.y - (scene.position.y || 0));
 
   const placedBox = new THREE.Box3().setFromObject(model);
   const next = {
@@ -1868,14 +1876,14 @@ export function addSceneProp(scene, placement = {}) {
     if (child.isMesh) child.name = `${model.name}-${child.name}`;
   });
   model.position.set(x, 0, z);
+  model.rotation.y = rotationY;
   // Generated assets are centered on their origin, so an unset height rests the
   // prop on the ground instead of sinking half of it below the pavers.
   const restingBox = new THREE.Box3().setFromObject(model);
   const requestedY = Number(placement.y);
   model.position.y = Number.isFinite(requestedY)
     ? requestedY
-    : 0.06 - restingBox.min.y;
-  model.rotation.y = rotationY;
+    : (scene.userData.floorY ?? 0.06) - restingBox.min.y;
   scene.add(model);
 
   const placedBox = new THREE.Box3().setFromObject(model);
