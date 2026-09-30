@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icon.png" width="100" alt="AI3D" />
   <h2>AI3D</h2>
-  <p>Point at the model. Let the agent read what you meant.</p>
+  <p>Game 3D asset generator</p>
 </div>
 
 [中文](README.md) | **English**
@@ -11,47 +11,95 @@
 
 ### 1. Product overview
 
-AI3D (AI3D模型 in Chinese) is a browser workbench for reviewing 3D models with
-an AI agent. The agent publishes a draft, you open it in your own browser, mark
-the surfaces that are wrong with lettered pins and painted regions directly on
-the mesh in three dimensions, and hand the batch back. The agent reads
-positions, face references and version information rather than a screenshot,
-confirms what it understood, and publishes the next version. Every version stays
-open for marking.
+AI3D (AI3D模型 in Chinese) is a game 3D asset generator: describe the prop,
+character or scene you want in one sentence, and it produces a low-poly asset
+with named parts, playable animation previews and export packs for
+Unity, Godot and Unreal in seconds. It also keeps the agent-assisted review
+workbench, so "change this" can still be communicated on real mesh surfaces.
 
-It is not a CAD or sculpting tool. It is the step between "here is a draft" and
-"here is what to change", which until now was a screenshot and a paragraph.
+Generation is deterministic procedural modeling: the same description and seed
+always produce the same mesh. Every asset ships with engine-ready collider
+presets, LODs, animation clips and a manifest, so it fits a game pipeline
+instead of staying a preview image.
+
+### 2. What it generates
+
+48 built-in game asset templates, each with sensible part names, tags and
+collider presets:
+
+| Category | Assets |
+| --- | --- |
+| Weapons | sword, axe, bow, hammer, spear, shield |
+| Creatures | character, monster, dragon |
+| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, fountain |
+| Props | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap |
+| Vehicles | car, boat, plane, bike |
+| Sci-fi | turret, drone, comm antenna |
+
+Beyond the quick templates you can describe an asset in natural language and
+choose a style (low-poly / realistic / stylized), then tune color, roughness,
+metalness, emissive and seed. Generate up to 12 seed variants at once, preview
+each one, and save the ones you like to the asset library.
+
+![The asset generator interface](docs/media/viewer.png)
+
+### 3. Built for a game pipeline
+
+- **Animation** - characters and monsters get idle / walk / attack clips,
+  dragons get idle / fly / attack; play them in the preview and export them in
+  the GLB.
+- **LODs** - generate three LOD levels in one click, preview each level and
+  export the set; the simplifier keeps materials and merges same-material
+  meshes.
+- **Colliders** - box / sphere / capsule / cylinder / mesh presets per asset
+  type, sized from the actual mesh and emitted as engine-side collider files.
+- **Engine packs** - Unity (.prefab plus .meta), Godot (.tscn) and Unreal
+  (manifest plus GLB); the pack carries meshes, materials, colliders, animation
+  info and a manifest with engine-ready names.
+- **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
+  and town kits place props deterministically from a seed, exportable as a
+  whole scene.
+- **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
+  vertex and part counts, LODs and collider info.
+
+### 4. Quick start
+
+Node.js 22 or newer and a browser with WebGL.
+
+```sh
+npm ci
+npm run dev          # open http://127.0.0.1:43175
+```
+
+Open the generator in the top-right corner, pick a quick template or describe
+an asset, and generate. Once the preview looks right, open the export panel,
+choose format, engine, collider and animation, and download the GLB / OBJ or a
+full pack. Generated results can be saved to the local asset library with tag
+filtering, favorites, renaming and batch export.
+
+### 5. The review loop with an agent
+
+Generated or imported models can also go through review: the agent runs
+`precheck` on the model file, then `open` to publish it. You open the URL in a
+modern WebGL browser, drop lettered pins directly on the mesh surface or fill
+connected near-flat regions with the paint bucket, and press **Send to Agent**.
+The agent reads positions, face references and version information rather than
+a screenshot, confirms what it understood, and publishes the next version.
+Every version stays open for marking.
+
+Telling an agent "the fillet on the left bracket is too sharp" costs a sentence
+and buys an argument about which bracket. A mark carries the mesh, the face,
+the barycentric coordinate and the version it was made against. The agent gets
+an address, not a description, and can say back which surface it understood.
 
 ![A recording of dropping lettered pins A and B, filling a face with the paint bucket, and sending the batch to the agent](docs/media/demo.gif)
 
-### 2. Why positions
-
-Telling an agent "the fillet on the left bracket is too sharp" costs a sentence
-and buys an argument about which bracket. A mark carries the mesh, the face, the
-barycentric coordinate and the version it was made against. The agent gets an
-address, not a description, and can say back which surface it understood.
-
-### 3. The loop
-
-1. The agent runs `precheck` on the model file, then `open` to publish it.
-2. You open the URL in Chrome, Safari or any modern WebGL browser.
-3. Pick the label tool and click a surface to drop a lettered pin; the paint
-   bucket fills the connected near-flat area around the face you click. The
-   orbit tool places nothing, so turning the model never marks it. Nothing is
-   submitted until you say so.
-4. Press **Send to Agent**. The batch is frozen against the version you marked.
-5. The agent calls `read`, replies in your conversation, and `open`s the next
-   version. Older versions keep their own marks and stay selectable.
-
-There is no "finish the round" button. The next version is the end of the last
-one.
-
-### 4. Three ways in, one implementation
+### 6. Three ways in, one implementation
 
 The core does not know which harness is talking to it. All three entry points
 drive the same instance manager, with the same actions and the same results.
 
-| Entry point | How | Who owns a review |
+| Entry point | How | Ownership |
 | --- | --- | --- |
 | OpenClaw extension | native `ai3d` tool | derived from the host's session |
 | `ai3d` CLI | `ai3d <action> --owner <id> ...`, JSON in, JSON out | stated by the caller |
@@ -68,7 +116,7 @@ Where `send` is false, a submitted batch has the status `waiting`: durable,
 listed, collected by calling `read`. It is not a delivery that failed, and it
 never becomes stalled.
 
-### 5. Model limits
+### 7. Model limits
 
 | Limit | Threshold | On exceeding |
 | --- | --- | --- |
@@ -85,17 +133,15 @@ it to measure it; `open` then publishes the same tessellation. Over the cap it
 says to simplify the model rather than giving a ratio, because there are no
 triangles in the file to decimate.
 
-### 6. Installing and running
+### 8. Installing and running
 
-Node.js 22 or newer and a browser with WebGL.
-
-From a clone, for development:
+From a clone, for the full development environment:
 
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 272 unit and integration tests
-npm run test:browser # 76 real-Chromium tests
+npm run test:browser # 77 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -136,12 +182,12 @@ install commands above use npm as the package manager, not as the source.
 The workbench listens on the loopback address by default. LAN mode binds one
 verified private IPv4 and always requires authorization.
 
-### 7. Desktop client
+### 9. Desktop client
 
-AI3D also ships as a Tauri desktop client that puts the same workbench in its
-own window. The desktop app needs Node.js 22 or newer on the machine because
-the bundled service still runs under Node; the window uses the system WebView
-(WebView2 on Windows).
+AI3D also ships as a Tauri desktop client that puts the same generator and
+workbench in its own window. The desktop app needs Node.js 22 or newer on the
+machine because the bundled service still runs under Node; the window uses the
+system WebView (WebView2 on Windows).
 
 ```sh
 npm ci
@@ -157,10 +203,11 @@ signed, with an Applications drag link), and x64 and ARM64 Windows NSIS
 installers (self-signed, with Simplified Chinese, Traditional Chinese and
 English installer UI). The application identifier is `org.mutantcat.ai3d`; the
 window title is AI3D and the icon is the repository's `icon.png`. Desktop data
-- review state and published models - lives in the OS application data
-directory, and the bundled service only listens on the local loopback address.
+- the asset library, review state and published models - lives in the OS
+application data directory, and the bundled service only listens on the local
+loopback address.
 
-### 8. Roadmap
+### 10. Roadmap
 
 Plans, not promises: the order can change as people use it. Ideas and requests
 are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions).
@@ -185,14 +232,14 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
 - **2.0** - animation playback: rigged animation you can play and step through
   frame by frame.
 
-### 9. Documentation
+### 11. Documentation
 
 - [AGENT-INTERFACE.md](AGENT-INTERFACE.md) - the contract an agent implements
 - [docs/zh/](docs/zh/) - design documents, in Chinese: positioning,
   requirements, versioning rules, roadmap
 - [Chinese README](README.md) - the Chinese project overview
 
-### 10. License
+### 12. License
 
 Apache-2.0. See [LICENSE](LICENSE).
 

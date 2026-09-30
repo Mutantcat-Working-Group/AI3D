@@ -1,7 +1,7 @@
 /* 日本語。ツール名は並べて置かれるため短くしています（「消しゴム」など）。
    括弧は全角（）、引用は「」を使い、半角の " は文字列を切ってしまうので避けます。 */
 export default {
-  "app.tagline": "3D モデルのレビューと注記",
+  "app.tagline": "ゲーム向け3Dアセット生成",
   "app.version": "実行中のバージョン",
   "app.updateHint":
     "バージョン {version} が利用できます。エージェントに AI3D の更新を依頼してください。",
@@ -225,6 +225,7 @@ export default {
   "settings.about": "情報",
   "settings.aboutEyebrow": "設定 · 情報",
   "settings.aboutTitle": "AI3D",
+  "settings.aboutProduct": "ゲーム向け3Dアセット生成ツール",
   "settings.publisher": "発行者",
   "settings.publisherName": "Mutantcat Working Group（mutantcat.org）",
   "settings.homepage": "mutantcat.org を開く",
@@ -251,7 +252,7 @@ export default {
   "help.p9":
     "対応形式は GLB／STL／STEP、80 MB・60 万面まで。STEP は読み込み時に一度だけ三角形分割され、印はそのメッシュに付きます。ダウンロードで渡されるのは STEP そのものです。アニメーション、ボーン、圧縮 GLB にはまだ対応していません。これはレビュー用の道具で、モデルを造形するものではありません。",
 
-  "ai.open": "AI アシスタント",
+  "ai.open": "ジェネレーター",
   "ai.chat": "チャット",
   "ai.mcp": "MCP",
   "a11y.aiDock": "AI アシスタントパネル",

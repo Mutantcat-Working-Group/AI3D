@@ -10,6 +10,10 @@ import { docPaths, DOC_FILES } from "../integration/manager.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => fs.readFileSync(path.join(repo, file), "utf8");
+const runCli = (command, args, options) =>
+  process.platform === "win32"
+    ? execFileSync([command, ...args].join(" "), { ...options, shell: true })
+    : execFileSync(command, args, options);
 
 test("the agent reads the same reviewer help the panel shows", async () => {
   const doc = read("AGENT-INTERFACE.md");
@@ -90,7 +94,7 @@ test("README counts the node cases the suite actually has", () => {
   readmeCount("node", /npm test\s*#\s*(\d+) unit and integration tests/, cases);
 });
 test("README counts the browser cases the suite actually has", () => {
-  const listed = execFileSync("npx", ["playwright", "test", "--list"], {
+  const listed = runCli("npx", ["playwright", "test", "--list"], {
     cwd: repo,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
@@ -125,7 +129,7 @@ test("inspect names only documents that are there", (t) => {
  * named one file. `inspect` reported all four either way. The adapter side of
  * this is asserted against a real installation in tests/package-smoke.mjs. */
 test("the npm package carries every document inspect can report", () => {
-  const report = execFileSync("npm", ["pack", "--dry-run", "--json"], {
+  const report = runCli("npm", ["pack", "--dry-run", "--json"], {
     cwd: repo,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],

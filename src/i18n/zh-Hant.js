@@ -1,7 +1,7 @@
 /* 繁體中文。原本的介面文案是粵語口語，這一份改寫成標準書面中文：粵語讀者
    讀書面中文沒有障礙，多開一個 yue-Hant 目錄卻要多養一份文案。 */
 export default {
-  "app.tagline": "3D 模型審閱與標注",
+  "app.tagline": "遊戲 3D 資產生器",
   "app.version": "正在執行的版本",
   "app.updateHint": "有新版本 {version}。讓你的 Agent 更新 AI3D模型。",
 
@@ -203,6 +203,7 @@ export default {
   "settings.about": "關於",
   "settings.aboutEyebrow": "設定 · 關於",
   "settings.aboutTitle": "AI3D模型",
+  "settings.aboutProduct": "遊戲 3D 資產生器",
   "settings.publisher": "發行者",
   "settings.publisherName": "異貓工作群（mutantcat.org）",
   "settings.homepage": "前往 mutantcat.org",
@@ -229,7 +230,7 @@ export default {
   "help.p9":
     "支援 GLB／STL／STEP，上限 80 MB 與 60 萬面。STEP 在匯入時三角化一次，你的標註落在那個網格上；下載拿到的仍是 STEP 本身。動畫、骨架與壓縮 GLB 尚未支援。這是審閱工具，不會替你改模型。",
 
-  "ai.open": "AI 助手",
+  "ai.open": "產生器",
   "ai.chat": "聊天",
   "ai.mcp": "MCP",
   "a11y.aiDock": "AI 助手面板",

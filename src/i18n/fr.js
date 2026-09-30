@@ -1,7 +1,7 @@
 /* Français. Les noms d'outils restent courts parce qu'ils se suivent dans une
    barre : « Gomme », pas « Outil gomme ». */
 export default {
-  "app.tagline": "Revue et annotation de modèles 3D",
+  "app.tagline": "Générateur d'assets 3D de jeu",
   "app.version": "Version en cours",
   "app.updateHint":
     "La version {version} est disponible. Demandez à votre agent de mettre à jour AI3D.",
@@ -236,6 +236,7 @@ export default {
   "settings.about": "À propos",
   "settings.aboutEyebrow": "RÉGLAGES · À PROPOS",
   "settings.aboutTitle": "AI3D",
+  "settings.aboutProduct": "Générateur d'assets 3D de jeu",
   "settings.publisher": "Éditeur",
   "settings.publisherName": "Mutantcat Working Group (mutantcat.org)",
   "settings.homepage": "Visiter mutantcat.org",
@@ -262,7 +263,7 @@ export default {
   "help.p9":
     "GLB, STL et STEP, jusqu'à 80 Mo et 600 000 triangles. Un STEP est triangulé une seule fois à son arrivée et vos annotations portent sur ce maillage ; le téléchargement renvoie toujours le STEP lui-même. Animation, squelettes et GLB compressé ne sont pas encore pris en charge. C'est un outil de revue ; il ne sculpte pas le modèle.",
 
-  "ai.open": "Assistant IA",
+  "ai.open": "Générateur",
   "ai.chat": "Discussion",
   "ai.mcp": "MCP",
   "a11y.aiDock": "Panneau de l'assistant IA",

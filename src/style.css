@@ -1013,6 +1013,13 @@ dialog h2 {
   font-size: 22px;
   margin-bottom: 20px;
 }
+dialog .about-product {
+  margin: -10px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
+}
 dialog p {
   font-size: 12px;
   line-height: 1.9;

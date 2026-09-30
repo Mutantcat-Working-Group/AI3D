@@ -1,7 +1,7 @@
 /* Deutsch. Die Werkzeugnamen sind bewusst kurz gehalten — „Radierer“ statt
    „Radiergummi“ —, weil sie in einer Leiste nebeneinander stehen. */
 export default {
-  "app.tagline": "3D-Modelle prüfen und markieren",
+  "app.tagline": "Generatoren für 3D-Game-Assets",
   "app.version": "Laufende Version",
   "app.updateHint":
     "Version {version} ist verfügbar. Bitten Sie Ihren Agenten, AI3D zu aktualisieren.",
@@ -239,6 +239,7 @@ export default {
   "settings.about": "Info",
   "settings.aboutEyebrow": "EINSTELLUNGEN · INFO",
   "settings.aboutTitle": "AI3D",
+  "settings.aboutProduct": "Generatoren für 3D-Game-Assets",
   "settings.publisher": "Herausgeber",
   "settings.publisherName": "Mutantcat Working Group (mutantcat.org)",
   "settings.homepage": "mutantcat.org besuchen",
@@ -265,7 +266,7 @@ export default {
   "help.p9":
     "GLB, STL und STEP, bis 80 MB und 600.000 Dreiecke. Ein STEP wird beim Eintreffen einmal trianguliert, und Ihre Markierungen liegen auf diesem Netz; heruntergeladen wird weiterhin das STEP selbst. Animation, Skelette und komprimiertes GLB werden noch nicht unterstützt. Dies ist ein Prüfwerkzeug; es modelliert nicht.",
 
-  "ai.open": "KI-Assistent",
+  "ai.open": "Generator",
   "ai.chat": "Chat",
   "ai.mcp": "MCP",
   "a11y.aiDock": "KI-Assistent-Panel",

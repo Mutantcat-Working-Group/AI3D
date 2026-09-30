@@ -1,7 +1,7 @@
 /* The source language. Every other catalogue is a translation of this file and
    is checked against its key set; see scripts/check-i18n.mjs. */
 export default {
-  "app.tagline": "3D model review and annotation",
+  "app.tagline": "Game 3D asset generator",
   "app.version": "Running version",
   "app.updateHint":
     "Version {version} is available. Ask your agent to update AI3D.",
@@ -225,6 +225,7 @@ export default {
   "settings.about": "About",
   "settings.aboutEyebrow": "SETTINGS · ABOUT",
   "settings.aboutTitle": "AI3D",
+  "settings.aboutProduct": "Game 3D asset generator",
   "settings.publisher": "Publisher",
   "settings.publisherName": "Mutantcat Working Group (mutantcat.org)",
   "settings.homepage": "Visit mutantcat.org",
@@ -251,7 +252,7 @@ export default {
   "help.p9":
     "GLB, STL and STEP, up to 80 MB and 600,000 triangles. A STEP is tessellated once when it arrives and your marks land on that mesh; downloading still gives you the STEP itself. Animation, skeletons and compressed GLB are not supported yet. This is a review tool; it does not sculpt the model.",
 
-  "ai.open": "AI assistant",
+  "ai.open": "Generator",
   "ai.chat": "Chat",
   "ai.mcp": "MCP",
   "a11y.aiDock": "AI assistant panel",

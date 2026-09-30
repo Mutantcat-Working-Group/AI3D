@@ -1,7 +1,7 @@
 /* 简体中文。不是繁体那份的逐字转换：文件／默认／刷新／标签页这些是用词差别，
    转换器换不出来。 */
 export default {
-  "app.tagline": "3D 模型审阅与标注",
+  "app.tagline": "游戏 3D 资产生成器",
   "app.version": "正在运行的版本",
   "app.updateHint": "有新版本 {version}。让你的 Agent 更新 AI3D模型。",
 
@@ -203,6 +203,7 @@ export default {
   "settings.about": "关于",
   "settings.aboutEyebrow": "设置 · 关于",
   "settings.aboutTitle": "AI3D模型",
+  "settings.aboutProduct": "游戏 3D 资产生成器",
   "settings.publisher": "发行者",
   "settings.publisherName": "异猫工作群（mutantcat.org）",
   "settings.homepage": "访问 mutantcat.org",
@@ -229,7 +230,7 @@ export default {
   "help.p9":
     "支持 GLB／STL／STEP，上限 80 MB 与 60 万面。STEP 在导入时三角化一次，你的标注落在那个网格上；下载拿到的仍是 STEP 本身。动画、骨架与压缩 GLB 尚未支持。这是审阅工具，不会替你改模型。",
 
-  "ai.open": "AI 助手",
+  "ai.open": "生成器",
   "ai.chat": "聊天",
   "ai.mcp": "MCP",
   "a11y.aiDock": "AI 助手面板",

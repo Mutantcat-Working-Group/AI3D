@@ -156,7 +156,7 @@ const serverMessage = (json) =>
   json?.error ||
   t("conn.actionFailed");
 app.innerHTML = `${SPRITE}
-<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="about-button" aria-label="${T("settings.about")}" title="${T("settings.about")}">${icon("info")}</button><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button><button class="quiet icon-only" id="ai-button" aria-label="${T("ai.open")}" aria-expanded="false" title="${T("ai.open")}">${icon("chat")}</button></div></header>
+<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="about-button" aria-label="${T("settings.about")}" title="${T("settings.about")}">${icon("info")}</button><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button><button class="quiet icon-only" id="ai-button" aria-label="${T("ai.open")}" aria-expanded="false" title="${T("ai.open")}">${icon("gen")}</button></div></header>
 <main class="workspace">
  <section class="review-panel" aria-label="${T("a11y.reviewPanel")}">
   <!-- The name arrived with the link, the tab strip carries the version, and a
@@ -196,9 +196,9 @@ app.innerHTML = `${SPRITE}
  </section>
 </main><aside id="ai-dock" aria-label="${T("a11y.aiDock")}" hidden>
   <div class="ai-tabs" role="tablist">
-    <button class="ai-tab active" data-ai-tab="chat" role="tab" aria-selected="true">${icon("chat")}<span>${T("ai.chat")}</span></button>
+    <button class="ai-tab" data-ai-tab="chat" role="tab" aria-selected="false">${icon("chat")}<span>${T("ai.chat")}</span></button>
     <button class="ai-tab" data-ai-tab="mcp" role="tab" aria-selected="false">${icon("plug")}<span>${T("ai.mcp")}</span></button>
-    <button class="ai-tab" data-ai-tab="gen" role="tab" aria-selected="false">${icon("gen")}<span>${T("ai.generate")}</span></button>
+    <button class="ai-tab active" data-ai-tab="gen" role="tab" aria-selected="true">${icon("gen")}<span>${T("ai.generate")}</span></button>
   </div>
   <div class="ai-pane" data-ai-pane="chat">
     <div id="chat-messages" class="chat-messages" aria-label="${T("a11y.chatMessages")}"></div>
@@ -379,7 +379,7 @@ app.innerHTML = `${SPRITE}
   </div>
 </aside><div id="toast" role="status" hidden></div>
 <dialog id="help-dialog"><button id="close-help" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("help.eyebrow")}</span><h2>${T("help.title")}</h2><p>${T("help.p1")}</p><p>${T("help.p2")}</p><p>${T("help.p3")}</p><p>${T("help.p4")}</p><p>${T("help.p5")}</p><p>${T("help.p6")}</p><p>${T("help.p7")}</p><p>${T("help.p8")}</p><p class="muted">${T("help.p9")}</p></dialog>
-<dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog>`;
+<dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><p class="about-product">${T("settings.aboutProduct")}</p><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog>`;
 
 const base = new URL("./", location.href);
 const endpoint = (path) => new URL(path, base).href;
@@ -1957,7 +1957,7 @@ let chatSending = false;
 let mcpConnections = [];
 let mcpCalling = false;
 let aiDockOpen = false;
-let aiActiveTab = "chat";
+let aiActiveTab = "gen";
 
 function setAiDock(open) {
   aiDockOpen = open;
