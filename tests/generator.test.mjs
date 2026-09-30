@@ -186,6 +186,86 @@ test("every asset type builds its declared parts, centered and sized", () => {
   }
 });
 
+/* The size control asks for a real-world scale, and a number only means
+   something next to its unit: 2.5 m, 250 cm and 2500 mm are the same crate, and
+   the engine that imports the mesh has to see the same 2.5 either way. */
+test("the size control converts its unit into metres", () => {
+  const metres = generateAsset("crate", { size: 2.5, units: "m", seed: 11 });
+  const centimetres = generateAsset("crate", {
+    size: 250,
+    units: "cm",
+    seed: 11,
+  });
+  const millimetres = generateAsset("crate", {
+    size: 2500,
+    units: "mm",
+    seed: 11,
+  });
+  const feet = generateAsset("crate", { size: 1, units: "ft", seed: 11 });
+  const inches = generateAsset("crate", { size: 12, units: "in", seed: 11 });
+
+  for (const model of [metres, centimetres, millimetres])
+    assert.ok(Math.abs(modelBounds(model).size - 2.5) < 1e-6);
+  assert.ok(Math.abs(modelBounds(feet).size - 0.3048) < 1e-6);
+  assert.ok(Math.abs(modelBounds(inches).size - 0.3048) < 1e-6);
+});
+
+/* "Two metres tall" and "two metres wide" are different requests, and a tree
+   sized by its height must not come out as tall as a wall sized by its width. */
+test("fitAxis decides which dimension the requested size fills", () => {
+  for (const type of ["character", "fence", "sword"]) {
+    for (const axis of ["width", "height", "depth"]) {
+      const bounds = modelBounds(
+        generateAsset(type, { size: 3, fitAxis: axis, seed: 5, segments: 8 }),
+      );
+      const spans = {
+        width: bounds.max.x - bounds.min.x,
+        height: bounds.max.y - bounds.min.y,
+        depth: bounds.max.z - bounds.min.z,
+      };
+      assert.ok(
+        Math.abs(spans[axis] - 3) < 1e-4,
+        `${type} fills ${axis} when asked to`,
+      );
+      assert.ok(
+        bounds.size >= 3 - 1e-4,
+        `${type} keeps every other dimension within the request`,
+      );
+    }
+  }
+});
+
+/* Centred is right for a prop that is dropped into a scene by hand; a character
+   has to stand on the origin instead, or it sinks into the floor by half its
+   height the moment it is placed at (0, 0, 0). */
+test("pivot places the origin where the engine expects it", () => {
+  const boundsFor = (pivot) =>
+    modelBounds(generateAsset("character", { size: 1.8, pivot, seed: 9 }));
+
+  const centered = boundsFor("center");
+  assert.ok(centered.center.length() < 1e-5);
+  const height = centered.max.y - centered.min.y;
+  for (const pivot of ["ground", "bottom"]) {
+    const grounded = boundsFor(pivot);
+    assert.ok(Math.abs(grounded.min.y) < 1e-6, `${pivot} sits on the origin`);
+    assert.ok(
+      Math.abs(grounded.max.y - grounded.min.y - height) < 1e-6,
+      `${pivot} only moves the model`,
+    );
+  }
+  assert.ok(Math.abs(boundsFor("top").max.y) < 1e-6);
+});
+
+/* The measured span is what the manifest and the reviewer see, so it is read
+   off the finished object rather than assumed to be the requested size. */
+test("the model reports its measured dimensions", () => {
+  const model = generateAsset("crate", { size: 2, units: "m", seed: 2 });
+  const dimensions = getAssetStats(model).dimensions;
+  assert.deepEqual(dimensions, model.userData.dimensions);
+  const spans = [dimensions.width, dimensions.height, dimensions.depth];
+  assert.ok(Math.abs(Math.max(...spans) - 2) < 1e-3);
+});
+
 test("same seed produces identical geometry for every type", () => {
   for (const type of getAssetTypes()) {
     const a = generateAsset(type, { size: 1.4, segments: 10, seed: 123 });

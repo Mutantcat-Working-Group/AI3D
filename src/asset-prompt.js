@@ -154,15 +154,34 @@ export const GEN_STYLE_KEYS = {
 
 export const STYLE_SEGMENTS = { lowpoly: 8, stylized: 16, realistic: 32 };
 
-/* Two units of length are enough to describe a game asset, and keeping the
- * table this small means the size a reviewer reads back is the size they get. */
+/* The units a game asset is actually described in across the six catalogues.
+ * `parseSize` normalises to metres, and the matched unit travels with the
+ * result so the panel can echo the number back in the unit the writer used. */
 export const GEN_SIZE_UNIT_KEYS = {
   meter: "gen.sizeUnit.meter",
   centimeter: "gen.sizeUnit.centimeter",
   millimeter: "gen.sizeUnit.millimeter",
+  foot: "gen.sizeUnit.foot",
+  inch: "gen.sizeUnit.inch",
 };
 
-export const UNIT_SCALES = { meter: 1, centimeter: 0.01, millimeter: 0.001 };
+export const UNIT_SCALES = {
+  meter: 1,
+  centimeter: 0.01,
+  millimeter: 0.001,
+  foot: 0.3048,
+  inch: 0.0254,
+};
+
+/* Generator-facing unit ids. The prompt parser names units by their English
+ * word so its own tests read as sentences; the generator uses the short id. */
+export const UNIT_ID_BY_NAME = {
+  meter: "m",
+  centimeter: "cm",
+  millimeter: "mm",
+  foot: "ft",
+  inch: "in",
+};
 
 const MIN_SIZE = 0.05;
 const MAX_SIZE = 100;
@@ -227,7 +246,11 @@ function parseSize(text, units) {
     if (!match) continue;
     const value = parseFloat(match[1].replace(",", ".")) * unit.scale;
     if (!Number.isFinite(value)) continue;
-    return Math.min(MAX_SIZE, Math.max(MIN_SIZE, Number(value.toFixed(4))));
+    const metres = Math.min(
+      MAX_SIZE,
+      Math.max(MIN_SIZE, Number(value.toFixed(4))),
+    );
+    return { metres, unit: UNIT_ID_BY_NAME[unit.id] ?? "m" };
   }
   return null;
 }
@@ -263,7 +286,10 @@ export function buildPromptLexicon(catalogues = {}) {
     }
     for (const [unit, key] of Object.entries(GEN_SIZE_UNIT_KEYS)) {
       for (const term of splitTerms(table[key]))
-        push(units, `unit:${unit}`, term, { scale: UNIT_SCALES[unit] });
+        push(units, `unit:${unit}`, term, {
+          scale: UNIT_SCALES[unit],
+          id: unit,
+        });
     }
   }
   return { aliases, colors, styles, units };
@@ -283,12 +309,14 @@ export function parseAssetPrompt(prompt, style, lexicon = {}) {
 
   const resolvedStyle = styleWord ? styleWord.style : style;
   const segments = STYLE_SEGMENTS[resolvedStyle] ?? STYLE_SEGMENTS.stylized;
-  const size = parseSize(text, lexicon.units || []) ?? 1;
+  const measured = parseSize(text, lexicon.units || []);
+  const size = measured ? measured.metres : 1;
 
   return {
     type: alias ? alias.type : "cube",
     matched: Boolean(alias),
     size,
+    sizeUnit: measured ? measured.unit : null,
     segments,
     style: resolvedStyle,
     styleMatched: Boolean(styleWord),

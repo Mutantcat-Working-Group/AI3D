@@ -173,6 +173,34 @@ test("a description names the template, size, colour and style it will use", asy
   await expect(page.locator("#gen-status")).toHaveClass(/ok/);
 });
 
+/* A size is a number and a unit, and the unit is what makes it a real scale:
+ * 180 cm has to reach the generator as the same 1.8 m an engine imports. A
+ * size written into the sentence moves both controls, and the hint echoes the
+ * number in the unit it was written in rather than a converted one. */
+test("the size control and the description agree on the unit", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator("#gen-prompt").fill("a 180 cm tall character");
+  const hint = page.locator("#gen-prompt-hint");
+  await expect(hint).toContainText("180 cm");
+  await expect(page.locator("#gen-units")).toHaveValue("cm");
+  await expect(page.locator("#gen-size")).toHaveValue("180");
+
+  await page.locator("#gen-prompt").fill("a low-poly crate");
+  await page.locator("#gen-units").selectOption("ft");
+  await page.locator("#gen-size").fill("6");
+  await page.locator("#gen-size").blur();
+  await expect(hint).toContainText("6 ft");
+
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await expect(page.locator("#gen-status")).toHaveClass(/ok/);
+});
+
 /* The library only ever lived in browser storage, so the one file that leaves
    the browser is the only thing a teammate or a build machine can be handed.
    This drives the export control, wipes storage the way a cleared profile

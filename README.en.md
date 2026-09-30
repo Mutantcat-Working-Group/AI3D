@@ -53,6 +53,11 @@ each one, and save the ones you like to the asset library.
   budgets, and the simplifier keeps materials and merges same-material meshes.
 - **Colliders** - box / sphere / capsule / cylinder / mesh presets per asset
   type, sized from the actual mesh and emitted as engine-side collider files.
+- **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
+  fit axis (largest dimension / height / width / depth), and the origin can be
+  centred, planted on the ground, or pinned to the base or the top, so a
+  character stands on the floor while a prop stays centred. The measured span
+  in metres goes into the manifest.
 - **Engine packs** - Unity, Godot and Unreal presets. Godot packs ship a
   `.tscn` that instances `LOD0.glb`; Unity and Unreal currently emit GLB,
   materials and import metadata rather than pretending to produce native
@@ -117,11 +122,14 @@ and reliable enough to hand to an agent as context. It currently covers:
 
 - The glTF 2.0 specification and the Khronos sample-asset corpus, for
   interchange and compatibility questions.
-- Blender modeling and topology, game asset budgets and LOD, and PBR material
-  authoring, for professional workflow questions.
-- Public white-model and reference libraries such as Poly Haven, Kenney and
-  NASA 3D Resources, each tagged with its licence; CC0 resources are marked as
-  usable commercially without attribution.
+- Professional modeling craft: retopology and quad flow, UV unwrapping and
+  texel density, high-to-low baking and normal maps, hard-surface bevels and
+  panel breaks, game asset budgets, LOD and virtualized geometry, and PBR
+  material authoring.
+- Public white-model and reference libraries: Poly Haven, Kenney, Quaternius,
+  Poly Pizza, Sketchfab's CC0 filter, Wikimedia Commons 3D models, MakeHuman
+  base meshes, the Z-Anatomy atlas and NASA 3D Resources, each tagged with its
+  licence; CC0 resources are marked as usable commercially without attribution.
 
 An MCP client can call the `ai3d_knowledge` tool against the same pack and gets
 structured entries with citations. The chat panel and MCP share one
@@ -173,8 +181,8 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 307 unit and integration tests
-npm run test:browser # 82 real-Chromium tests
+npm test             # 313 unit and integration tests
+npm run test:browser # 83 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites

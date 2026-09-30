@@ -116,6 +116,59 @@ const ASSET_TAGS = {
   tree_stump: ["nature", "terrain", "outdoor"],
 };
 
+/* Real-world sizing. `size` is expressed in the chosen unit, but the geometry
+   is always built in metres because every engine preset below assumes metres
+   at export time. A caller that leaves the unit out keeps the old behaviour,
+   where the number was never converted at all. */
+const UNIT_METRES = {
+  m: 1,
+  cm: 0.01,
+  mm: 0.001,
+  ft: 0.3048,
+  in: 0.0254,
+};
+
+/* Where the model's origin sits once it is sized. A character has to stand on
+   the origin so it plants on a floor; a wall segment is built from its base
+   too; a prop is usually kept centred. */
+export const PIVOTS = ["center", "ground", "bottom", "top"];
+export const FIT_AXES = ["max", "height", "width", "depth"];
+
+export const UNIT_IDS = Object.keys(UNIT_METRES);
+
+export function unitToMetres(unit) {
+  return UNIT_METRES[unit] ?? 1;
+}
+
+/**
+ * Convert a size in the caller's unit into metres. Unknown units fall back to
+ * metres so an old record without a unit still loads at the size it stored.
+ */
+export function sizeToMetres(size, unit = "m") {
+  return size * unitToMetres(unit);
+}
+
+/** Pick the bounding-box dimension the requested size should fill. */
+export function sizeExtent(box, fitAxis = "max") {
+  const dims = [
+    box.max.x - box.min.x,
+    box.max.y - box.min.y,
+    box.max.z - box.min.z,
+  ];
+  const named = { width: dims[0], height: dims[1], depth: dims[2] };
+  const extent = fitAxis === "max" ? Math.max(...dims) : named[fitAxis];
+  return Number.isFinite(extent) ? extent : 0;
+}
+
+/** Offset that moves the box so the requested pivot lands on the origin. */
+export function pivotOffset(box, pivot = "center") {
+  const center = box.getCenter(new THREE.Vector3());
+  const offset = center.clone().negate();
+  if (pivot === "ground" || pivot === "bottom") offset.y = -box.min.y;
+  else if (pivot === "top") offset.y = -box.max.y;
+  return offset;
+}
+
 // Collider presets are per asset type so game teams get a sensible physics
 // proxy without tuning one manually. The computed size still comes from the
 // actual generated model, so presets only decide the primitive shape.
@@ -499,7 +552,10 @@ function mulberry32(a) {
  * Returns a THREE.Group containing the generated model.
  * @param {string} type - Asset type
  * @param {object} options - Generation options
- * @param {number} options.size - Asset size
+ * @param {number} options.size - Asset size, in `units` (default metres)
+ * @param {string} options.units - "m", "cm", "mm", "ft" or "in"
+ * @param {string} options.fitAxis - "max", "height", "width" or "depth"
+ * @param {string} options.pivot - "center", "ground", "bottom" or "top"
  * @param {number} options.segments - Number of segments
  * @param {string} options.style - Material style
  * @param {string} options.color - Hex color string (e.g. "#ff0000")
@@ -522,6 +578,9 @@ export function generateAsset(
     material = null,
     texture = "auto",
     textureStrength = 0.8,
+    units = "m",
+    fitAxis = "max",
+    pivot = "center",
   } = {},
 ) {
   const group = new THREE.Group();
@@ -676,23 +735,26 @@ export function generateAsset(
     seed,
   });
 
-  // Scale first, then center in scaled space. Centering before scaling would
-  // leave the box offset whenever the requested size is not exactly the model
-  // span, which matters when a game engine drops the asset into a scene.
+  // Scale first, then place the pivot in scaled space. Centering before scaling
+  // would leave the box offset whenever the requested size is not exactly the
+  // model span, which matters when a game engine drops the asset into a scene.
+  const metres = sizeToMetres(size, units);
   const box = new THREE.Box3().setFromObject(group);
-  const maxDim = Math.max(
-    box.max.x - box.min.x,
-    box.max.y - box.min.y,
-    box.max.z - box.min.z,
-  );
-  if (maxDim > 0) {
-    const scale = size / maxDim;
-    group.scale.setScalar(scale);
-  }
+  const extent = sizeExtent(box, fitAxis);
+  if (extent > 0) group.scale.setScalar(metres / extent);
   const scaledBox = new THREE.Box3().setFromObject(group);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  group.position.sub(center);
-  group.animations = buildAssetAnimations(group, type, size);
+  group.position.add(pivotOffset(scaledBox, pivot));
+  // Engine import reads these, and a reviewer can see the real span without
+  // re-measuring the mesh.
+  const finalSize = new THREE.Box3()
+    .setFromObject(group)
+    .getSize(new THREE.Vector3());
+  group.userData.dimensions = {
+    width: Math.round(finalSize.x * 10000) / 10000,
+    height: Math.round(finalSize.y * 10000) / 10000,
+    depth: Math.round(finalSize.z * 10000) / 10000,
+  };
+  group.animations = buildAssetAnimations(group, type, metres);
 
   return group;
 }
@@ -721,6 +783,9 @@ export function generateVariantSet(
     textureStrength = 0.8,
     count = 4,
     baseSeed = 0,
+    units = "m",
+    fitAxis = "max",
+    pivot = "center",
   } = {},
 ) {
   const total = Math.max(1, Math.min(12, Math.floor(count || 1)));
@@ -737,6 +802,9 @@ export function generateVariantSet(
       material,
       texture,
       textureStrength,
+      units,
+      fitAxis,
+      pivot,
     });
     variants.push({ seed, index, model, stats: getAssetStats(model) });
   }
@@ -3871,6 +3939,16 @@ export function getAssetStats(object) {
       : geo.attributes.position.count / 3;
   });
   stats.triangles = Math.floor(stats.triangles);
+  if (object?.isObject3D) {
+    const size = new THREE.Box3()
+      .setFromObject(object)
+      .getSize(new THREE.Vector3());
+    stats.dimensions = {
+      width: Math.round(size.x * 10000) / 10000,
+      height: Math.round(size.y * 10000) / 10000,
+      depth: Math.round(size.z * 10000) / 10000,
+    };
+  }
   return stats;
 }
 
@@ -4253,6 +4331,10 @@ export function buildGamePackFiles({
       favorite: asset.favorite ?? false,
       seed: asset.seed ?? null,
       size: asset.size ?? 1,
+      units: asset.units ?? "m",
+      fitAxis: asset.fitAxis ?? "max",
+      pivot: asset.pivot ?? "center",
+      dimensions: stats.dimensions || null,
       segments: asset.segments ?? 16,
       style: asset.style ?? "lowpoly",
       color: asset.color || null,

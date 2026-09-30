@@ -37,6 +37,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：用一句�
 - **动画**：角色、怪物带 idle／walk／attack 剪辑，龙带 idle／fly／attack；生成后直接在预览区播放，导出 GLB 时动画随模型一起带出。
 - **LOD**：一键生成 3 级 LOD，支持按级预览、批量导出；每一级都记录三角形、顶点、部件与绘制调用预算，网格简化器会保留材质并合并同材质网格。
 - **碰撞体**：按资产类型给出 box／sphere／capsule／cylinder／mesh 预设，碰撞体尺寸按实际网格计算，导出时生成引擎侧碰撞体文件。
+- **真实尺寸与原点**：尺寸带单位（m／cm／mm／ft／in），可选尺寸依据（最大边／高度／宽度／深度）与原点位置（居中／落在地面／底面在原点／顶面在原点）。角色可以站在原点上，道具默认居中；导出时按米写入 manifest 与实测包围盒。
 - **引擎包**：Unity、Godot、Unreal 三种预设。Godot 包带可直接实例化 `LOD0.glb` 的 `.tscn` 场景；Unity 与 Unreal 目前输出 GLB、材质与导入元数据清单，不伪造引擎原生 `.prefab`／`.meta`／`.uasset`。导出包内含网格、材质、碰撞体、动画清单与 manifest，并汇总整包三角形、顶点、部件与绘制调用预算，命名直接进引擎。
 - **套装**：地牢、营地、前哨站、村庄、神庙、战场、荒野、城镇等场景套装，按种子确定性摆放多件道具，可整场景导出。
 - **素材清单**：导出 JSON／CSV manifest，记录资产名、类型、标签、面数、顶点数、部件数、绘制调用、逐级 LOD 与碰撞体信息。
@@ -68,8 +69,8 @@ AI3D 现在把聊天面板收进工作台：生成、导出或审阅时都能就
 知识包不复制第三方文件，只收录可核验的出处、许可与要点摘要，因此可以随安装包离线分发，也能被 Agent 当作可靠上下文调用。当前收录：
 
 - glTF 2.0 规范与 Khronos 示例资产库，用于交换格式与兼容性判断。
-- Blender 建模／拓扑、游戏资产预算与 LOD、PBR 材质制作，用于专业流程问答。
-- Poly Haven、Kenney、NASA 3D Resources 等公共白模与素材来源，逐条标注许可，其中 CC0 资源注明可商用免署名。
+- 专业建模流程：重拓扑与四边面布线、UV 展开与像素密度、高低模烘焙与法线贴图、硬表面倒角与分缝、游戏资产预算与 LOD／虚拟几何体、PBR 材质制作。
+- 公共白模与素材来源：Poly Haven、Kenney、Quaternius、Poly Pizza、Sketchfab 的 CC0 筛选、维基共享资源 3D 模型、MakeHuman 人体白模、Z-Anatomy 开放解剖图谱、NASA 3D Resources，逐条标注许可，其中 CC0 资源注明可商用免署名。
 
 MCP 客户端可以调用 `ai3d_knowledge` 工具检索同一份知识包，返回结构化条目与引用信息；聊天面板与 MCP 共用这一份实现，不会各自漂移。
 
@@ -106,8 +107,8 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 307 unit and integration tests
-npm run test:browser # 82 real-Chromium tests
+npm test             # 313 unit and integration tests
+npm run test:browser # 83 real-Chromium tests
 ```
 
 `npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。

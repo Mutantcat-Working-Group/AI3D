@@ -57,6 +57,7 @@ import {
   exportGamePack,
   buildGamePackFiles,
   getAssetTextureInfo,
+  unitToMetres,
 } from "./generator.js";
 import {
   parseAssetPrompt,
@@ -315,6 +316,30 @@ app.innerHTML = `${SPRITE}
         <button type="button" id="gen-seed-reset" class="quiet">${T("gen.colorReset")}</button>
         <button type="button" id="gen-seed-random" class="quiet">${T("gen.randomSeed")}</button>
       </div>
+      <div class="gen-material-row">
+        <label>${T("gen.size")} <input type="number" id="gen-size" min="0.001" max="10000" step="0.01" value="1"></label>
+        <label>${T("gen.units")} <select id="gen-units">
+          <option value="m">${T("gen.unit.m")}</option>
+          <option value="cm">${T("gen.unit.cm")}</option>
+          <option value="mm">${T("gen.unit.mm")}</option>
+          <option value="ft">${T("gen.unit.ft")}</option>
+          <option value="in">${T("gen.unit.in")}</option>
+        </select></label>
+      </div>
+      <div class="gen-material-row">
+        <label>${T("gen.fit")} <select id="gen-fit">
+          <option value="max">${T("gen.fit.max")}</option>
+          <option value="height">${T("gen.fit.height")}</option>
+          <option value="width">${T("gen.fit.width")}</option>
+          <option value="depth">${T("gen.fit.depth")}</option>
+        </select></label>
+        <label>${T("gen.pivot")} <select id="gen-pivot">
+          <option value="center">${T("gen.pivot.center")}</option>
+          <option value="ground">${T("gen.pivot.ground")}</option>
+          <option value="bottom">${T("gen.pivot.bottom")}</option>
+          <option value="top">${T("gen.pivot.top")}</option>
+        </select></label>
+      </div>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
     <div class="gen-preview" id="gen-preview" hidden>
@@ -386,11 +411,6 @@ app.innerHTML = `${SPRITE}
         <option value="glb">${T("gen.formatGlb")}</option>
         <option value="gltf">${T("gen.formatGltf")}</option>
         <option value="obj">${T("gen.formatObj")}</option>
-      </select>
-      <label>${T("gen.units")}</label>
-      <select id="gen-units">
-        <option value="meters">${T("gen.unitsMeters")}</option>
-        <option value="centimeters">${T("gen.unitsCentimeters")}</option>
       </select>
       <label>${T("gen.scale")}</label>
       <input id="gen-scale" type="number" value="1" min="0.01" max="100" step="0.01">
@@ -2576,6 +2596,9 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
       })
     : generateThreeAsset(asset.type, {
         size: asset.size,
+        units: asset.units ?? "m",
+        fitAxis: asset.fitAxis ?? "max",
+        pivot: asset.pivot ?? "center",
         segments: asset.segments,
         style: asset.style,
         color: asset.color || null,
@@ -2679,6 +2702,9 @@ async function generateAsset() {
   try {
     const model = generateThreeAsset(assetType.type, {
       size: assetType.size,
+      units: assetType.units,
+      fitAxis: assetType.fitAxis,
+      pivot: assetType.pivot,
       segments: assetType.segments,
       style: assetType.style,
       color: color,
@@ -2739,6 +2765,9 @@ function generateVariants() {
   try {
     const variants = generateVariantSet(assetType.type, {
       size: assetType.size,
+      units: assetType.units,
+      fitAxis: assetType.fitAxis,
+      pivot: assetType.pivot,
       segments: assetType.segments,
       style: assetType.style,
       color,
@@ -2890,6 +2919,30 @@ function renderTextureStrip() {
 /* The description box is the one place a sentence becomes geometry. Reading it
    through a single helper keeps the generated asset, the variant grid and the
    live hint below the box answering the same question the same way. */
+/* The size control is expressed in the unit beside it, so the model is built at
+   a real scale: a 1.8 in figure is a miniature, a 1.8 m figure is a person.
+   The number is clamped to a sane range rather than rejected, because a stray
+   keystroke should not stop the button from working. */
+function readSizeSettings() {
+  const typed = Number($("#gen-size").value);
+  const units = $("#gen-units").value;
+  const size = Number.isFinite(typed) && typed > 0 ? typed : 1;
+  return { size, units };
+}
+
+/* A size named in the sentence wins over the control, and moves it, the way a
+   style named in the sentence moves the style select. The parsed size is in
+   metres, so it is divided back into whichever unit the writer used; the panel
+   then shows the number they typed rather than a converted one. */
+function resolveSizeSettings(parsed) {
+  if (!parsed.sizeUnit) return readSizeSettings();
+  const units = parsed.sizeUnit;
+  const size = Number((parsed.size / unitToMetres(units)).toFixed(4));
+  $("#gen-size").value = String(size);
+  $("#gen-units").value = units;
+  return { size, units };
+}
+
 function readPromptSettings() {
   const prompt = $("#gen-prompt").value.trim();
   const parsed = parseAssetPrompt(prompt, $("#gen-style").value, promptLexicon);
@@ -2900,10 +2953,14 @@ function readPromptSettings() {
     $("#gen-style").dispatchEvent(new Event("change"));
   }
   if (parsed.color) $("#gen-color").value = parsed.color;
+  const { size, units } = resolveSizeSettings(parsed);
   return {
     assetType: {
       type: parsed.type,
-      size: parsed.size,
+      size,
+      units,
+      fitAxis: $("#gen-fit").value,
+      pivot: $("#gen-pivot").value,
       segments: parsed.segments,
       style: parsed.style,
       prompt,
@@ -2925,9 +2982,9 @@ function renderPromptHint() {
     hint.innerHTML = "";
     return;
   }
-  const { parsed } = readPromptSettings();
+  const { parsed, assetType } = readPromptSettings();
   const parts = [`<strong>${esc(t(GEN_TYPE_KEYS[parsed.type]))}</strong>`];
-  parts.push(`${parsed.size} m`);
+  parts.push(`${assetType.size} ${assetType.units}`);
   if (parsed.color) {
     // The catalogue lists synonyms so a description can use any of them; the
     // hint names the colour once, which is what the swatch next to it shows.
@@ -3164,6 +3221,9 @@ async function downloadGenPack() {
     favorite: genState.model.favorite ?? false,
     seed: genState.model.seed ?? null,
     size: genState.model.size ?? 1,
+    units: genState.model.units ?? "m",
+    fitAxis: genState.model.fitAxis ?? "max",
+    pivot: genState.model.pivot ?? "center",
     segments: genState.model.segments ?? 16,
     spacing: genState.model.spacing ?? genState.model.scene?.spacing ?? 1,
     groundPadding:
@@ -3409,6 +3469,11 @@ $("#gen-seed-random").addEventListener("click", () => {
   $("#gen-seed").value = String(Math.floor(Math.random() * 1_000_000));
   if ($("#gen-prompt").value.trim()) generateAsset();
 });
+/* Size, unit, fit and origin are read when the model is built, so the hint only
+   has to be refreshed to stay the receipt for what the next build will use. */
+for (const selector of ["#gen-size", "#gen-units", "#gen-fit", "#gen-pivot"]) {
+  $(selector).addEventListener("change", renderPromptHint);
+}
 $("#gen-variants-generate").addEventListener("click", generateVariants);
 $("#gen-variants-save-all").addEventListener("click", saveAllVariants);
 $("#gen-variants").addEventListener("click", (e) => {

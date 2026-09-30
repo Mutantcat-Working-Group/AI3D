@@ -8,6 +8,7 @@ import {
   listKnowledge,
   searchKnowledge,
 } from "../mcp/knowledge.mjs";
+import { getAssetTypes } from "../src/generator.js";
 
 test("every knowledge entry carries a source, a licence and a refresh date", () => {
   assert.ok(KNOWLEDGE_ENTRIES.length >= 8);
@@ -35,6 +36,36 @@ test("search reaches the Chinese aliases and the public white-model libraries", 
   assert.ok(zh.results.some((hit) => hit.tags.includes("建模")));
   const cc0 = searchKnowledge("CC0 white model", { tags: ["cc0"] });
   assert.ok(cc0.results.length >= 1);
+});
+
+test("search covers the public base-mesh libraries and the production craft", () => {
+  const whiteModels = searchKnowledge("白模 基础网格 可商用");
+  assert.ok(whiteModels.results.length >= 2);
+  assert.ok(
+    whiteModels.results.every((hit) => hit.license.length > 0),
+    "a white-model hit must state its licence",
+  );
+
+  const retopo = searchKnowledge("重拓扑 四边面 布线");
+  assert.equal(retopo.results[0].id, "retopology-quad-flow");
+
+  const bake = searchKnowledge("法线贴图 烘焙 高模 低模");
+  assert.equal(bake.results[0].id, "sculpt-bake-normal-maps");
+
+  const hardSurface = searchKnowledge("硬表面 倒角 布尔");
+  assert.equal(hardSurface.results[0].id, "hard-surface-modeling");
+});
+
+test("every related asset points at a template the generator can build", () => {
+  const types = new Set(getAssetTypes());
+  for (const entry of KNOWLEDGE_ENTRIES) {
+    for (const asset of entry.relatedAssets) {
+      assert.ok(
+        types.has(asset),
+        `${entry.id} points at unknown asset ${asset}`,
+      );
+    }
+  }
 });
 
 test("get, list and the MCP call shape agree", () => {
