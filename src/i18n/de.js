@@ -554,6 +554,7 @@ export default {
   "gen.previewPlay": "Animation abspielen",
   "gen.previewPause": "Animation pausieren",
   "gen.previewSpin": "Vorschau automatisch drehen",
+  "gen.previewCollider": "Kollider anzeigen",
   "gen.engine": "Engine",
   "gen.engineUnity": "Unity",
   "gen.engineGodot": "Godot",

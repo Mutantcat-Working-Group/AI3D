@@ -540,6 +540,7 @@ export default {
   "gen.previewPlay": "アニメーションを再生",
   "gen.previewPause": "アニメーションを一時停止",
   "gen.previewSpin": "プレビューを自動回転",
+  "gen.previewCollider": "コライダーを表示",
   "gen.engine": "エンジン",
   "gen.engineUnity": "Unity",
   "gen.engineGodot": "Godot",

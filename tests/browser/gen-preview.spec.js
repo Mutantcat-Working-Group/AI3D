@@ -113,6 +113,87 @@ test("generated assets get an animated preview with play/pause and turntable con
   expect(await spin.getAttribute("aria-pressed")).toBe("false");
 });
 
+/* The collider overlay is the only place a bad physics proxy shows up before
+   the pack is exported, so ticking the checkbox has to actually paint the
+   proxy over the mesh and unticking has to take it back off. The auto-rotate
+   is stopped first so the two frames are otherwise identical: the green count
+   rises when the proxy is drawn and the frame hash falls back to the same
+   value once it is gone. */
+async function canvasSignature(page) {
+  const shot = await page.locator("#gen-preview-stage canvas").screenshot();
+  return page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, c.width, c.height).data;
+    let green = 0;
+    let hash = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 1] > px[i] + 8 && px[i + 1] > px[i + 2] + 8) green++;
+      hash = (hash * 31 + px[i] + px[i + 1] * 3 + px[i + 2] * 7) >>> 0;
+    }
+    return { green, hash };
+  }, shot.toString("base64"));
+}
+
+const settle = (page) =>
+  page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+
+test("the preview can overlay the physics proxy it would export", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+  await page.locator("#gen-prompt").fill("low-poly crate");
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await expect
+    .poll(() => page.locator("#gen-preview-stage canvas").count(), {
+      timeout: 10000,
+    })
+    .toBeGreaterThan(0);
+
+  await page.locator("#gen-export").click();
+  await expect(page.locator("#gen-export-panel")).toBeVisible();
+  await page.locator("#gen-preview-spin").click();
+  const overlay = page.locator("#gen-preview-collider");
+  await expect(overlay).not.toBeChecked();
+  const base = await canvasSignature(page);
+
+  await overlay.check();
+  await expect(overlay).toBeChecked();
+  await settle(page);
+  const withCollider = await canvasSignature(page);
+  expect(withCollider.hash).not.toBe(base.hash);
+  expect(withCollider.green).toBeGreaterThan(base.green);
+
+  await page.locator("#gen-collision").selectOption("sphere");
+  await settle(page);
+  const sphere = await canvasSignature(page);
+  expect(sphere.hash).not.toBe(base.hash);
+  expect(sphere.hash).not.toBe(withCollider.hash);
+  expect(sphere.green).toBeGreaterThan(base.green);
+
+  await overlay.uncheck();
+  await settle(page);
+  expect((await canvasSignature(page)).hash).toBe(base.hash);
+
+  await page.locator("#gen-collision").selectOption("none");
+  await overlay.check();
+  await expect(page.locator("#gen-status")).not.toHaveClass(/error/);
+});
+
 /* Quick templates were once able to render a chip whose translation key was
    missing, and clicking it then fell back to the default cube. The dragon
    chip is the easy witness: only the dragon preset ships a fly clip. */

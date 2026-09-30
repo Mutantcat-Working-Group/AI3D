@@ -541,6 +541,7 @@ export default {
   "gen.previewPlay": "Play animation",
   "gen.previewPause": "Pause animation",
   "gen.previewSpin": "Auto-rotate preview",
+  "gen.previewCollider": "Show collider",
   "gen.engine": "Engine",
   "gen.engineUnity": "Unity",
   "gen.engineGodot": "Godot",

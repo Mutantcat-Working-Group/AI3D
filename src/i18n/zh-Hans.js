@@ -515,6 +515,7 @@ export default {
   "gen.previewPlay": "播放动画",
   "gen.previewPause": "暂停动画",
   "gen.previewSpin": "预览自动旋转",
+  "gen.previewCollider": "显示碰撞体",
   "gen.engine": "引擎",
   "gen.engineUnity": "Unity",
   "gen.engineGodot": "Godot",

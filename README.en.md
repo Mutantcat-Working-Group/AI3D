@@ -53,7 +53,9 @@ each one, and save the ones you like to the asset library.
   budgets, and the simplifier keeps materials and merges same-material meshes.
 - **Colliders** - box / sphere / capsule / cylinder / convex hull / mesh presets
   per asset type, sized from the actual mesh; the hull is sampled from mesh
-  vertices. All presets are emitted as engine-side collider files.
+  vertices. All presets are emitted as engine-side collider files. The preview
+  can overlay the proxy the export would ship, so an oversized or floating
+  collider shows up before the pack is built.
 - **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
   fit axis (largest dimension / height / width / depth), and the origin can be
   centred, planted on the ground, or pinned to the base or the top, so a
@@ -189,7 +191,7 @@ From a clone, for the full development environment:
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 319 unit and integration tests
-npm run test:browser # 83 real-Chromium tests
+npm run test:browser # 84 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites

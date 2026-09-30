@@ -552,6 +552,7 @@ export default {
   "gen.previewPlay": "Lire l'animation",
   "gen.previewPause": "Mettre l'animation en pause",
   "gen.previewSpin": "Rotation automatique de l'aperçu",
+  "gen.previewCollider": "Afficher le collisionneur",
   "gen.engine": "Moteur",
   "gen.engineUnity": "Unity",
   "gen.engineGodot": "Godot",

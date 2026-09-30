@@ -350,6 +350,7 @@ app.innerHTML = `${SPRITE}
         </select>
         <button id="gen-preview-play" class="icon-only" aria-label="${T("gen.previewPlay")}" title="${T("gen.previewPlay")}">${icon("play")}</button>
         <button id="gen-preview-spin" class="icon-only active" aria-label="${T("gen.previewSpin")}" aria-pressed="true" title="${T("gen.previewSpin")}">${icon("orbit")}</button>
+        <label class="gen-check"><input type="checkbox" id="gen-preview-collider">${T("gen.previewCollider")}</label>
       </div>
     </div>
     <div class="gen-variants">
@@ -2627,6 +2628,36 @@ function setGenExportPanel(show) {
 let genPreview = null;
 let genPreviewPlaying = true;
 let genPreviewSpin = true;
+let genPreviewCollider = false;
+
+/* The preview can overlay the exact physics proxy the export would ship, so a
+   box that visibly floats above a crate or a hull that swallows a prop is
+   caught before the pack is built rather than in the engine. The shape follows
+   the export panel's own collision select, including its scene special case. */
+function syncGenPreviewCollider() {
+  if (!genPreview) return;
+  const model = genState.model?.threeObject;
+  if (!genPreviewCollider || !model) {
+    genPreview.setCollider(null);
+    return;
+  }
+  const choice = $("#gen-collision")?.value || "auto";
+  const isScene = genState.model?.kind === "scene";
+  const shape =
+    choice === "none" || (isScene && choice === "auto")
+      ? null
+      : choice === "auto"
+        ? getColliderShape(genState.model?.type)
+        : choice;
+  if (!shape) {
+    genPreview.setCollider(null);
+    return;
+  }
+  const collider = computeCollider(model, shape);
+  genPreview.setCollider(
+    collider && collider.shape !== "mesh" ? buildColliderModel(collider) : null,
+  );
+}
 
 function syncGenPreview() {
   if (!genPreview || !genState.model?.threeObject) return;
@@ -2660,6 +2691,7 @@ function syncGenPreview() {
     if (clips.length) genPreview.setClip(clips[0].name);
   }
   if (genPreviewSpin) genPreview.setAutoRotate(true);
+  syncGenPreviewCollider();
 }
 
 function showGenPreview() {
@@ -3614,6 +3646,11 @@ $("#gen-preview-spin")?.addEventListener("click", (e) => {
   e.currentTarget.setAttribute("aria-pressed", String(genPreviewSpin));
 });
 $("#gen-animation")?.addEventListener("change", syncGenPreview);
+$("#gen-preview-collider")?.addEventListener("change", (e) => {
+  genPreviewCollider = e.target.checked;
+  syncGenPreviewCollider();
+});
+$("#gen-collision")?.addEventListener("change", syncGenPreviewCollider);
 
 // --- Asset Library UI ---
 function renderAssetLibrary() {

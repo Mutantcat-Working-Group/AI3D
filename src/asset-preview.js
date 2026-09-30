@@ -32,6 +32,12 @@ export class AssetPreview {
     this.scene.add(fill);
     this.model = new THREE.Group();
     this.scene.add(this.model);
+    /* The physics proxy is a separate group rather than a child of the model:
+       fit() measures the model to frame the shot, and a collider that sits a
+       little proud of the mesh would otherwise drag the camera back with it.
+       frame() mirrors the model transform instead, so the two never drift. */
+    this.collider = new THREE.Group();
+    this.scene.add(this.collider);
     this.mixer = null;
     this.clips = [];
     this.playing = true;
@@ -107,6 +113,36 @@ export class AssetPreview {
     this.autoRotate = on;
   }
 
+  /* Show the physics proxy the export would ship, or clear it with null. The
+     object is passed in already built and positioned in model space, so this
+     stays a display concern and does not reach into the collider maths. */
+  setCollider(object) {
+    for (const child of [...this.collider.children]) {
+      this.collider.remove(child);
+      child.traverse?.((node) => {
+        node.geometry?.dispose?.();
+        const material = node.material;
+        for (const entry of Array.isArray(material) ? material : [material])
+          entry?.dispose?.();
+      });
+    }
+    this.collider.visible = Boolean(object);
+    if (!object) return;
+    /* The proxy is sized to hug the mesh it encloses, so the normal depth test
+       hides it behind the very surface it is meant to reveal. Draw it over the
+       model instead, the way a debug overlay would, so a proxy that floats or
+       overshoots is obvious at a glance. */
+    object.traverse((node) => {
+      if (!node.isMesh) return;
+      node.renderOrder = 999;
+      for (const entry of Array.isArray(node.material)
+        ? node.material
+        : [node.material])
+        if (entry) entry.depthTest = false;
+    });
+    this.collider.add(object);
+  }
+
   fit() {
     const box = new THREE.Box3().setFromObject(this.model);
     const size = box.getSize(new THREE.Vector3());
@@ -127,12 +163,15 @@ export class AssetPreview {
     if (this.autoRotate) {
       this.model.rotation.y += dt * 0.45;
     }
+    this.collider.position.copy(this.model.position);
+    this.collider.rotation.y = this.model.rotation.y;
     this.renderer.render(this.scene, this.camera);
   }
 
   dispose() {
     this.renderer.setAnimationLoop(null);
     this.resizeObserver.disconnect();
+    this.setCollider(null);
     this.clearModel();
     this.renderer.dispose();
   }
