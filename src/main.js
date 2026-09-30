@@ -34,6 +34,8 @@ import {
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
+  editSceneProp,
+  removeSceneProp,
   getGameKits,
   exportGLB,
   exportOBJ,
@@ -231,6 +233,18 @@ app.innerHTML = `${SPRITE}
       </div>
       <button id="gen-compose" class="primary-button">${icon("scene")}<span>${T("gen.compose")}</span></button>
       <button id="gen-scene-pack" class="quiet" hidden>${icon("download")}<span>${T("gen.exportScenePack")}</span></button>
+      <div id="gen-prop-editor" class="gen-prop-editor" hidden>
+        <div class="gen-types-title">${T("gen.props")}</div>
+        <label>${T("gen.propSelect")}<select id="gen-prop-select"></select></label>
+        <div class="gen-prop-grid">
+          <label>${T("gen.propType")}<select id="gen-prop-type"></select></label>
+          <label>${T("gen.propSize")}<input id="gen-prop-size" type="number" min="0.01" max="100" step="0.05"></label>
+          <label>${T("gen.propX")}<input id="gen-prop-x" type="number" step="0.05"></label>
+          <label>${T("gen.propZ")}<input id="gen-prop-z" type="number" step="0.05"></label>
+          <label>${T("gen.propRotation")}<input id="gen-prop-rotation" type="number" step="15"></label>
+        </div>
+        <button id="gen-prop-delete" class="quiet" type="button">${icon("trash")}<span>${T("gen.propDelete")}</span></button>
+      </div>
     </div>
     <div class="gen-form">
       <label>${T("gen.prompt")}</label>
@@ -2327,6 +2341,7 @@ const genState = {
   variants: [],
 };
 let selectedGenKit = "dungeon";
+let selectedSceneProp = 0;
 
 /* i18n catalogues carry the template labels and prompt aliases. The catalogue
    keys themselves are written out here so the i18n checker can see every
@@ -2552,6 +2567,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
         material: asset.material || theme.material || null,
         texture: asset.texture ?? theme.texture ?? "auto",
         textureStrength: asset.textureStrength ?? theme.textureStrength ?? 0.8,
+        props: Array.isArray(asset.scene?.props) ? asset.scene.props : null,
       })
     : generateThreeAsset(asset.type, {
         size: asset.size,
@@ -2688,6 +2704,7 @@ async function generateAsset() {
     );
     setGenActions(true);
     setGenOptimizePanel(false);
+    updateGenScenePackButton();
     showGenPreview();
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
@@ -2821,6 +2838,7 @@ function loadVariant(index) {
   setGenExportPanel(false);
   setGenActions(true);
   setGenStatus(t("gen.applied"), "ok");
+  updateGenScenePackButton();
   showGenPreview();
 }
 
@@ -3192,6 +3210,66 @@ function readGenKitOptions() {
   };
 }
 
+function getSceneProps() {
+  const props = genState.model?.threeObject?.userData?.propList;
+  return Array.isArray(props) ? props : [];
+}
+
+function renderGenPropEditor() {
+  const editor = $("#gen-prop-editor");
+  if (!editor) return;
+  const props = getSceneProps();
+  if (genState.model?.kind !== "scene" || props.length === 0) {
+    editor.hidden = true;
+    return;
+  }
+
+  editor.hidden = false;
+  selectedSceneProp = Math.min(
+    Math.max(0, selectedSceneProp),
+    props.length - 1,
+  );
+  const prop = props[selectedSceneProp];
+  const select = $("#gen-prop-select");
+  select.innerHTML = props
+    .map(
+      (entry, index) =>
+        `<option value="${index}">${index + 1}. ${esc(t(GEN_TYPE_KEYS[entry.type]))}</option>`,
+    )
+    .join("");
+  select.value = String(selectedSceneProp);
+
+  const typeSelect = $("#gen-prop-type");
+  typeSelect.innerHTML = getAssetTypes()
+    .map(
+      (type) =>
+        `<option value="${esc(type)}"${type === prop.type ? " selected" : ""}>${esc(t(GEN_TYPE_KEYS[type]))}</option>`,
+    )
+    .join("");
+  $("#gen-prop-size").value = String(prop.size);
+  $("#gen-prop-x").value = String(prop.x);
+  $("#gen-prop-z").value = String(prop.z);
+  $("#gen-prop-rotation").value = String(
+    Math.round(((prop.rotationY || 0) * 180) / Math.PI),
+  );
+}
+
+function applyScenePropEdit(changes) {
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene) return;
+  try {
+    editSceneProp(scene, selectedSceneProp, changes);
+    genState.model.scene ||= {};
+    genState.model.scene.props = scene.userData.propList;
+    renderGenPropEditor();
+    syncGenPreview();
+    setGenStatus(t("gen.applied"), "ok");
+  } catch {
+    renderGenPropEditor();
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
 function composeGameKitScene(kitId) {
   if (genState.generating) return;
   genState.generating = true;
@@ -3251,6 +3329,7 @@ function composeGameKitScene(kitId) {
     genState.originalModel = null;
     genState.lods = [];
     genState.activeLod = 0;
+    selectedSceneProp = 0;
     setGenOptimizePanel(false);
     setGenExportPanel(false);
     setGenActions(true);
@@ -3270,6 +3349,7 @@ function composeGameKitScene(kitId) {
 function updateGenScenePackButton() {
   const button = $("#gen-scene-pack");
   if (button) button.hidden = genState.model?.kind !== "scene";
+  renderGenPropEditor();
 }
 
 $("#gen-generate").addEventListener("click", generateAsset);
@@ -3340,6 +3420,41 @@ $("#gen-compose").addEventListener("click", () =>
   composeGameKitScene(selectedGenKit),
 );
 $("#gen-scene-pack").addEventListener("click", downloadGenPack);
+$("#gen-prop-select").addEventListener("change", (e) => {
+  selectedSceneProp = Number(e.target.value) || 0;
+  renderGenPropEditor();
+});
+$("#gen-prop-type").addEventListener("change", (e) => {
+  applyScenePropEdit({ type: e.target.value });
+});
+for (const [selector, field] of [
+  ["#gen-prop-size", "size"],
+  ["#gen-prop-x", "x"],
+  ["#gen-prop-z", "z"],
+]) {
+  $(selector).addEventListener("change", (e) => {
+    applyScenePropEdit({ [field]: Number(e.target.value) });
+  });
+}
+$("#gen-prop-rotation").addEventListener("change", (e) => {
+  applyScenePropEdit({
+    rotationY: (Number(e.target.value) * Math.PI) / 180,
+  });
+});
+$("#gen-prop-delete").addEventListener("click", () => {
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene) return;
+  if (!removeSceneProp(scene, selectedSceneProp)) return;
+  genState.model.scene ||= {};
+  genState.model.scene.props = scene.userData.propList;
+  selectedSceneProp = Math.max(
+    0,
+    Math.min(selectedSceneProp, scene.userData.propList.length - 1),
+  );
+  renderGenPropEditor();
+  syncGenPreview();
+  setGenStatus(t("gen.applied"), "ok");
+});
 
 // --- Generated asset preview ---
 const genPreviewStage = $("#gen-preview-stage");
@@ -3489,9 +3604,9 @@ function loadAsset(id) {
       groundColor:
         asset.scene?.groundColor ?? model.userData.groundColor ?? null,
       theme: model.userData.theme || asset.scene?.theme || null,
-      props: Array.isArray(asset.scene?.props)
-        ? asset.scene.props
-        : model.userData.propList || [],
+      props:
+        model.userData.propList ||
+        (Array.isArray(asset.scene?.props) ? asset.scene.props : []),
     };
     // A saved scene is only editable if the controls that built it come back
     // with the same numbers. Without this a re-compose would draw a different
@@ -3508,6 +3623,7 @@ function loadAsset(id) {
     setKitOption("#gen-kit-ground", genState.model.scene.groundPadding);
     setKitOption("#gen-kit-prop-scale", genState.model.scene.propScale);
     genState.originalModel = null;
+    selectedSceneProp = 0;
   } else {
     genState.originalModel = cloneModelDeep(model);
   }

@@ -997,6 +997,8 @@ const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
  * @param {number} options.spacing - Grid spacing multiplier
  * @param {number} options.groundPadding - Ground margin on each side
  * @param {number} options.propScale - Global prop scale multiplier
+ * @param {Array<object>} options.props - Saved prop placements. When supplied,
+ *   these replace the kit defaults so deleted or edited props survive a reload.
  */
 export function composeGameKit(
   kit,
@@ -1012,6 +1014,7 @@ export function composeGameKit(
     spacing = 1,
     groundPadding = 0.6,
     propScale = 1,
+    props = null,
   } = {},
 ) {
   const def = GAME_KITS[kit];
@@ -1086,17 +1089,38 @@ export function composeGameKit(
   group.add(ground);
 
   const propList = [];
-  def.props.forEach((prop, index) => {
+  const usingSavedProps = Array.isArray(props);
+  const sourceProps = usingSavedProps ? props : def.props;
+  sourceProps.forEach((placement, index) => {
+    const defaultProp = def.props[index] || {};
+    const requestedType =
+      placement && ASSET_TYPES[placement.type] ? placement.type : null;
+    const type = requestedType || defaultProp.type || "cube";
+    const requestedSize = usingSavedProps ? Number(placement?.size) : null;
+    const sizeValue = Number.isFinite(requestedSize)
+      ? requestedSize
+      : (defaultProp.size ?? 1) * propScaleValue;
+    const size =
+      Math.round(Math.min(100, Math.max(0.01, sizeValue)) * 1000) / 1000;
     const row = Math.floor(index / grid);
     const col = index % grid;
     const baseX = (col - (grid - 1) / 2) * slot;
     const baseZ = (row - (grid - 1) / 2) * slot;
     const jitter = 0.16 * cell;
-    const x = baseX + (rng() - 0.5) * jitter;
-    const z = baseZ + (rng() - 0.5) * jitter;
-    const propSeed = Math.floor(rng() * 100000);
-    const size = Math.round(prop.size * propScaleValue * 1000) / 1000;
-    const model = generateAsset(prop.type, {
+    const randomX = baseX + (rng() - 0.5) * jitter;
+    const randomZ = baseZ + (rng() - 0.5) * jitter;
+    const randomPropSeed = Math.floor(rng() * 100000);
+    const requestedX = Number(placement?.x);
+    const requestedZ = Number(placement?.z);
+    const requestedSeed = Number(placement?.seed);
+    const requestedRotation = Number(placement?.rotationY);
+    const requestedY = Number(placement?.y);
+    const x = Number.isFinite(requestedX) ? requestedX : randomX;
+    const z = Number.isFinite(requestedZ) ? requestedZ : randomZ;
+    const propSeed = Number.isFinite(requestedSeed)
+      ? Math.floor(requestedSeed)
+      : randomPropSeed;
+    const model = generateAsset(type, {
       size,
       segments,
       style,
@@ -1106,7 +1130,7 @@ export function composeGameKit(
       texture,
       textureStrength,
     });
-    model.name = `${kit}-${prop.type}-${index + 1}`;
+    model.name = `${kit}-${type}-${index + 1}`;
     model.traverse((child) => {
       if (child.isMesh) child.name = `${model.name}-${child.name}`;
     });
@@ -1114,13 +1138,20 @@ export function composeGameKit(
     // its lowest vertex rests on the ground instead of sinking into it.
     const restingBox = new THREE.Box3().setFromObject(model);
     const groundLift = 0.06 - restingBox.min.y;
-    const rotationY = Math.floor(rng() * 8) * (Math.PI / 4);
-    model.position.set(x, model.position.y + groundLift, z);
+    const randomRotation = Math.floor(rng() * 8) * (Math.PI / 4);
+    const rotationY = Number.isFinite(requestedRotation)
+      ? requestedRotation
+      : randomRotation;
+    model.position.set(
+      x,
+      Number.isFinite(requestedY) ? requestedY : model.position.y + groundLift,
+      z,
+    );
     model.rotation.y = rotationY;
     const placedBox = new THREE.Box3().setFromObject(model);
     propList.push({
       name: model.name,
-      type: prop.type,
+      type,
       size,
       seed: propSeed,
       x: Math.round(x * 1000) / 1000,
@@ -1132,7 +1163,7 @@ export function composeGameKit(
         height: Math.round((placedBox.max.y - placedBox.min.y) * 1000) / 1000,
         depth: Math.round((placedBox.max.z - placedBox.min.z) * 1000) / 1000,
       },
-      collision: getColliderShape(prop.type),
+      collision: getColliderShape(type),
     });
     group.add(model);
     positions.push({ index, x, z });
@@ -1150,6 +1181,143 @@ export function composeGameKit(
     height: box.max.y - box.min.y,
   };
   return group;
+}
+
+/**
+ * Edit one prop inside a composed scene and keep its export metadata in sync.
+ * Coordinates use the same layout space as composeGameKit, so saving the
+ * scene and rebuilding it from userData.propList preserves the adjustment.
+ * @param {THREE.Group} scene - Scene returned by composeGameKit
+ * @param {number} propIndex - Index in scene.userData.propList
+ * @param {object} changes - x, z, rotationY, size and/or type overrides
+ * @returns {object} The updated prop metadata
+ */
+export function editSceneProp(scene, propIndex, changes = {}) {
+  const index = Math.floor(Number(propIndex));
+  const propList = scene?.userData?.propList;
+  if (!Array.isArray(propList) || index < 0 || index >= propList.length) {
+    throw new Error(`Unknown scene prop: ${propIndex}`);
+  }
+  const current = propList[index];
+  const currentModel = scene.children.find(
+    (child) => child.name === current.name,
+  );
+  if (!currentModel)
+    throw new Error(`Missing scene prop model: ${current.name}`);
+
+  const requestedType =
+    changes.type && ASSET_TYPES[changes.type] ? changes.type : current.type;
+  const requestedSize = Number(changes.size);
+  const size = Number.isFinite(requestedSize)
+    ? Math.round(Math.min(100, Math.max(0.01, requestedSize)) * 1000) / 1000
+    : current.size;
+  const x = Number.isFinite(Number(changes.x))
+    ? Number(changes.x)
+    : currentModel.position.x;
+  const z = Number.isFinite(Number(changes.z))
+    ? Number(changes.z)
+    : currentModel.position.z;
+  const rotationY = Number.isFinite(Number(changes.rotationY))
+    ? Number(changes.rotationY)
+    : currentModel.rotation.y;
+  const requestedY = Number(changes.y);
+  const y = Number.isFinite(requestedY) ? requestedY : null;
+  const theme = scene.userData.theme || {};
+  const replaceModel =
+    requestedType !== current.type || Math.abs(size - current.size) > 0.0001;
+
+  let model = currentModel;
+  if (replaceModel) {
+    model = generateAsset(requestedType, {
+      size,
+      segments: theme.segments ?? 12,
+      style: theme.style ?? "lowpoly",
+      color: theme.color || null,
+      seed: current.seed ?? null,
+      material: theme.material || null,
+      texture: theme.texture ?? "auto",
+      textureStrength: theme.textureStrength ?? 0.8,
+    });
+    model.name = `${scene.userData.kit || "kit"}-${requestedType}-${index + 1}`;
+    model.traverse((child) => {
+      if (child.isMesh) child.name = `${model.name}-${child.name}`;
+    });
+    currentModel.removeFromParent();
+    scene.add(model);
+  }
+
+  model.position.set(x, y ?? 0, z);
+  const restingBox = new THREE.Box3().setFromObject(model);
+  if (y === null) model.position.y = 0.06 - restingBox.min.y;
+  model.rotation.y = rotationY;
+
+  const placedBox = new THREE.Box3().setFromObject(model);
+  const next = {
+    name: model.name,
+    type: requestedType,
+    size,
+    seed: current.seed,
+    x: Math.round(x * 1000) / 1000,
+    y: Math.round(model.position.y * 1000) / 1000,
+    z: Math.round(z * 1000) / 1000,
+    rotationY: Math.round(rotationY * 10000) / 10000,
+    bounds: {
+      width: Math.round((placedBox.max.x - placedBox.min.x) * 1000) / 1000,
+      height: Math.round((placedBox.max.y - placedBox.min.y) * 1000) / 1000,
+      depth: Math.round((placedBox.max.z - placedBox.min.z) * 1000) / 1000,
+    },
+    collision: getColliderShape(requestedType),
+  };
+  propList[index] = next;
+  scene.userData.props = propList.length;
+  const bounds = new THREE.Box3().setFromObject(scene);
+  scene.userData.extent = {
+    width: bounds.max.x - bounds.min.x,
+    depth: bounds.max.z - bounds.min.z,
+    height: bounds.max.y - bounds.min.y,
+  };
+  return next;
+}
+
+/**
+ * Remove one prop from a composed scene while keeping the remaining metadata
+ * serializable as a saved scene recipe.
+ * @param {THREE.Group} scene - Scene returned by composeGameKit
+ * @param {number} propIndex - Index in scene.userData.propList
+ * @returns {object|null} The removed prop metadata, or null when absent
+ */
+export function removeSceneProp(scene, propIndex) {
+  const index = Math.floor(Number(propIndex));
+  const propList = scene?.userData?.propList;
+  if (!Array.isArray(propList) || index < 0 || index >= propList.length) {
+    return null;
+  }
+  const removed = propList[index];
+  const model = scene.children.find((child) => child.name === removed.name);
+  model?.removeFromParent();
+  propList.splice(index, 1);
+  propList.forEach((prop, propIndexValue) => {
+    const suffix = `-${propIndexValue + 1}`;
+    const oldName = prop.name;
+    if (!oldName) return;
+    const baseName = oldName.slice(0, oldName.lastIndexOf("-"));
+    prop.name = `${baseName}${suffix}`;
+    const propModel = scene.children.find((child) => child.name === oldName);
+    if (!propModel) return;
+    propModel.name = prop.name;
+    propModel.traverse((child) => {
+      if (child === propModel || !child.name.startsWith(`${oldName}-`)) return;
+      child.name = `${prop.name}${child.name.slice(oldName.length)}`;
+    });
+  });
+  scene.userData.props = propList.length;
+  const bounds = new THREE.Box3().setFromObject(scene);
+  scene.userData.extent = {
+    width: bounds.max.x - bounds.min.x,
+    depth: bounds.max.z - bounds.min.z,
+    height: bounds.max.y - bounds.min.y,
+  };
+  return removed;
 }
 
 export function getGameKits() {

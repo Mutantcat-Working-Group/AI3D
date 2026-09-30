@@ -231,3 +231,43 @@ test("loading a saved scene restores the kit controls that built it", async ({
     /active/,
   );
 });
+
+test("composed scene props can be edited, reloaded and deleted", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+  await page.locator('#gen-kits [data-kit="camp"]').click();
+  await page.locator("#gen-compose").click();
+
+  const editor = page.locator("#gen-prop-editor");
+  await expect(editor).toBeVisible();
+  await expect(page.locator("#gen-prop-select option")).toHaveCount(9);
+  await page.locator("#gen-prop-type").selectOption("tower");
+  await page.locator("#gen-prop-size").fill("1.4");
+  await page.locator("#gen-prop-size").blur();
+  await page.locator("#gen-prop-x").fill("2.5");
+  await page.locator("#gen-prop-x").blur();
+  await page.locator("#gen-prop-rotation").fill("90");
+  await page.locator("#gen-prop-rotation").blur();
+  await expect(page.locator("#gen-prop-select option").first()).toContainText(
+    "Tower",
+  );
+
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator("#gen-kit-spacing").fill("1.5");
+  await page.locator("#gen-library .gen-asset-load").click();
+
+  await expect(editor).toBeVisible();
+  await expect(page.locator("#gen-prop-select option").first()).toContainText(
+    "Tower",
+  );
+  await expect(page.locator("#gen-prop-size")).toHaveValue("1.4");
+  await expect(page.locator("#gen-prop-x")).toHaveValue("2.5");
+  await expect(page.locator("#gen-prop-rotation")).toHaveValue("90");
+
+  await page.locator("#gen-prop-delete").click();
+  await expect(page.locator("#gen-prop-select option")).toHaveCount(8);
+});

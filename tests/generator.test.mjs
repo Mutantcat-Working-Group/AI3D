@@ -14,6 +14,8 @@ import {
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
+  editSceneProp,
+  removeSceneProp,
   getGameKits,
   exportGLB,
   exportOBJ,
@@ -487,6 +489,79 @@ test("scene kit options scale spacing, ground and props with placement metadata"
   );
   assert.ok(compact.userData.propList[0].bounds.width > 0);
   assert.ok(compact.userData.propList[0].bounds.depth > 0);
+});
+
+test("saved scene placements rebuild edited and removed props", () => {
+  const original = composeGameKit("camp", { seed: 18 });
+  const saved = original.userData.propList.map((prop) => ({ ...prop }));
+  saved[0] = {
+    ...saved[0],
+    type: "tower",
+    size: 1.75,
+    x: 2.25,
+    z: -1.5,
+    rotationY: Math.PI / 3,
+  };
+  saved.splice(2, 1);
+
+  const rebuilt = composeGameKit("camp", { seed: 18, props: saved });
+  assert.equal(rebuilt.userData.propList.length, saved.length);
+  const first = rebuilt.userData.propList[0];
+  assert.equal(first.type, "tower");
+  assert.equal(first.size, 1.75);
+  assert.equal(first.x, 2.25);
+  assert.equal(first.z, -1.5);
+  assert.ok(Math.abs(first.rotationY - Math.PI / 3) < 0.0001);
+  assert.ok(first.name.includes("-tower-"));
+  assert.ok(
+    rebuilt.children.some((child) => child.name === first.name),
+    "the edited placement gets a matching model",
+  );
+});
+
+test("editSceneProp updates one model and its export metadata", () => {
+  const scene = composeGameKit("dungeon", { seed: 14 });
+  const updated = editSceneProp(scene, 1, {
+    type: "tower",
+    size: 1.6,
+    x: 1.4,
+    z: -2.1,
+    rotationY: Math.PI / 4,
+  });
+  const model = scene.children.find((child) => child.name === updated.name);
+
+  assert.ok(model, "the replacement model is in the scene");
+  assert.equal(updated.type, "tower");
+  assert.equal(updated.size, 1.6);
+  assert.equal(updated.x, 1.4);
+  assert.equal(updated.z, -2.1);
+  assert.ok(Math.abs(updated.rotationY - Math.PI / 4) < 0.0001);
+  assert.equal(model.position.x, 1.4);
+  assert.equal(model.position.z, -2.1);
+  assert.equal(scene.userData.propList[1], updated);
+});
+
+test("removeSceneProp removes a model and compacts placement names", () => {
+  const scene = composeGameKit("town", { seed: 16 });
+  const removedName = scene.userData.propList[1].name;
+  const removed = removeSceneProp(scene, 1);
+
+  assert.equal(removed.name, removedName);
+  assert.equal(scene.userData.propList.length, 8);
+  assert.equal(
+    scene.children.some((child) => child.name === removedName),
+    false,
+  );
+  const next = scene.userData.propList[1];
+  assert.ok(next.name.endsWith("-2"));
+  const nextModel = scene.children.find((child) => child.name === next.name);
+  assert.ok(nextModel, "the following prop is renumbered with its model");
+  nextModel.traverse((child) => {
+    if (child !== nextModel)
+      assert.ok(
+        child.name.startsWith(`${next.name}-`) || child.name === next.name,
+      );
+  });
 });
 
 test("exportGamePack exports composed scenes with props and theme", async () => {
