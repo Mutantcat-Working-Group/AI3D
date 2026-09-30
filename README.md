@@ -69,8 +69,8 @@ AI3D 现在把聊天面板收进工作台：生成、导出或审阅时都能就
 知识包不复制第三方文件，只收录可核验的出处、许可与要点摘要，因此可以随安装包离线分发，也能被 Agent 当作可靠上下文调用。当前收录：
 
 - glTF 2.0 规范与 Khronos 示例资产库，用于交换格式与兼容性判断。
-- 专业建模流程：重拓扑与四边面布线、UV 展开与像素密度、高低模烘焙与法线贴图、硬表面倒角与分缝、游戏资产预算与 LOD／虚拟几何体、PBR 材质制作。
-- 公共白模与素材来源：Poly Haven、Kenney、Quaternius、Poly Pizza、Sketchfab 的 CC0 筛选、维基共享资源 3D 模型、MakeHuman 人体白模、Z-Anatomy 开放解剖图谱、NASA 3D Resources，逐条标注许可，其中 CC0 资源注明可商用免署名。
+- 专业建模流程：白模与基础网格工作流、从粗模到成品的管线顺序、重拓扑与四边面布线、UV 展开与像素密度、高低模烘焙与法线贴图、法线贴图／光滑组与切线空间、模块化场景套件与装饰条贴图、骨骼绑定与蒙皮预算、贴图通道打包与色彩空间、资产命名约定、硬表面倒角与分缝、游戏资产预算与 LOD／虚拟几何体、PBR 材质制作。
+- 公共白模与素材来源：Blender 官方人体白模资产包（CC0）、史密森尼开放获取 3D 藏品（CC0）、OpenGameArt、Scan the World 公共雕塑扫描、Mixamo 免费骨骼角色与动作、Poly Haven、Kenney、Quaternius、Poly Pizza、Sketchfab 的 CC0 筛选、维基共享资源 3D 模型、MakeHuman 人体白模、Z-Anatomy 开放解剖图谱、NASA 3D Resources，逐条标注许可，其中 CC0 资源注明可商用免署名。
 
 MCP 客户端可以调用 `ai3d_knowledge` 工具检索同一份知识包，返回结构化条目与引用信息；聊天面板与 MCP 共用这一份实现，不会各自漂移。
 
@@ -107,7 +107,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 313 unit and integration tests
+npm test             # 314 unit and integration tests
 npm run test:browser # 83 real-Chromium tests
 ```
 

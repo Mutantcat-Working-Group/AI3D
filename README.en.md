@@ -122,14 +122,20 @@ and reliable enough to hand to an agent as context. It currently covers:
 
 - The glTF 2.0 specification and the Khronos sample-asset corpus, for
   interchange and compatibility questions.
-- Professional modeling craft: retopology and quad flow, UV unwrapping and
-  texel density, high-to-low baking and normal maps, hard-surface bevels and
-  panel breaks, game asset budgets, LOD and virtualized geometry, and PBR
-  material authoring.
-- Public white-model and reference libraries: Poly Haven, Kenney, Quaternius,
-  Poly Pizza, Sketchfab's CC0 filter, Wikimedia Commons 3D models, MakeHuman
-  base meshes, the Z-Anatomy atlas and NASA 3D Resources, each tagged with its
-  licence; CC0 resources are marked as usable commercially without attribution.
+- Professional modeling craft: base-mesh and white-model workflow, the
+  blockout-to-detail pipeline order, retopology and quad flow, UV unwrapping and
+  texel density, high-to-low baking and normal maps, normal-map and shading
+  conventions, modular kits and trim sheets, rigging and skinning budgets,
+  texture packing and colour space, asset naming conventions, hard-surface
+  bevels and panel breaks, game asset budgets, LOD and virtualized geometry,
+  and PBR material authoring.
+- Public white-model and reference libraries: the Blender human base-mesh asset
+  bundle (CC0), Smithsonian Open Access 3D collection (CC0), OpenGameArt, Scan
+  the World sculpture scans, Mixamo rigged characters and animations, Poly
+  Haven, Kenney, Quaternius, Poly Pizza, Sketchfab's CC0 filter, Wikimedia
+  Commons 3D models, MakeHuman base meshes, the Z-Anatomy atlas and NASA 3D
+  Resources, each tagged with its licence; CC0 resources are marked as usable
+  commercially without attribution.
 
 An MCP client can call the `ai3d_knowledge` tool against the same pack and gets
 structured entries with citations. The chat panel and MCP share one
@@ -181,7 +187,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 313 unit and integration tests
+npm test             # 314 unit and integration tests
 npm run test:browser # 83 real-Chromium tests
 ```
 

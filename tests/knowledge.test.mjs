@@ -68,6 +68,42 @@ test("every related asset points at a template the generator can build", () => {
   }
 });
 
+test("public white-model sources and the modelling pipeline stay searchable", () => {
+  for (const id of [
+    "blender-base-meshes",
+    "smithsonian-open-access",
+    "opengameart",
+    "scan-the-world",
+    "mixamo",
+  ]) {
+    assert.ok(getKnowledge(id), `${id} is missing from the knowledge pack`);
+  }
+
+  const whiteModels = searchKnowledge("白模 基础网格");
+  assert.ok(whiteModels.results.length >= 3);
+  assert.ok(
+    whiteModels.results.some((hit) => hit.id === "blender-base-meshes"),
+  );
+
+  const pipeline = searchKnowledge("专业建模 管线 粗模");
+  assert.equal(pipeline.results[0].id, "blockout-to-detail-pipeline");
+
+  const normals = searchKnowledge("法线贴图 切线空间 光滑组");
+  assert.equal(normals.results[0].id, "normal-map-and-shading");
+
+  const modular = searchKnowledge("模块化 场景 平铺");
+  assert.equal(modular.results[0].id, "modular-kit-and-trim-sheets");
+
+  const rig = searchKnowledge("骨骼 蒙皮 权重");
+  assert.equal(rig.results[0].id, "rigging-skinning-budgets");
+
+  const packing = searchKnowledge("贴图 通道打包 色彩空间");
+  assert.equal(packing.results[0].id, "texture-packing-and-color-space");
+
+  const naming = searchKnowledge("命名 约定 前缀");
+  assert.equal(naming.results[0].id, "asset-naming-conventions");
+});
+
 test("get, list and the MCP call shape agree", () => {
   const entry = getKnowledge("gltf-2-spec");
   assert.equal(entry.entry.title, "glTF 2.0 specification");
