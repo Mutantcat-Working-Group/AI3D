@@ -573,6 +573,7 @@ export default {
   "gen.collisionSphere": "Kugel",
   "gen.collisionCapsule": "Kapsel",
   "gen.collisionCylinder": "Zylinder",
+  "gen.collisionConvex": "Konvexe Hülle",
   "gen.collisionMesh": "Mesh",
   "gen.collisionNone": "Keine",
   "gen.variants": "Varianten-Chargen",

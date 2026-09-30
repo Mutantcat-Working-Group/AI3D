@@ -534,6 +534,7 @@ export default {
   "gen.collisionSphere": "球体",
   "gen.collisionCapsule": "胶囊体",
   "gen.collisionCylinder": "圆柱体",
+  "gen.collisionConvex": "凸包",
   "gen.collisionMesh": "网格",
   "gen.collisionNone": "无",
   "gen.variants": "变体批量",

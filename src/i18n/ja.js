@@ -559,6 +559,7 @@ export default {
   "gen.collisionSphere": "球",
   "gen.collisionCapsule": "カプセル",
   "gen.collisionCylinder": "円柱",
+  "gen.collisionConvex": "凸包",
   "gen.collisionMesh": "メッシュ",
   "gen.collisionNone": "なし",
   "gen.variants": "バリアント一括生成",

@@ -571,6 +571,7 @@ export default {
   "gen.collisionSphere": "Sphère",
   "gen.collisionCapsule": "Capsule",
   "gen.collisionCylinder": "Cylindre",
+  "gen.collisionConvex": "Enveloppe convexe",
   "gen.collisionMesh": "Maillage",
   "gen.collisionNone": "Aucune",
   "gen.variants": "Lot de variantes",

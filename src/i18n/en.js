@@ -560,6 +560,7 @@ export default {
   "gen.collisionSphere": "Sphere",
   "gen.collisionCapsule": "Capsule",
   "gen.collisionCylinder": "Cylinder",
+  "gen.collisionConvex": "Convex hull",
   "gen.collisionMesh": "Mesh",
   "gen.collisionNone": "None",
   "gen.variants": "Variant Batch",

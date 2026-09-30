@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import { OBJExporter } from "three/addons/exporters/OBJExporter.js";
+import { ConvexGeometry } from "three/addons/geometries/ConvexGeometry.js";
 import { zipSync } from "fflate";
 import {
   createProceduralTextures,
@@ -3952,18 +3953,95 @@ export function getAssetStats(object) {
   return stats;
 }
 
+/* A convex hull only needs the extremes of a mesh, so a dense model is thinned
+   before the hull is built. Capping the candidates keeps a browser frame from
+   stalling while still leaving every silhouette-defining vertex in place. */
+const CONVEX_CANDIDATE_LIMIT = 3000;
+
+function collectColliderPoints(model, limit = CONVEX_CANDIDATE_LIMIT) {
+  const sources = [];
+  let total = 0;
+  model.updateMatrixWorld(true);
+  model.traverse((node) => {
+    const position = node.isMesh
+      ? node.geometry?.getAttribute?.("position")
+      : null;
+    if (!position || position.count === 0) return;
+    sources.push({ node, position });
+    total += position.count;
+  });
+  if (total === 0) return [];
+
+  const stride = Math.max(1, Math.ceil(total / Math.max(4, limit)));
+  const vertex = new THREE.Vector3();
+  const points = [];
+  for (const { node, position } of sources) {
+    for (let index = 0; index < position.count; index += stride) {
+      vertex
+        .fromBufferAttribute(position, index)
+        .applyMatrix4(node.matrixWorld);
+      if (
+        Number.isFinite(vertex.x) &&
+        Number.isFinite(vertex.y) &&
+        Number.isFinite(vertex.z)
+      ) {
+        points.push(vertex.clone());
+      }
+    }
+  }
+  return points;
+}
+
+/**
+ * Build a convex hull mesh from world-space points, a flat `[x, y, z, …]`
+ * array, or a stored hull payload. Returns null when the input is degenerate,
+ * which lets callers fall back to a primitive instead of exporting nothing.
+ * @param {THREE.Vector3[]|number[]} points
+ * @returns {THREE.BufferGeometry|null}
+ */
+export function buildConvexHullGeometry(points) {
+  if (!Array.isArray(points) || points.length === 0) return null;
+  let vectors;
+  if (points[0] instanceof THREE.Vector3) {
+    vectors = points;
+  } else {
+    vectors = [];
+    for (let index = 0; index + 2 < points.length; index += 3) {
+      vectors.push(
+        new THREE.Vector3(points[index], points[index + 1], points[index + 2]),
+      );
+    }
+  }
+  if (vectors.length < 4) return null;
+
+  try {
+    const geometry = new ConvexGeometry(vectors);
+    const position = geometry?.getAttribute?.("position");
+    if (!position || position.count < 3) {
+      geometry?.dispose?.();
+      return null;
+    }
+    geometry.computeVertexNormals();
+    return geometry;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fit a collision primitive around a generated model. The dimensions are
  * slightly shrunk so physics proxies sit just inside the visible mesh and do
- * not catch stray edges in the game engine.
+ * not catch stray edges in the game engine. "convex" wraps the sampled mesh
+ * vertices in a hull and stores it relative to the collider centre; "mesh"
+ * keeps no proxy because the exported model is the collider.
  * @param {THREE.Object3D} model - Generated model
- * @param {string} shape - "box", "sphere", "capsule", "cylinder" or "mesh"
+ * @param {string} shape - "box", "sphere", "capsule", "cylinder", "convex", "mesh" or "auto"
  * @returns {object|null} Collision metadata, or null for "none"
  */
 export function computeCollider(model, shape = "auto") {
   const resolved =
     shape === "auto" || shape == null
-      ? getColliderShape(model.name || "")
+      ? getColliderShape(String(model.name || "").replace(/^asset-/, ""))
       : shape;
   if (resolved === "none") return null;
 
@@ -4011,6 +4089,39 @@ export function computeCollider(model, shape = "auto") {
     };
   }
 
+  if (resolved === "convex") {
+    const hull = buildConvexHullGeometry(collectColliderPoints(model));
+    if (hull) {
+      const position = hull.getAttribute("position");
+      const seen = new Set();
+      const hullPoints = [];
+      for (let index = 0; index < position.count; index++) {
+        const x = round(position.getX(index) - center.x);
+        const y = round(position.getY(index) - center.y);
+        const z = round(position.getZ(index) - center.z);
+        const key = `${x}|${y}|${z}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        hullPoints.push(x, y, z);
+      }
+      const hullTriangles = Math.floor(position.count / 3);
+      hull.dispose();
+      return {
+        shape: "convex",
+        center: center.toArray().map(round),
+        size: size.map(round),
+        hullPoints,
+        hullTriangles,
+      };
+    }
+    // A degenerate mesh still needs a proxy, so the hull degrades to a box.
+    return {
+      shape: "box",
+      center: center.toArray().map(round),
+      size: size.map(round),
+    };
+  }
+
   return {
     shape: "mesh",
     center: center.toArray().map(round),
@@ -4019,7 +4130,7 @@ export function computeCollider(model, shape = "auto") {
 }
 
 /**
- * Build a small GLB-exportable visual for a collision primitive. Mesh
+ * Build a small GLB-exportable visual for a collision primitive or hull. Mesh
  * colliders do not need a separate file; engines use the model itself.
  * @param {object} collider - Collision metadata from computeCollider
  * @returns {THREE.Group|null} Named collider scene, or null for mesh/none
@@ -4045,6 +4156,12 @@ export function buildColliderModel(collider) {
       collider.height,
       16,
     );
+  } else if (collider.shape === "convex") {
+    geometry = buildConvexHullGeometry(collider.hullPoints || []);
+    if (!geometry && collider.size) {
+      const [w, h, d] = collider.size;
+      geometry = new THREE.BoxGeometry(w, h, d);
+    }
   }
   if (!geometry) return null;
 
@@ -4181,6 +4298,28 @@ function lodBudgetRecord(lod, slug) {
     drawCalls: stats.drawCalls,
     file: slug ? `models/${slug}/LOD${lod.level}.glb` : undefined,
   };
+}
+
+/* A convex collider is the one shape with a variable-length payload, so the
+   manifest spells out which key belongs to which shape instead of spreading
+   whatever computeCollider happened to return. The hull points are metres,
+   relative to the collider centre, and are enough to rebuild the hull in an
+   engine that cannot read the collider GLB. */
+function colliderRecord(collider) {
+  if (!collider) return null;
+  const record = {
+    shape: collider.shape,
+    center: collider.center,
+    size: collider.size,
+  };
+  if (collider.axis) record.axis = collider.axis;
+  if (collider.radius != null) record.radius = collider.radius;
+  if (collider.height != null) record.height = collider.height;
+  if (Array.isArray(collider.hullPoints)) {
+    record.hullPoints = collider.hullPoints;
+    record.hullTriangles = collider.hullTriangles ?? 0;
+  }
+  return record;
 }
 
 /**
@@ -4348,7 +4487,7 @@ export function buildGamePackFiles({
         : getAssetTags(asset.type),
       scene: isScene ? buildSceneRecord(asset) : null,
       stats,
-      collision: asset.collision || null,
+      collision: colliderRecord(asset.collision),
       lodLevels: asset.lodLevels
         ? asset.lodLevels.map((lod) => lodBudgetRecord(lod, slug))
         : null,

@@ -433,6 +433,7 @@ app.innerHTML = `${SPRITE}
         <option value="sphere">${T("gen.collisionSphere")}</option>
         <option value="capsule">${T("gen.collisionCapsule")}</option>
         <option value="cylinder">${T("gen.collisionCylinder")}</option>
+        <option value="convex">${T("gen.collisionConvex")}</option>
         <option value="mesh">${T("gen.collisionMesh")}</option>
         <option value="none">${T("gen.collisionNone")}</option>
       </select>

@@ -36,7 +36,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：用一句�
 
 - **动画**：角色、怪物带 idle／walk／attack 剪辑，龙带 idle／fly／attack；生成后直接在预览区播放，导出 GLB 时动画随模型一起带出。
 - **LOD**：一键生成 3 级 LOD，支持按级预览、批量导出；每一级都记录三角形、顶点、部件与绘制调用预算，网格简化器会保留材质并合并同材质网格。
-- **碰撞体**：按资产类型给出 box／sphere／capsule／cylinder／mesh 预设，碰撞体尺寸按实际网格计算，导出时生成引擎侧碰撞体文件。
+- **碰撞体**：按资产类型给出 box／sphere／capsule／cylinder／convex hull（凸包）／mesh 预设，碰撞体尺寸按实际网格计算，凸包从网格顶点采样生成，导出时生成引擎侧碰撞体文件。
 - **真实尺寸与原点**：尺寸带单位（m／cm／mm／ft／in），可选尺寸依据（最大边／高度／宽度／深度）与原点位置（居中／落在地面／底面在原点／顶面在原点）。角色可以站在原点上，道具默认居中；导出时按米写入 manifest 与实测包围盒。
 - **引擎包**：Unity、Godot、Unreal 三种预设。Godot 包带可直接实例化 `LOD0.glb` 的 `.tscn` 场景；Unity 与 Unreal 目前输出 GLB、材质与导入元数据清单，不伪造引擎原生 `.prefab`／`.meta`／`.uasset`。导出包内含网格、材质、碰撞体、动画清单与 manifest，并汇总整包三角形、顶点、部件与绘制调用预算，命名直接进引擎。
 - **套装**：地牢、营地、前哨站、村庄、神庙、战场、荒野、城镇等场景套装，按种子确定性摆放多件道具，可整场景导出。
@@ -107,7 +107,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 314 unit and integration tests
+npm test             # 319 unit and integration tests
 npm run test:browser # 83 real-Chromium tests
 ```
 

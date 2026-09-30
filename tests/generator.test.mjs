@@ -27,6 +27,7 @@ import {
   getColliderShape,
   computeCollider,
   buildColliderModel,
+  buildConvexHullGeometry,
   buildGamePackFiles,
   exportGamePack,
   getAssetTextureInfo,
@@ -1102,6 +1103,61 @@ test("buildColliderModel produces a named, disposable collider scene", () => {
   );
 });
 
+test("computeCollider resolves auto presets from the prefixed asset name", () => {
+  const rock = computeCollider(generateAsset("rock", { size: 2, seed: 2 }));
+  assert.equal(rock.shape, "sphere");
+
+  const barrel = computeCollider(generateAsset("barrel", { size: 2, seed: 2 }));
+  assert.equal(barrel.shape, "cylinder");
+});
+
+test("computeCollider builds a convex hull from the generated mesh", () => {
+  const collider = computeCollider(
+    generateAsset("rock", { size: 2, seed: 3 }),
+    "convex",
+  );
+  assert.equal(collider.shape, "convex");
+  assert.ok(collider.hullPoints.length >= 12);
+  assert.equal(collider.hullPoints.length % 3, 0);
+  assert.ok(collider.hullPoints.every((value) => Number.isFinite(value)));
+  assert.ok(collider.hullTriangles > 0);
+  assert.ok(collider.size.every((value) => value > 0));
+
+  const group = buildColliderModel(collider);
+  assert.ok(group);
+  assert.equal(group.name, "AI3D-Collider");
+  assert.equal(meshCount(group), 1);
+  assert.equal(firstMesh(group).userData.colliderShape, "convex");
+});
+
+test("buildConvexHullGeometry accepts flat point arrays and rejects junk", () => {
+  const tetrahedron = [1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1];
+  const hull = buildConvexHullGeometry(tetrahedron);
+  assert.ok(hull);
+  assert.ok(hull.getAttribute("position").count >= 12);
+  hull.dispose();
+
+  assert.equal(buildConvexHullGeometry([]), null);
+  assert.equal(buildConvexHullGeometry([0, 0, 0, 1, 1, 1]), null);
+});
+
+test("convex colliders degrade to a box when the mesh is degenerate", () => {
+  const group = new THREE.Group();
+  group.name = "asset-degenerate";
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3),
+  );
+  group.add(new THREE.Mesh(geometry, new THREE.MeshBasicMaterial()));
+
+  const collider = computeCollider(group, "convex");
+  assert.equal(collider.shape, "box");
+  assert.ok(
+    collider.size.every((value) => Number.isFinite(value) && value >= 0),
+  );
+});
+
 test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   const zip = buildGamePackFiles({
     assets: [samplePackAsset()],
@@ -1164,6 +1220,37 @@ test("game packs include collision metadata and a collider GLB", () => {
   assert.equal(manifest.assets[0].files.collider, "colliders/sword-test-1.glb");
   assert.equal(manifest.assets[0].collision.shape, "box");
   assert.deepEqual(manifest.assets[0].collision.size, [0.9, 0.9, 0.9]);
+});
+
+test("game packs preserve convex hull points in the manifest", () => {
+  const hullPoints = [1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, -1];
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        collision: {
+          shape: "convex",
+          center: [0, 0.5, 0],
+          size: [2, 2, 2],
+          hullPoints,
+          hullTriangles: 4,
+        },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const collision = manifest.assets[0].collision;
+
+  assert.equal(collision.shape, "convex");
+  assert.deepEqual(collision.hullPoints, hullPoints);
+  assert.equal(collision.hullTriangles, 4);
+  assert.deepEqual(collision.center, [0, 0.5, 0]);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(collision, "radius"),
+    false,
+  );
 });
 
 test("game packs carry Unreal conventions and LOD files", () => {
