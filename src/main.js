@@ -3490,6 +3490,11 @@ function renderAssetLibrary() {
       <div class="gen-asset-info">
         <strong>${esc(a.name || a.type)}</strong>
         <span>${a.prompt.slice(0, 50)}${a.prompt.length > 50 ? "..." : ""}</span>
+        ${
+          a.stats
+            ? `<small class="gen-asset-budget">${a.stats.triangles ?? 0} ${t("gen.triangles")} · ${a.stats.vertices ?? 0} ${t("gen.vertices")} · ${a.stats.parts ?? 0} ${t("gen.parts")} · ${a.stats.drawCalls ?? 0} ${t("gen.drawCalls")}</small>`
+            : ""
+        }
         <small>${new Date(a.createdAt).toLocaleDateString()}</small>
         <div class="gen-asset-tags">${(a.tags || []).map((tag) => `<span class="gen-tag">${tag}</span>`).join("")}</div>
       </div>
@@ -3557,6 +3562,7 @@ function saveCurrentAsset() {
   }
   assetLibrary.add({
     ...genState.model,
+    stats: getAssetStats(genState.model.threeObject),
     threeObject: null, // Don't serialize Three.js objects
   });
   renderAssetLibrary();

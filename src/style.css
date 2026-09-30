@@ -2356,6 +2356,11 @@ dialog .muted {
   font-size: 10px;
   color: var(--text-3);
 }
+.gen-asset-budget {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
 .gen-asset-tags {
   display: flex;
   flex-wrap: wrap;

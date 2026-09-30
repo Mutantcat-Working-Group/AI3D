@@ -156,6 +156,10 @@ test("generateLOD keeps the original as level 0 and owns each level", () => {
   assert.ok(tris[1] >= tris[2]);
   assert.ok(tris[2] >= tris[3]);
   assert.ok(tris[3] < tris[0]);
+  assert.deepEqual(lods[3].stats, getAssetStats(lods[3].mesh));
+  assert.equal(lods[3].vertices, lods[3].stats.vertices);
+  assert.equal(lods[3].parts, lods[3].stats.parts);
+  assert.equal(lods[3].drawCalls, lods[3].stats.drawCalls);
 
   const beforeLast = countTriangles(lods[3].mesh);
   decimateMesh(firstMesh(lods[1].mesh), 0.5);
@@ -776,6 +780,7 @@ test("exportAssetManifest produces valid JSON with all asset fields", () => {
   assert.equal(parsed.assets[0].type, "sword");
   assert.equal(parsed.assets[0].seed, 42);
   assert.equal(parsed.assets[0].triangles, 100);
+  assert.equal(parsed.assets[0].drawCalls, 3);
   assert.equal(parsed.assets[1].type, "tree");
   assert.equal(parsed.assets[1].seed, null);
 });
@@ -802,8 +807,9 @@ test("exportAssetManifest produces valid CSV with headers and rows", () => {
   );
   assert.ok(lines[0].includes("tags"));
   assert.ok(lines[0].includes("lodLevels"));
+  assert.ok(lines[0].includes("drawCalls"));
   assert.ok(lines[1].includes("test-1,,sword,false,42,1.5,12,lowpoly"));
-  assert.ok(lines[1].includes("100,50,3"));
+  assert.ok(lines[1].includes("100,50,3,3"));
   assert.ok(lines[1].includes("weapon"));
 });
 
@@ -1058,11 +1064,17 @@ test("game packs carry Unreal conventions and LOD files", () => {
     {
       level: 0,
       triangles: 120,
+      vertices: 60,
+      parts: 2,
+      drawCalls: 2,
       glbBytes: new Uint8Array([0x01, 0x02, 0x03, 0x04]),
     },
     {
       level: 1,
       triangles: 60,
+      vertices: 32,
+      parts: 2,
+      drawCalls: 2,
       glbBytes: new Uint8Array([0x11, 0x12, 0x13, 0x14]),
     },
   ];
@@ -1085,7 +1097,16 @@ test("game packs carry Unreal conventions and LOD files", () => {
   assert.equal(manifest.engine.upAxis, "Z");
   assert.equal(manifest.engine.scale, 100);
   assert.equal(manifest.engine.units, "centimeters");
+  assert.deepEqual(manifest.budget, {
+    triangles: 120,
+    vertices: 60,
+    parts: 2,
+    drawCalls: 2,
+  });
   assert.equal(manifest.assets[0].lodLevels.length, 2);
+  assert.equal(manifest.assets[0].lodLevels[1].vertices, 32);
+  assert.equal(manifest.assets[0].lodLevels[1].parts, 2);
+  assert.equal(manifest.assets[0].lodLevels[1].drawCalls, 2);
   assert.deepEqual(
     manifest.assets[0].lodLevels.map((l) => l.file),
     ["models/rock-7/LOD0.glb", "models/rock-7/LOD1.glb"],

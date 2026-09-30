@@ -27,14 +27,14 @@ instead of staying a preview image.
 45 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
-| Category | Assets |
-| --- | --- |
-| Weapons | sword, axe, bow, hammer, spear, shield |
-| Creatures | character, monster, dragon |
-| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, fountain |
-| Props | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap |
-| Vehicles | car, boat, plane, bike |
-| Sci-fi | turret, drone, comm antenna |
+| Category  | Assets                                                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Weapons   | sword, axe, bow, hammer, spear, shield                                                                                    |
+| Creatures | character, monster, dragon                                                                                                |
+| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, fountain                                                         |
+| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap |
+| Vehicles  | car, boat, plane, bike                                                                                                    |
+| Sci-fi    | turret, drone, comm antenna                                                                                               |
 
 Beyond the quick templates you can describe an asset in natural language and
 choose a style (low-poly / realistic / stylized), then tune color, roughness,
@@ -49,18 +49,19 @@ each one, and save the ones you like to the asset library.
   dragons get idle / fly / attack; play them in the preview and export them in
   the GLB.
 - **LODs** - generate three LOD levels in one click, preview each level and
-  export the set; the simplifier keeps materials and merges same-material
-  meshes.
+  export the set; every level carries triangle, vertex, part and draw-call
+  budgets, and the simplifier keeps materials and merges same-material meshes.
 - **Colliders** - box / sphere / capsule / cylinder / mesh presets per asset
   type, sized from the actual mesh and emitted as engine-side collider files.
 - **Engine packs** - Unity (.prefab plus .meta), Godot (.tscn) and Unreal
   (manifest plus GLB); the pack carries meshes, materials, colliders, animation
-  info and a manifest with engine-ready names.
+  info, a whole-pack triangle / vertex / part / draw-call budget and a manifest
+  with engine-ready names.
 - **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
   and town kits place props deterministically from a seed, exportable as a
   whole scene.
 - **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
-  vertex and part counts, LODs and collider info.
+  vertex, part and draw-call counts, per-level LOD budgets and collider info.
 
 ### 4. Quick start
 
@@ -99,11 +100,11 @@ an address, not a description, and can say back which surface it understood.
 The core does not know which harness is talking to it. All three entry points
 drive the same instance manager, with the same actions and the same results.
 
-| Entry point | How | Ownership |
-| --- | --- | --- |
-| OpenClaw extension | native `ai3d` tool | derived from the host's session |
-| `ai3d` CLI | `ai3d <action> --owner <id> ...`, JSON in, JSON out | stated by the caller |
-| `ai3d-mcp` | stdio MCP server, added to your client's `mcp_servers` | the workspace, or `AI3D_OWNER` |
+| Entry point        | How                                                    | Ownership                       |
+| ------------------ | ------------------------------------------------------ | ------------------------------- |
+| OpenClaw extension | native `ai3d` tool                                     | derived from the host's session |
+| `ai3d` CLI         | `ai3d <action> --owner <id> ...`, JSON in, JSON out    | stated by the caller            |
+| `ai3d-mcp`         | stdio MCP server, added to your client's `mcp_servers` | the workspace, or `AI3D_OWNER`  |
 
 Ownership decides who may change a draft or switch the displayed version. A
 second owner asking about the same project is refused with `RESUME_REQUIRED`
@@ -118,10 +119,10 @@ never becomes stalled.
 
 ### 7. Model limits
 
-| Limit | Threshold | On exceeding |
-| --- | --- | --- |
-| Triangles | 600,000 | publish refused, `MODEL_LIMIT` |
-| File size | 80 MB | publish refused, `MODEL_LIMIT` |
+| Limit          | Threshold                        | On exceeding                     |
+| -------------- | -------------------------------- | -------------------------------- |
+| Triangles      | 600,000                          | publish refused, `MODEL_LIMIT`   |
+| File size      | 80 MB                            | publish refused, `MODEL_LIMIT`   |
 | Texture pixels | 8192x8192 each, 33,554,432 total | publish refused, `TEXTURE_LIMIT` |
 
 A mark names a source face, so a model at the cap marks exactly as precisely as
@@ -203,7 +204,7 @@ signed, with an Applications drag link), and x64 and ARM64 Windows NSIS
 installers (self-signed, with Simplified Chinese, Traditional Chinese and
 English installer UI). The application identifier is `org.mutantcat.ai3d`; the
 window title is AI3D and the icon is the repository's `icon.png`. Desktop data
-- the asset library, review state and published models - lives in the OS
+(the asset library, review state and published models) lives in the OS
 application data directory, and the bundled service only listens on the local
 loopback address.
 

@@ -3688,9 +3688,14 @@ export function generateLOD(group, levels = 3) {
         if (child.isMesh) decimateMesh(child, threshold);
       });
     }
+    const stats = getAssetStats(lodGroup);
     lodLevels.push({
       level: i,
-      triangles: countTriangles(lodGroup),
+      triangles: stats.triangles,
+      vertices: stats.vertices,
+      parts: stats.parts,
+      drawCalls: stats.drawCalls,
+      stats,
       mesh: lodGroup,
     });
   }
@@ -4030,6 +4035,36 @@ function assetSlug(value) {
 }
 
 /**
+ * Keep budget fields in one shape whether a caller supplied current stats or
+ * an older record that predates one of the counters.
+ */
+function normaliseAssetStats(stats = {}) {
+  return {
+    triangles: Number(stats.triangles) || 0,
+    vertices: Number(stats.vertices) || 0,
+    parts: Number(stats.parts) || 0,
+    drawCalls: Number(stats.drawCalls) || 0,
+  };
+}
+
+/**
+ * Copy different generations of LOD records into the manifest shape. New LODs
+ * carry both flat counters and a stats block; older saved records carry only
+ * triangles, which still exports without inventing measurements.
+ */
+function lodBudgetRecord(lod, slug) {
+  const stats = normaliseAssetStats(lod.stats || lod);
+  return {
+    level: lod.level,
+    triangles: stats.triangles,
+    vertices: stats.vertices,
+    parts: stats.parts,
+    drawCalls: stats.drawCalls,
+    file: slug ? `models/${slug}/LOD${lod.level}.glb` : undefined,
+  };
+}
+
+/**
  * Turn a PNG data URL into raw bytes, or null when no thumbnail was given.
  */
 function pngDataUrlToBytes(dataUrl) {
@@ -4151,12 +4186,7 @@ export function buildGamePackFiles({
     const slug = assetSlug(asset.id || asset.type);
     const name = sanitiseAssetName(asset.name, slug);
     const isScene = asset.kind === "scene";
-    const stats = asset.stats || {
-      triangles: 0,
-      vertices: 0,
-      parts: 0,
-      drawCalls: 0,
-    };
+    const stats = normaliseAssetStats(asset.stats);
     return {
       id: asset.id || `${asset.type}-${slug}`,
       name,
@@ -4181,11 +4211,7 @@ export function buildGamePackFiles({
       stats,
       collision: asset.collision || null,
       lodLevels: asset.lodLevels
-        ? asset.lodLevels.map((lod) => ({
-            level: lod.level,
-            triangles: lod.triangles,
-            file: `models/${slug}/LOD${lod.level}.glb`,
-          }))
+        ? asset.lodLevels.map((lod) => lodBudgetRecord(lod, slug))
         : null,
       engine: {
         id: preset.id,
@@ -4196,11 +4222,7 @@ export function buildGamePackFiles({
       },
       files: {
         model: `models/${slug}/LOD0.glb`,
-        lod: (asset.lodLevels || []).map((lod) => ({
-          level: lod.level,
-          triangles: lod.triangles,
-          file: `models/${slug}/LOD${lod.level}.glb`,
-        })),
+        lod: (asset.lodLevels || []).map((lod) => lodBudgetRecord(lod, slug)),
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
         textures: asset.textures
@@ -4228,6 +4250,15 @@ export function buildGamePackFiles({
           units: preset.units,
         },
         count: records.length,
+        budget: records.reduce(
+          (total, record) => ({
+            triangles: total.triangles + record.stats.triangles,
+            vertices: total.vertices + record.stats.vertices,
+            parts: total.parts + record.stats.parts,
+            drawCalls: total.drawCalls + record.stats.drawCalls,
+          }),
+          { triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+        ),
         assets: records,
       },
       null,
@@ -4351,6 +4382,10 @@ export async function exportGamePack({
       lodLevels.push({
         level: lod.level,
         triangles: lod.triangles,
+        vertices: lod.vertices,
+        parts: lod.parts,
+        drawCalls: lod.drawCalls,
+        stats: lod.stats,
         glbBytes,
       });
     }
@@ -4366,9 +4401,14 @@ export async function exportGamePack({
           }),
         );
   if (lodLevels.length === 0) {
+    const stats = getAssetStats(model);
     lodLevels.push({
       level: 0,
-      triangles: getAssetStats(model).triangles,
+      triangles: stats.triangles,
+      vertices: stats.vertices,
+      parts: stats.parts,
+      drawCalls: stats.drawCalls,
+      stats,
       glbBytes,
     });
   }
@@ -4424,16 +4464,23 @@ export function exportAssetManifest(assets, format = "json") {
       triangles: asset.stats?.triangles ?? null,
       vertices: asset.stats?.vertices ?? null,
       parts: asset.stats?.parts ?? null,
+      drawCalls: asset.stats?.drawCalls ?? null,
       tags: isScene
         ? Array.isArray(asset.tags)
           ? asset.tags
           : ["scene", asset.type]
         : getAssetTags(asset.type),
       lodLevels: asset.lodLevels
-        ? asset.lodLevels.map((l) => ({
-            level: l.level,
-            triangles: l.triangles,
-          }))
+        ? asset.lodLevels.map((lod) => {
+            const stats = normaliseAssetStats(lod.stats || lod);
+            return {
+              level: lod.level,
+              triangles: stats.triangles,
+              vertices: stats.vertices,
+              parts: stats.parts,
+              drawCalls: stats.drawCalls,
+            };
+          })
         : null,
     };
   });
@@ -4458,6 +4505,7 @@ export function exportAssetManifest(assets, format = "json") {
       "triangles",
       "vertices",
       "parts",
+      "drawCalls",
       "tags",
       "lodLevels",
     ];

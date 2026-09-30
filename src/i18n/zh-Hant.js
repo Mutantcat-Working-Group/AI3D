@@ -434,6 +434,7 @@ export default {
   "gen.triangles": "三角形數",
   "gen.vertices": "頂點數",
   "gen.parts": "部件",
+  "gen.drawCalls": "繪製調用",
   "gen.targetTriangles": "目標三角形數",
   "gen.optimizing": "最佳化中...",
   "gen.applied": "已套用",

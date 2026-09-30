@@ -189,6 +189,8 @@ test("a library survives export, a wiped browser and import", async ({
   await expect(page.locator("#gen-preview")).toBeVisible();
   await page.locator("#gen-save").click();
   await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await expect(page.locator(".gen-asset-budget")).toContainText("Triangles");
+  await expect(page.locator(".gen-asset-budget")).toContainText("Draw calls");
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),

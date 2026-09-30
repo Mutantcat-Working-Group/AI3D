@@ -473,6 +473,7 @@ export default {
   "gen.triangles": "Dreiecke",
   "gen.vertices": "Vertices",
   "gen.parts": "Teile",
+  "gen.drawCalls": "Draw-Aufrufe",
   "gen.targetTriangles": "Zieldreiecke",
   "gen.optimizing": "Optimiere...",
   "gen.applied": "Angewendet",

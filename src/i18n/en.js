@@ -460,6 +460,7 @@ export default {
   "gen.triangles": "Triangles",
   "gen.vertices": "Vertices",
   "gen.parts": "Parts",
+  "gen.drawCalls": "Draw calls",
   "gen.targetTriangles": "Target Triangles",
   "gen.optimizing": "Optimizing...",
   "gen.applied": "Applied",

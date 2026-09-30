@@ -471,6 +471,7 @@ export default {
   "gen.triangles": "Triangles",
   "gen.vertices": "Sommets",
   "gen.parts": "Pièces",
+  "gen.drawCalls": "Appels de dessin",
   "gen.targetTriangles": "Triangles cibles",
   "gen.optimizing": "Optimisation...",
   "gen.applied": "Appliqué",
