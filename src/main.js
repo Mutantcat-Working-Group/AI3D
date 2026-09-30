@@ -3493,6 +3493,20 @@ function loadAsset(id) {
         ? asset.scene.props
         : model.userData.propList || [],
     };
+    // A saved scene is only editable if the controls that built it come back
+    // with the same numbers. Without this a re-compose would draw a different
+    // scene from the same card, which reads as the load having failed.
+    selectedGenKit = asset.type;
+    renderGenKitChips();
+    const sceneTheme = model.userData.theme || {};
+    const setKitOption = (selector, value) => {
+      const input = $(selector);
+      if (input && Number.isFinite(Number(value))) input.value = String(value);
+    };
+    setKitOption("#gen-kit-segments", asset.segments ?? sceneTheme.segments);
+    setKitOption("#gen-kit-spacing", genState.model.scene.spacing);
+    setKitOption("#gen-kit-ground", genState.model.scene.groundPadding);
+    setKitOption("#gen-kit-prop-scale", genState.model.scene.propScale);
     genState.originalModel = null;
   } else {
     genState.originalModel = cloneModelDeep(model);

@@ -190,3 +190,44 @@ test("a library survives export, a wiped browser and import", async ({
   await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
   await expect(page.locator("#gen-status")).toContainText("1");
 });
+
+/* A saved scene is a recipe, not just a thumbnail. Loading one back has to
+   restore the kit and its four layout numbers, or pressing compose again
+   draws a different scene from the card that was just clicked. */
+test("loading a saved scene restores the kit controls that built it", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator('#gen-kits [data-kit="dungeon"]').click();
+  await page.locator("#gen-kit-segments").fill("20");
+  await page.locator("#gen-kit-spacing").fill("1.6");
+  await page.locator("#gen-kit-ground").fill("1.2");
+  await page.locator("#gen-kit-prop-scale").fill("1.5");
+  await page.locator("#gen-compose").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+
+  // Move every control away from the recipe before loading it back.
+  await page.locator('#gen-kits [data-kit="village"]').click();
+  for (const [selector, value] of [
+    ["#gen-kit-segments", "8"],
+    ["#gen-kit-spacing", "0.5"],
+    ["#gen-kit-ground", "0"],
+    ["#gen-kit-prop-scale", "0.25"],
+  ]) {
+    await page.locator(selector).fill(value);
+  }
+
+  await page.locator("#gen-library .gen-asset-load").click();
+  await expect(page.locator("#gen-kit-segments")).toHaveValue("20");
+  await expect(page.locator("#gen-kit-spacing")).toHaveValue("1.6");
+  await expect(page.locator("#gen-kit-ground")).toHaveValue("1.2");
+  await expect(page.locator("#gen-kit-prop-scale")).toHaveValue("1.5");
+  await expect(page.locator('#gen-kits [data-kit="dungeon"]')).toHaveClass(
+    /active/,
+  );
+});
