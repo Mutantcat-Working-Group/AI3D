@@ -146,3 +146,47 @@ test("quick template chips resolve their own asset instead of the default cube",
     await expect(page.locator("#gen-preview")).toBeVisible();
   }
 });
+
+/* The library only ever lived in browser storage, so the one file that leaves
+   the browser is the only thing a teammate or a build machine can be handed.
+   This drives the export control, wipes storage the way a cleared profile
+   would, and reads the file back through the import control. */
+test("a library survives export, a wiped browser and import", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator("#gen-prompt").fill("low-poly crate");
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.locator("#gen-library-export").click(),
+  ]);
+  const chunks = [];
+  for await (const chunk of await download.createReadStream())
+    chunks.push(chunk);
+  const backup = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  expect(backup.kind).toBe("ai3d-asset-library");
+  expect(backup.count).toBe(1);
+  expect(backup.assets[0].threeObject).toBeUndefined();
+
+  await page.evaluate(() => localStorage.removeItem("ai3d-asset-library"));
+  await page.reload();
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(0);
+
+  await page.locator("#gen-library-file").setInputFiles({
+    name: "ai3d-library.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await expect(page.locator("#gen-status")).toContainText("1");
+});

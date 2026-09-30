@@ -25,6 +25,11 @@ import {
   addPatches,
 } from "./annotation-edits.js";
 import {
+  serializeAssetLibrary,
+  parseAssetLibraryFile,
+  mergeAssetLibrary,
+} from "./asset-library.js";
+import {
   generateAsset as generateThreeAsset,
   generateVariantSet,
   exportAssetManifest,
@@ -311,6 +316,9 @@ app.innerHTML = `${SPRITE}
       </select>
       <button id="gen-manifest-export" class="quiet" title="${T("gen.manifest")}">${T("gen.manifestExport")}</button>
       <button id="gen-library-pack" class="quiet" title="${T("gen.exportLibraryPack")}">${T("gen.exportLibraryPack")}</button>
+      <button id="gen-library-export" class="quiet" title="${T("gen.libraryExport")}">${T("gen.libraryExport")}</button>
+      <button id="gen-library-import" class="quiet" title="${T("gen.libraryImport")}">${T("gen.libraryImport")}</button>
+      <input id="gen-library-file" type="file" accept="application/json,.json" hidden>
     </div>
     <div id="gen-library" class="gen-library"></div>
     <div class="gen-actions" id="gen-actions" hidden>
@@ -2493,6 +2501,12 @@ const assetLibrary = {
     this.assets = [];
     this.save();
   },
+  merge(records) {
+    const merged = mergeAssetLibrary(this.assets, records);
+    this.assets = merged.assets;
+    this.save();
+    return merged.added;
+  },
   search(query) {
     const q = query.toLowerCase();
     return this.assets.filter(
@@ -3070,8 +3084,8 @@ async function downloadGenModel() {
   }
 }
 
-function downloadBytesAsFile(bytes, filename) {
-  const blob = new Blob([bytes], { type: "application/zip" });
+function downloadBytesAsFile(bytes, filename, type = "application/zip") {
+  const blob = new Blob([bytes], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -3686,6 +3700,57 @@ async function dataUrlToBytes(dataUrl) {
 }
 
 $("#gen-library-pack").addEventListener("click", exportLibraryPack);
+
+// --- Asset Library Backup and Restore ---
+/* A library is work, and it lives in browser storage that nobody can hand to a
+ * teammate or a build machine. The backup is a small JSON of the records
+ * themselves; a record rebuilds its mesh from its seed, so the file stays
+ * kilobytes rather than megabytes. */
+function exportAssetLibraryFile() {
+  if (assetLibrary.assets.length === 0) {
+    setGenStatus(t("gen.manifestEmpty"), "warn");
+    return;
+  }
+  const backup = serializeAssetLibrary(assetLibrary.assets);
+  const bytes = new TextEncoder().encode(JSON.stringify(backup, null, 2));
+  downloadBytesAsFile(
+    bytes,
+    `ai3d-library-${new Date().toISOString().slice(0, 10)}.json`,
+    "application/json",
+  );
+  setGenStatus(t("gen.libraryExported", { count: backup.count }), "ok");
+}
+
+async function importAssetLibraryFile(file) {
+  try {
+    const parsed = parseAssetLibraryFile(await file.text());
+    if (!parsed.ok) {
+      setGenStatus(t("gen.libraryImportFailed"), "error");
+      return;
+    }
+    if (parsed.assets.length === 0) {
+      setGenStatus(t("gen.libraryImportEmpty"), "warn");
+      return;
+    }
+    const added = assetLibrary.merge(parsed.assets);
+    renderAssetLibrary();
+    setGenStatus(t("gen.libraryImported", { count: added }), "ok");
+  } catch {
+    setGenStatus(t("gen.libraryImportFailed"), "error");
+  }
+}
+
+$("#gen-library-export").addEventListener("click", exportAssetLibraryFile);
+$("#gen-library-import").addEventListener("click", () =>
+  $("#gen-library-file").click(),
+);
+$("#gen-library-file").addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  // Clearing the value lets the same file be chosen twice in a row, which is
+  // what a second import after a failed one looks like.
+  event.target.value = "";
+  if (file) importAssetLibraryFile(file);
+});
 
 renderGenTypeChips();
 renderGenKitChips();
