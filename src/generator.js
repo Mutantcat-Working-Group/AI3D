@@ -307,13 +307,29 @@ const ASSET_COLLIDERS = {
   arch: "mesh",
 };
 
-// Animation presets target the named limbs every animated asset already
-// builds, so the same clips work on generated characters, monsters and
-// dragons without a separate skeleton rig.
+// Animation presets target the named parts every animated asset already
+// builds, so the same clips work on generated characters, monsters, dragons
+// and animated props without a separate skeleton rig.
 const ANIMATION_PRESETS = {
   character: ["idle", "walk", "attack"],
   monster: ["idle", "walk", "attack"],
   dragon: ["idle", "fly", "attack"],
+  chest: ["open"],
+  campfire: ["flicker"],
+  torch: ["flicker"],
+  brazier: ["flicker"],
+  flag: ["wave"],
+  fountain: ["flow"],
+  car: ["spin"],
+  bike: ["spin"],
+  plane: ["spin"],
+  drone: ["spin"],
+  turret: ["sweep"],
+  antenna: ["sway"],
+  crystal: ["pulse"],
+  runestone: ["pulse"],
+  tree: ["sway"],
+  boat: ["bob"],
 };
 
 /**
@@ -335,16 +351,22 @@ export function getColliderShape(type) {
 }
 
 /**
- * Build a quaternion track from per-frame Euler rotations.
+ * Build a quaternion track that keeps the node's base pose and adds the
+ * per-frame Euler offsets, so exported clips play identically in a game
+ * engine instead of snapping a named part back to the origin.
  */
-function quaternionTrack(nodeName, frames) {
+function quaternionTrack(nodeName, frames, base = new THREE.Euler()) {
   const times = new Float32Array(frames.length);
   const values = new Float32Array(frames.length * 4);
   const euler = new THREE.Euler();
   const quaternion = new THREE.Quaternion();
   frames.forEach((frame, index) => {
     times[index] = frame.t;
-    euler.set(frame.rot[0], frame.rot[1], frame.rot[2]);
+    euler.set(
+      base.x + frame.rot[0],
+      base.y + frame.rot[1],
+      base.z + frame.rot[2],
+    );
     quaternion.setFromEuler(euler);
     values.set(quaternion.toArray(), index * 4);
   });
@@ -356,16 +378,40 @@ function quaternionTrack(nodeName, frames) {
 }
 
 /**
- * Build a position track from per-frame offsets.
+ * Build a position track that keeps the node's base position and adds the
+ * per-frame offsets.
  */
-function positionTrack(nodeName, frames) {
+function positionTrack(nodeName, frames, base = new THREE.Vector3()) {
   const times = new Float32Array(frames.length);
   const values = new Float32Array(frames.length * 3);
   frames.forEach((frame, index) => {
     times[index] = frame.t;
-    values.set(frame.pos, index * 3);
+    values.set(
+      [base.x + frame.pos[0], base.y + frame.pos[1], base.z + frame.pos[2]],
+      index * 3,
+    );
   });
   return new THREE.VectorKeyframeTrack(`${nodeName}.position`, times, values);
+}
+
+/**
+ * Build a scale track that multiplies the node's base scale per frame.
+ */
+function scaleTrack(nodeName, frames, base = new THREE.Vector3(1, 1, 1)) {
+  const times = new Float32Array(frames.length);
+  const values = new Float32Array(frames.length * 3);
+  frames.forEach((frame, index) => {
+    times[index] = frame.t;
+    values.set(
+      [
+        base.x * frame.scale[0],
+        base.y * frame.scale[1],
+        base.z * frame.scale[2],
+      ],
+      index * 3,
+    );
+  });
+  return new THREE.VectorKeyframeTrack(`${nodeName}.scale`, times, values);
 }
 
 /**
@@ -382,12 +428,16 @@ export function buildAssetAnimations(model, type, size = 1) {
   const addClip = (name, duration, tracksByNode) => {
     const tracks = [];
     for (const [nodeName, frames] of Object.entries(tracksByNode)) {
-      if (!model.getObjectByName(nodeName)) continue;
+      const node = model.getObjectByName(nodeName);
+      if (!node) continue;
       if (frames.some((frame) => frame.rot)) {
-        tracks.push(quaternionTrack(nodeName, frames));
+        tracks.push(quaternionTrack(nodeName, frames, node.rotation));
       }
       if (frames.some((frame) => frame.pos)) {
-        tracks.push(positionTrack(nodeName, frames));
+        tracks.push(positionTrack(nodeName, frames, node.position));
+      }
+      if (frames.some((frame) => frame.scale)) {
+        tracks.push(scaleTrack(nodeName, frames, node.scale));
       }
     }
     if (tracks.length)
@@ -537,6 +587,216 @@ export function buildAssetAnimations(model, type, size = 1) {
         { t: 0, rot: [0, 0, 0] },
         { t: 0.8, rot: [0, 0, -0.3] },
         { t: 1.2, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  const spinOnce = [
+    { t: 0, rot: [0, 0, 0] },
+    { t: 0.5, rot: [0, 0, Math.PI] },
+    { t: 1, rot: [0, 0, Math.PI * 2] },
+  ];
+  const rollOnce = [
+    { t: 0, rot: [0, 0, 0] },
+    { t: 0.5, rot: [Math.PI, 0, 0] },
+    { t: 1, rot: [Math.PI * 2, 0, 0] },
+  ];
+
+  if (type === "chest") {
+    addClip("open", 2.2, {
+      lid: [
+        { t: 0, rot: [0, 0, 0], pos: [0, 0, 0] },
+        { t: 0.7, rot: [0, 0, 0.9], pos: [0, 0.06 * size, 0] },
+        { t: 1.4, rot: [0, 0, 0.9], pos: [0, 0.06 * size, 0] },
+        { t: 2.2, rot: [0, 0, 0], pos: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "campfire" || type === "torch" || type === "brazier") {
+    addClip("flicker", 1.6, {
+      flame: [
+        { t: 0, pos: [0, 0, 0], scale: [1, 1, 1] },
+        { t: 0.32, pos: [0, 0.04 * size, 0], scale: [1.08, 1.16, 1.08] },
+        { t: 0.64, pos: [0, 0.015 * size, 0], scale: [0.9, 0.94, 0.9] },
+        { t: 0.96, pos: [0, 0.045 * size, 0], scale: [1.12, 1.08, 1.12] },
+        { t: 1.28, pos: [0, 0.025 * size, 0], scale: [0.94, 1.1, 0.94] },
+        { t: 1.6, pos: [0, 0, 0], scale: [1, 1, 1] },
+      ],
+    });
+  }
+
+  if (type === "flag") {
+    const wave = [
+      { t: 0, rot: [0, 0, 0] },
+      { t: 0.5, rot: [0, 0.2, 0.05] },
+      { t: 1, rot: [0, 0, 0] },
+      { t: 1.5, rot: [0, -0.2, -0.05] },
+      { t: 2, rot: [0, 0, 0] },
+    ];
+    addClip("wave", 2, {
+      cloth: wave,
+      tail: wave,
+    });
+  }
+
+  if (type === "fountain") {
+    addClip("flow", 2.4, {
+      jet: [
+        { t: 0, pos: [0, 0, 0], scale: [1, 1, 1] },
+        { t: 0.6, pos: [0, 0.08 * size, 0], scale: [0.82, 1.28, 0.82] },
+        { t: 1.2, pos: [0, 0.02 * size, 0], scale: [1.06, 0.9, 1.06] },
+        { t: 1.8, pos: [0, 0.09 * size, 0], scale: [0.9, 1.2, 0.9] },
+        { t: 2.4, pos: [0, 0, 0], scale: [1, 1, 1] },
+      ],
+      water: [
+        { t: 0, scale: [1, 1, 1] },
+        { t: 1.2, scale: [1.03, 1.06, 1.03] },
+        { t: 2.4, scale: [1, 1, 1] },
+      ],
+    });
+  }
+
+  if (type === "car") {
+    addClip("spin", 1, {
+      "wheel-0": spinOnce,
+      "wheel-1": spinOnce,
+      "wheel-2": spinOnce,
+      "wheel-3": spinOnce,
+    });
+  }
+
+  if (type === "bike") {
+    addClip("spin", 1, {
+      "front-wheel": rollOnce,
+      "rear-wheel": rollOnce,
+    });
+  }
+
+  if (type === "plane") {
+    addClip("spin", 1, {
+      propeller: spinOnce,
+    });
+  }
+
+  if (type === "drone") {
+    addClip("spin", 1, {
+      "rotor-0": spinOnce,
+      "rotor-1": spinOnce,
+      "rotor-2": spinOnce,
+      "rotor-3": spinOnce,
+    });
+  }
+
+  if (type === "turret") {
+    addClip("sweep", 3.2, {
+      barrel: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.8, rot: [0, 0.35, 0] },
+        { t: 1.6, rot: [0, 0, 0] },
+        { t: 2.4, rot: [0, -0.35, 0] },
+        { t: 3.2, rot: [0, 0, 0] },
+      ],
+      eye: [
+        { t: 0, scale: [1, 1, 1] },
+        { t: 0.5, scale: [1.25, 1.25, 1.25] },
+        { t: 1, scale: [1, 1, 1] },
+        { t: 1.5, scale: [1.25, 1.25, 1.25] },
+        { t: 2, scale: [1, 1, 1] },
+        { t: 2.5, scale: [1.25, 1.25, 1.25] },
+        { t: 3.2, scale: [1, 1, 1] },
+      ],
+    });
+  }
+
+  if (type === "antenna") {
+    addClip("sway", 2.8, {
+      dish: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.7, rot: [0, 0.22, 0.05] },
+        { t: 1.4, rot: [0, 0, 0] },
+        { t: 2.1, rot: [0, -0.22, -0.05] },
+        { t: 2.8, rot: [0, 0, 0] },
+      ],
+      light: [
+        { t: 0, scale: [1, 1, 1] },
+        { t: 0.35, scale: [1.5, 1.5, 1.5] },
+        { t: 0.7, scale: [1, 1, 1] },
+        { t: 1.05, scale: [1.5, 1.5, 1.5] },
+        { t: 1.4, scale: [1, 1, 1] },
+        { t: 1.75, scale: [1.5, 1.5, 1.5] },
+        { t: 2.1, scale: [1, 1, 1] },
+        { t: 2.45, scale: [1.5, 1.5, 1.5] },
+        { t: 2.8, scale: [1, 1, 1] },
+      ],
+    });
+  }
+
+  if (type === "crystal") {
+    addClip("pulse", 1.8, {
+      shard: [
+        { t: 0, scale: [1, 1, 1] },
+        { t: 0.45, scale: [1.08, 1.2, 1.08] },
+        { t: 0.9, scale: [1, 1, 1] },
+        { t: 1.35, scale: [1.08, 1.2, 1.08] },
+        { t: 1.8, scale: [1, 1, 1] },
+      ],
+      tip: [
+        { t: 0, scale: [1, 1, 1] },
+        { t: 0.45, scale: [1.12, 1.25, 1.12] },
+        { t: 0.9, scale: [1, 1, 1] },
+        { t: 1.35, scale: [1.12, 1.25, 1.12] },
+        { t: 1.8, scale: [1, 1, 1] },
+      ],
+    });
+  }
+
+  if (type === "runestone") {
+    addClip("pulse", 2.2, {
+      rune: [
+        { t: 0, scale: [1, 1, 1] },
+        { t: 0.55, scale: [1.1, 1.18, 1.1] },
+        { t: 1.1, scale: [1, 1, 1] },
+        { t: 1.65, scale: [1.1, 1.18, 1.1] },
+        { t: 2.2, scale: [1, 1, 1] },
+      ],
+      stone: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.55, pos: [0, 0.03 * size, 0] },
+        { t: 1.1, pos: [0, 0, 0] },
+        { t: 1.65, pos: [0, 0.03 * size, 0] },
+        { t: 2.2, pos: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "tree") {
+    addClip("sway", 2.6, {
+      foliage: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.65, rot: [0.04, 0, 0.03] },
+        { t: 1.3, rot: [0, 0, 0] },
+        { t: 1.95, rot: [-0.04, 0, -0.03] },
+        { t: 2.6, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "boat") {
+    addClip("bob", 2.4, {
+      hull: [
+        { t: 0, pos: [0, 0, 0], rot: [0, 0, 0] },
+        { t: 0.6, pos: [0, 0.05 * size, 0], rot: [0, 0, 0.04] },
+        { t: 1.2, pos: [0, 0, 0], rot: [0, 0, 0] },
+        { t: 1.8, pos: [0, 0.05 * size, 0], rot: [0, 0, -0.04] },
+        { t: 2.4, pos: [0, 0, 0], rot: [0, 0, 0] },
+      ],
+      sail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0.08, 0] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, -0.08, 0] },
+        { t: 2.4, rot: [0, 0, 0] },
       ],
     });
   }
@@ -2541,6 +2801,19 @@ function buildPlane(
   rightEngine.name = "right-engine";
   engineGroup.add(rightEngine);
   group.add(engineGroup);
+
+  // Propeller
+  const propellerGroup = new THREE.Group();
+  propellerGroup.position.set(0, 0, 1.45 * size);
+  propellerGroup.name = "propeller";
+  const bladeGeo = new THREE.BoxGeometry(0.06 * size, 0.9 * size, 0.03 * size);
+  for (let i = 0; i < 2; i++) {
+    const blade = new THREE.Mesh(bladeGeo, engineMat);
+    blade.rotation.z = (i * Math.PI) / 2;
+    blade.name = `blade-${i}`;
+    propellerGroup.add(blade);
+  }
+  group.add(propellerGroup);
 }
 
 function buildBike(

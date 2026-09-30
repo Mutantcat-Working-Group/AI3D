@@ -30,6 +30,7 @@ import {
   buildConvexHullGeometry,
   buildGamePackFiles,
   exportGamePack,
+  selectAnimations,
   getAssetTextureInfo,
   isModularType,
 } from "../src/generator.js";
@@ -1435,4 +1436,81 @@ test("exportGamePack writes colliders and respects the none choice", async () =>
   );
   assert.equal(noneManifest.assets[0].collision, null);
   assert.equal(noneFiles["colliders/barrel-pack.glb"], undefined);
+});
+
+test("animated props carry procedural clips over their named parts", () => {
+  const clipsByType = {
+    chest: ["open"],
+    campfire: ["flicker"],
+    torch: ["flicker"],
+    brazier: ["flicker"],
+    flag: ["wave"],
+    fountain: ["flow"],
+    car: ["spin"],
+    bike: ["spin"],
+    plane: ["spin"],
+    drone: ["spin"],
+    turret: ["sweep"],
+    antenna: ["sway"],
+    crystal: ["pulse"],
+    runestone: ["pulse"],
+    tree: ["sway"],
+    boat: ["bob"],
+  };
+  for (const [type, expected] of Object.entries(clipsByType)) {
+    const model = generateAsset(type, { size: 1.4, seed: 7, segments: 10 });
+    const names = (model.animations || []).map((clip) => clip.name);
+    assert.deepEqual(names, expected, `${type} clips`);
+    for (const clip of model.animations) {
+      assert.ok(
+        clip.duration > 0.4 && clip.duration <= 3.5,
+        `${type} duration`,
+      );
+      for (const track of clip.tracks) {
+        const nodeName = track.name.replace(
+          /\.(quaternion|position|scale)$/,
+          "",
+        );
+        assert.ok(
+          model.getObjectByName(nodeName),
+          `${type} missing ${nodeName}`,
+        );
+        assert.ok(track.times.length >= 3, `${type} ${track.name} keyframes`);
+      }
+    }
+  }
+});
+
+test("procedural clips start from each part's base pose", () => {
+  const model = generateAsset("car", { size: 1.2, seed: 4, segments: 8 });
+  const wheel = model.getObjectByName("wheel-0");
+  const spin = model.animations.find((clip) => clip.name === "spin");
+  const rotation = spin.tracks.find(
+    (track) => track.name === "wheel-0.quaternion",
+  );
+  const first = Array.from(rotation.values).slice(0, 4);
+  const base = wheel.quaternion.toArray();
+  assert.deepEqual(
+    first.map((value) => Number(value.toFixed(6))),
+    base.map((value) => Number(value.toFixed(6))),
+  );
+
+  const flameModel = generateAsset("campfire", {
+    size: 1,
+    seed: 5,
+    segments: 8,
+  });
+  const flicker = flameModel.animations.find((clip) => clip.name === "flicker");
+  const scale = flicker.tracks.find((track) => track.name === "flame.scale");
+  assert.deepEqual(Array.from(scale.values).slice(0, 3), [1, 1, 1]);
+});
+
+test("selectAnimations keeps, strips or narrows generated clips", () => {
+  const model = generateAsset("dragon", { size: 2, seed: 9, segments: 10 });
+  assert.equal(selectAnimations(model, "auto").length, 3);
+  assert.deepEqual(
+    selectAnimations(model, "fly").map((clip) => clip.name),
+    ["fly"],
+  );
+  assert.deepEqual(selectAnimations(model, "none"), []);
 });

@@ -469,6 +469,15 @@ app.innerHTML = `${SPRITE}
         <option value="walk">${T("gen.animationWalk")}</option>
         <option value="fly">${T("gen.animationFly")}</option>
         <option value="attack">${T("gen.animationAttack")}</option>
+        <option value="open">${T("gen.animationOpen")}</option>
+        <option value="spin">${T("gen.animationSpin")}</option>
+        <option value="flicker">${T("gen.animationFlicker")}</option>
+        <option value="wave">${T("gen.animationWave")}</option>
+        <option value="flow">${T("gen.animationFlow")}</option>
+        <option value="sweep">${T("gen.animationSweep")}</option>
+        <option value="sway">${T("gen.animationSway")}</option>
+        <option value="bob">${T("gen.animationBob")}</option>
+        <option value="pulse">${T("gen.animationPulse")}</option>
         <option value="none">${T("gen.animationNone")}</option>
       </select>
       <button id="gen-download" class="primary-button">${T("gen.download")}</button>
