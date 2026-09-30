@@ -279,6 +279,12 @@ export default {
   "chat.thinking": "Réflexion…",
   "chat.you": "Vous",
   "chat.agent": "Agent",
+  "chat.knowledgePlaceholder": "Rechercher des références de modélisation…",
+  "chat.knowledgeSearch": "Rechercher dans le pack de connaissances",
+  "chat.knowledgeSearching": "Recherche dans le pack de connaissances…",
+  "chat.knowledgeNone": "Aucune référence correspondante.",
+  "chat.knowledgeCitation":
+    "[Pack de connaissances] {title} — source : {source}, {url}, licence : {license}",
   "error.chatUnavailable":
     "La discussion est indisponible car cette instance n'a aucune voie de retour vers une conversation.",
 
@@ -481,7 +487,7 @@ export default {
   "gen.lodLevel": "LOD {level}",
   "gen.format": "Format",
   "gen.formatGlb": "GLB",
-  "gen.formatFbx": "FBX",
+  "gen.formatGltf": "glTF",
   "gen.formatObj": "OBJ",
   "gen.download": "Télécharger",
   "gen.kit": "Kits de scène",

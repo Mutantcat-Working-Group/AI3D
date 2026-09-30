@@ -268,6 +268,12 @@ export default {
   "chat.thinking": "考え中…",
   "chat.you": "あなた",
   "chat.agent": "エージェント",
+  "chat.knowledgePlaceholder": "モデリング資料を検索…",
+  "chat.knowledgeSearch": "ナレッジパックを検索",
+  "chat.knowledgeSearching": "ナレッジパックを検索中…",
+  "chat.knowledgeNone": "一致する資料はありません。",
+  "chat.knowledgeCitation":
+    "【ナレッジパック】{title} — 出典: {source}, {url}, ライセンス: {license}",
   "error.chatUnavailable":
     "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
 
@@ -469,7 +475,7 @@ export default {
   "gen.lodLevel": "LOD {level}",
   "gen.format": "形式",
   "gen.formatGlb": "GLB",
-  "gen.formatFbx": "FBX",
+  "gen.formatGltf": "glTF",
   "gen.formatObj": "OBJ",
   "gen.download": "ダウンロード",
   "gen.kit": "シーンキット",

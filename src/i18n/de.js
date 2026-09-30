@@ -282,6 +282,12 @@ export default {
   "chat.thinking": "Denke nach…",
   "chat.you": "Du",
   "chat.agent": "Agent",
+  "chat.knowledgePlaceholder": "Modellierungsreferenzen suchen…",
+  "chat.knowledgeSearch": "Wissenspaket durchsuchen",
+  "chat.knowledgeSearching": "Wissenspaket wird durchsucht…",
+  "chat.knowledgeNone": "Keine passende Referenz.",
+  "chat.knowledgeCitation":
+    "[Wissenspaket] {title} — Quelle: {source}, {url}, Lizenz: {license}",
   "error.chatUnavailable":
     "Der Chat ist nicht verfügbar, da diese Instanz keinen Rückweg zu einer Konversation hat.",
 
@@ -483,7 +489,7 @@ export default {
   "gen.lodLevel": "LOD {level}",
   "gen.format": "Format",
   "gen.formatGlb": "GLB",
-  "gen.formatFbx": "FBX",
+  "gen.formatGltf": "glTF",
   "gen.formatObj": "OBJ",
   "gen.download": "Herunterladen",
   "gen.kit": "Szenen-Kits",

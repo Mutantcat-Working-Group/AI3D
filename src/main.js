@@ -39,6 +39,7 @@ import {
   addSceneProp,
   getGameKits,
   exportGLB,
+  exportGLTF,
   exportOBJ,
   countTriangles,
   renderAssetThumbnail,
@@ -122,6 +123,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-scene" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></g>
 <g id="mc-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.7.8-4.1 4 .9 5.7-5-2.7-5 2.7.9-5.7-4.1-4 5.7-.8z"/></g>
 <g id="mc-copy" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6.4 15H6a1.8 1.8 0 0 1-1.8-1.8V6A1.8 1.8 0 0 1 6 4.2h7.2A1.8 1.8 0 0 1 15 6v.4"/></g>
+<g id="mc-search" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 4.6 4.6"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -219,6 +221,13 @@ app.innerHTML = `${SPRITE}
   </div>
   <div class="ai-pane" data-ai-pane="chat">
     <div id="chat-messages" class="chat-messages" aria-label="${T("a11y.chatMessages")}"></div>
+    <div class="chat-knowledge">
+      <div class="chat-knowledge-bar">
+        <input id="chat-knowledge-query" placeholder="${T("chat.knowledgePlaceholder")}" aria-label="${T("chat.knowledgePlaceholder")}">
+        <button id="chat-knowledge-search" class="quiet" type="button" title="${T("chat.knowledgeSearch")}" aria-label="${T("chat.knowledgeSearch")}">${icon("search")}</button>
+      </div>
+      <div id="chat-knowledge-results" class="chat-knowledge-results" hidden></div>
+    </div>
     <div id="chat-status" class="chat-status"></div>
     <div class="chat-composer">
       <textarea id="chat-input" placeholder="${T("chat.placeholder")}" rows="2"></textarea>
@@ -375,7 +384,7 @@ app.innerHTML = `${SPRITE}
       <label>${T("gen.format")}</label>
       <select id="gen-format">
         <option value="glb">${T("gen.formatGlb")}</option>
-        <option value="fbx">${T("gen.formatFbx")}</option>
+        <option value="gltf">${T("gen.formatGltf")}</option>
         <option value="obj">${T("gen.formatObj")}</option>
       </select>
       <label>${T("gen.units")}</label>
@@ -2014,6 +2023,7 @@ let chatConnected = false;
 let chatBusy = false;
 let chatPollTimer = null;
 let chatSending = false;
+let chatKnowledgeResults = [];
 let mcpConnections = [];
 let mcpCalling = false;
 let aiDockOpen = false;
@@ -2137,6 +2147,74 @@ async function sendChat() {
     sendBtn.disabled = false;
     sendBtn.querySelector("span").textContent = T("chat.send");
   }
+}
+
+/* The pack is local and cited, so the chat surface can pull a reference into
+   the composer without the originating conversation being reachable. The
+   citation text is what the Agent receives, which keeps the source attached to
+   the request instead of leaving it in a side channel. */
+function chatKnowledgeCitation(entry) {
+  return T("chat.knowledgeCitation", {
+    title: entry.titleZh || entry.title,
+    source: entry.source,
+    url: entry.url,
+    license: entry.license,
+  });
+}
+
+function renderChatKnowledge() {
+  const box = $("#chat-knowledge-results");
+  if (chatKnowledgeResults.length === 0) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = chatKnowledgeResults
+    .map(
+      (entry, index) =>
+        `<button class="chat-knowledge-item" type="button" data-knowledge-index="${index}">
+          <strong>${esc(entry.titleZh || entry.title)}</strong>
+          <span>${esc(entry.source)} · ${esc(entry.license)}</span>
+        </button>`,
+    )
+    .join("");
+}
+
+async function searchChatKnowledge() {
+  const query = $("#chat-knowledge-query").value.trim();
+  if (!query) return;
+  const box = $("#chat-knowledge-results");
+  box.hidden = false;
+  box.innerHTML = `<div class="chat-knowledge-empty">${T("chat.knowledgeSearching")}</div>`;
+  try {
+    const data = await api(
+      `knowledge?q=${encodeURIComponent(query)}&limit=5`,
+      undefined,
+      "GET",
+    );
+    chatKnowledgeResults = data.results || [];
+    if (chatKnowledgeResults.length === 0) {
+      box.innerHTML = `<div class="chat-knowledge-empty">${T("chat.knowledgeNone")}</div>`;
+      return;
+    }
+    renderChatKnowledge();
+  } catch (err) {
+    box.innerHTML = `<div class="chat-knowledge-empty">${esc(err.message)}</div>`;
+  }
+}
+
+function insertChatKnowledge(index) {
+  const entry = chatKnowledgeResults[index];
+  if (!entry) return;
+  const input = $("#chat-input");
+  const citation = chatKnowledgeCitation(entry);
+  input.value = input.value.trim()
+    ? `${input.value.trim()}\n${citation}`
+    : citation;
+  input.focus();
+  chatKnowledgeResults = [];
+  renderChatKnowledge();
 }
 
 async function loadMcpConnections() {
@@ -2318,6 +2396,17 @@ document
   .querySelectorAll(".ai-tab")
   .forEach((b) => b.addEventListener("click", () => setAiTab(b.dataset.aiTab)));
 $("#chat-send").addEventListener("click", sendChat);
+$("#chat-knowledge-search").addEventListener("click", searchChatKnowledge);
+$("#chat-knowledge-query").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    searchChatKnowledge();
+  }
+});
+$("#chat-knowledge-results").addEventListener("click", (e) => {
+  const item = e.target.closest("[data-knowledge-index]");
+  if (item) insertChatKnowledge(Number(item.dataset.knowledgeIndex));
+});
 $("#chat-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -2979,13 +3068,14 @@ async function downloadObjectAsFile(object, filename, format, options = {}) {
   if (format === "glb") {
     const result = await exportGLB(object, options);
     blob = new Blob([result], { type: "application/octet-stream" });
+  } else if (format === "gltf") {
+    const result = await exportGLTF(object, options);
+    blob = new Blob([result], { type: "model/gltf+json" });
   } else if (format === "obj") {
     const result = exportOBJ(object, options);
     blob = new Blob([result], { type: "text/plain" });
   } else {
-    const result = await exportGLB(object, options);
-    blob = new Blob([result], { type: "application/octet-stream" });
-    extension = "glb";
+    throw new Error(`Unsupported export format: ${format}`);
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

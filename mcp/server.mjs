@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { InstanceManager, inspectInstall } from "../integration/manager.mjs";
 import { precheckModel, stepMeshFor } from "../integration/precheck.mjs";
 import { normalizeOrigin } from "../server/origin.mjs";
+import { KNOWLEDGE_TOOL, callKnowledgeTool } from "./knowledge.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -31,7 +32,7 @@ export function instructions(root = ROOT) {
   if (!fs.existsSync(file)) return "";
   return fs
     .readFileSync(file, "utf8")
-    .replace(/^---\n[\s\S]*?\n---\n+/, "")
+    .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n+/, "")
     .trim();
 }
 
@@ -131,9 +132,32 @@ export function createHandler({
         },
         instructions: instructions(root),
       });
-    if (method === "tools/list") return reply({ tools: [TOOL] });
+    if (method === "tools/list")
+      return reply({ tools: [TOOL, KNOWLEDGE_TOOL] });
     if (method === "tools/call") {
       const input = params?.arguments || {};
+      if (params?.name === KNOWLEDGE_TOOL.name) {
+        try {
+          const result = callKnowledgeTool(input);
+          return reply({
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            structuredContent: result,
+          });
+        } catch (error) {
+          return reply({
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  code: error.code || "FAILED",
+                  message: String(error.message || error),
+                }),
+              },
+            ],
+          });
+        }
+      }
       if (params?.name !== TOOL.name)
         return reply({
           isError: true,

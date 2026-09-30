@@ -47,8 +47,8 @@
     "serve:start": "node scripts/service.mjs start",
     "serve:stop": "node scripts/service.mjs stop",
     "serve:status": "node scripts/service.mjs status",
-    "format": "prettier --write src server scripts tests integration adapters/openclaw/index.mjs index.html vite.config.js playwright.config.js package.json",
-    "format:check": "prettier --check src server scripts tests integration adapters/openclaw/index.mjs index.html vite.config.js playwright.config.js package.json"
+    "format": "prettier --write src server mcp scripts tests integration adapters/openclaw/index.mjs index.html vite.config.js playwright.config.js package.json",
+    "format:check": "prettier --check src server mcp scripts tests integration adapters/openclaw/index.mjs index.html vite.config.js playwright.config.js package.json"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

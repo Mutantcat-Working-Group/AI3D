@@ -19,6 +19,7 @@ import {
   addSceneProp,
   getGameKits,
   exportGLB,
+  exportGLTF,
   exportOBJ,
   getAssetTags,
   getEnginePresets,
@@ -302,6 +303,16 @@ test("GLB export embeds procedural texture images", async () => {
     JSON.stringify(json).includes("image/png"),
     "GLB carries PNG texture data",
   );
+});
+
+test("glTF export writes one portable JSON scene with embedded resources", async () => {
+  const raw = await exportGLTF(sampleModel(), { upAxis: "Y", scale: 1 });
+  assert.equal(typeof raw, "string");
+  const gltf = JSON.parse(raw);
+  assert.equal(gltf.asset.version, "2.0");
+  assert.ok(gltf.scenes.length >= 1);
+  assert.ok(gltf.nodes.some((node) => node.mesh !== undefined));
+  assert.match(gltf.buffers[0].uri, /^data:/);
 });
 
 test("custom color lands on every asset type", () => {
@@ -1033,6 +1044,22 @@ test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   assert.equal(manifest.assets[0].name, "Sword Test");
   assert.equal(manifest.assets[0].stats.triangles, 120);
   assert.equal(manifest.assets[0].files.model, "models/sword-test-1/LOD0.glb");
+});
+
+test("Godot packs include an instanceable tscn wrapper for each model", () => {
+  const zip = buildGamePackFiles({
+    assets: [samplePackAsset()],
+    engine: "godot",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const scene = new TextDecoder().decode(files["scenes/sword-test-1.tscn"]);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.match(scene, /\[gd_scene load_steps=2 format=3\]/);
+  assert.match(scene, /path="res:\/\/models\/sword-test-1\/LOD0\.glb"/);
+  assert.match(scene, /\[node name="Sword Test" instance=ExtResource/);
+  assert.equal(manifest.assets[0].files.scene, "scenes/sword-test-1.tscn");
 });
 
 test("game packs include collision metadata and a collider GLB", () => {

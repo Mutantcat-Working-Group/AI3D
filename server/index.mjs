@@ -31,6 +31,11 @@ import {
   accessCookie as formatAccessCookie,
   browserInfo,
 } from "./access.mjs";
+import {
+  searchKnowledge,
+  getKnowledge,
+  listKnowledge,
+} from "../mcp/knowledge.mjs";
 
 export const repo = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -1001,6 +1006,28 @@ app.get("/api/chat", async (req, res) => {
     // endpoint, and a transient host failure should not break the UI.
     res.json({ connected: false, busy: false, messages: [] });
   }
+});
+
+// The built-in knowledge pack is local and deterministic, so the workbench can
+// read it even when the originating conversation is unreachable. Responses keep
+// the source URL and licence beside every fact; the chat surface renders them
+// as citations instead of presenting model prose as authority.
+app.get("/api/knowledge", (req, res) => {
+  const query = String(req.query.q || "").slice(0, 300);
+  const id = String(req.query.id || "").slice(0, 120);
+  if (id) {
+    const found = getKnowledge(id);
+    if (!found) throw new ReviewError("No such knowledge entry.", 404);
+    return res.json(found);
+  }
+  if (req.query.all === "1") return res.json(listKnowledge());
+  const limit = Math.max(1, Math.min(Number(req.query.limit) || 5, 20));
+  const tags = String(req.query.tags || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  res.json(searchKnowledge(query, { limit, tags }));
 });
 app.post("/api/chat", async (req, res) => {
   const p = z

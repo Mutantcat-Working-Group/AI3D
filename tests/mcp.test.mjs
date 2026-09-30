@@ -79,10 +79,30 @@ test("the tool says up front that nothing here will announce a submission", asyn
   });
   assert.deepEqual(
     listed.result.tools.map((tool) => tool.name),
-    ["ai3d"],
+    ["ai3d", "ai3d_knowledge"],
   );
   assert.match(TOOL.description, /cannot be pushed to/);
   assert.equal(TOOL.inputSchema.required.includes("action"), true);
+});
+
+test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {
+  const handle = handlerFor(workspace(t));
+  const call = (args) =>
+    handle({
+      id: 9,
+      method: "tools/call",
+      params: { name: "ai3d_knowledge", arguments: args },
+    });
+  const found = await call({ query: "LOD budget" });
+  const entry = found.result.structuredContent.results[0];
+  assert.equal(typeof entry.url, "string");
+  assert.ok(entry.url.startsWith("https://"));
+  assert.equal(typeof entry.license, "string");
+  assert.ok(entry.license.length > 0);
+  const one = await call({ id: "gltf-2-spec" });
+  assert.equal(one.result.structuredContent.entry.id, "gltf-2-spec");
+  const missing = await call({ id: "does-not-exist" });
+  assert.equal(missing.result.isError, true);
 });
 
 test("a review opened over MCP is owned by MCP, and refusals come back as results", async (t) => {
@@ -155,6 +175,6 @@ test("the transport reads whole lines and refuses a broken one without dying", a
     written.map((m) => m.id),
     [1, 2, null],
   );
-  assert.equal(written[0].result.tools.length, 1);
+  assert.equal(written[0].result.tools.length, 2);
   assert.equal(written[2].error.code, -32700);
 });

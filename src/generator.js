@@ -3729,6 +3729,35 @@ export function exportGLB(object, options = {}) {
 }
 
 /**
+ * Export a Three.js object to JSON glTF format. Buffers and images are
+ * embedded as data URIs so one file stays portable between engines and web
+ * viewers.
+ * @param {object} options - { upAxis: "Y" | "Z", scale: number }
+ */
+export function exportGLTF(object, options = {}) {
+  const { upAxis = "Y", scale = 1, animations } = options;
+  const wrapped = scale !== 1 ? wrapForExport(object, options, false) : object;
+  ensureNodeFileReader();
+  ensureNodeCanvasPolyfill();
+  return new Promise((resolve, reject) => {
+    const exporter = new GLTFExporter();
+    exporter.parse(
+      wrapped,
+      (result) =>
+        resolve(
+          typeof result === "string" ? result : JSON.stringify(result, null, 2),
+        ),
+      (error) => reject(error),
+      {
+        binary: false,
+        upAxis,
+        animations: animations || wrapped.animations || [],
+      },
+    );
+  });
+}
+
+/**
  * Export a Three.js object to OBJ format.
  */
 export function exportOBJ(object, options = {}) {
@@ -3773,6 +3802,18 @@ function ensureNodeFileReader() {
     readAsArrayBuffer(blob) {
       blob.arrayBuffer().then((buffer) => {
         this.result = buffer;
+        this.onloadend?.();
+      });
+    }
+
+    readAsDataURL(blob) {
+      blob.arrayBuffer().then((buffer) => {
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        this.result = `data:${blob.type || "application/octet-stream"};base64,${btoa(binary)}`;
         this.onloadend?.();
       });
     }
@@ -4091,6 +4132,21 @@ function sanitiseAssetName(name, fallback) {
   return cleaned || fallback;
 }
 
+function godotString(value) {
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/[\r\n]+/g, " ");
+}
+
+function godotSceneFile(record, slug) {
+  return (
+    "[gd_scene load_steps=2 format=3]\n\n" +
+    `[ext_resource type="PackedScene" path="res://models/${slug}/LOD0.glb" id="1_lod0"]\n\n` +
+    `[node name="${godotString(record.name)}" instance=ExtResource("1_lod0")]\n`
+  );
+}
+
 function engineReadme(preset, records) {
   const count = records.length;
   let heading =
@@ -4128,9 +4184,10 @@ function engineReadme(preset, records) {
     "3. LOD0 is the highest quality and LOD3 the lowest; add the GLBs to a LOD Group if present.\n";
   const godot =
     "\n## Godot\n" +
-    "1. Drag `models/` into the FileSystem dock; Godot imports GLB as a scene.\n" +
-    "2. Instances are Y-up meters, matching the default 3D scene.\n" +
-    "3. Use the generated thumbnail in `thumbnails/` for custom editor icons.\n";
+    "1. Copy this pack into the project root (`res://`) so its paths stay intact.\n" +
+    "2. Open or drag `scenes/*.tscn`; each wrapper instances the LOD0 GLB for that asset.\n" +
+    "3. Instances are Y-up meters, matching the default 3D scene.\n" +
+    "4. Use the generated thumbnail in `thumbnails/` for custom editor icons.\n";
   const unreal =
     "\n## Unreal\n" +
     "1. Drag `models/` into the Content Browser; Unreal imports GLB as a static mesh asset.\n" +
@@ -4223,6 +4280,10 @@ export function buildGamePackFiles({
       files: {
         model: `models/${slug}/LOD0.glb`,
         lod: (asset.lodLevels || []).map((lod) => lodBudgetRecord(lod, slug)),
+        scene:
+          preset.id === "godot" && asset.glbBytes
+            ? `scenes/${slug}.tscn`
+            : null,
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
         textures: asset.textures
@@ -4267,9 +4328,16 @@ export function buildGamePackFiles({
   );
   files["README.md"] = encoder.encode(engineReadme(preset, records));
 
-  for (const asset of assets) {
+  for (let index = 0; index < assets.length; index++) {
+    const asset = assets[index];
+    const record = records[index];
     const slug = assetSlug(asset.id || asset.type);
     if (asset.glbBytes) files[`models/${slug}/LOD0.glb`] = asset.glbBytes;
+    if (preset.id === "godot" && asset.glbBytes) {
+      files[`scenes/${slug}.tscn`] = encoder.encode(
+        godotSceneFile(record, slug),
+      );
+    }
     for (const lod of asset.lodLevels || []) {
       if (lod.glbBytes) {
         files[`models/${slug}/LOD${lod.level}.glb`] = lod.glbBytes;

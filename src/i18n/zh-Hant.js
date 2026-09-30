@@ -245,6 +245,12 @@ export default {
   "chat.thinking": "正在思考…",
   "chat.you": "你",
   "chat.agent": "Agent",
+  "chat.knowledgePlaceholder": "檢索建模知識…",
+  "chat.knowledgeSearch": "檢索知識包",
+  "chat.knowledgeSearching": "正在檢索知識包…",
+  "chat.knowledgeNone": "沒有符合的參考資料。",
+  "chat.knowledgeCitation":
+    "【知識包】{title} —— 來源：{source}，{url}，授權：{license}",
   "error.chatUnavailable": "此實例沒有返回對話的路由，聊天不可用。",
 
   "mcp.title": "MCP 連線",
@@ -444,7 +450,7 @@ export default {
   "gen.lodLevel": "LOD {level}",
   "gen.format": "格式",
   "gen.formatGlb": "GLB",
-  "gen.formatFbx": "FBX",
+  "gen.formatGltf": "glTF",
   "gen.formatObj": "OBJ",
   "gen.download": "下載",
   "gen.kit": "場景套裝",

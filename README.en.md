@@ -53,15 +53,19 @@ each one, and save the ones you like to the asset library.
   budgets, and the simplifier keeps materials and merges same-material meshes.
 - **Colliders** - box / sphere / capsule / cylinder / mesh presets per asset
   type, sized from the actual mesh and emitted as engine-side collider files.
-- **Engine packs** - Unity (.prefab plus .meta), Godot (.tscn) and Unreal
-  (manifest plus GLB); the pack carries meshes, materials, colliders, animation
-  info, a whole-pack triangle / vertex / part / draw-call budget and a manifest
-  with engine-ready names.
+- **Engine packs** - Unity, Godot and Unreal presets. Godot packs ship a
+  `.tscn` that instances `LOD0.glb`; Unity and Unreal currently emit GLB,
+  materials and import metadata rather than pretending to produce native
+  `.prefab` / `.meta` / `.uasset`. The pack carries meshes, materials,
+  colliders, animation info, a whole-pack triangle / vertex / part / draw-call
+  budget and a manifest with engine-ready names.
 - **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
   and town kits place props deterministically from a seed, exportable as a
   whole scene.
 - **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
   vertex, part and draw-call counts, per-level LOD budgets and collider info.
+- **Download formats** - GLB, JSON glTF (`.gltf` with embedded resources) and
+  OBJ. The UI no longer offers FBX, which was never actually implemented.
 
 ### 4. Quick start
 
@@ -74,9 +78,9 @@ npm run dev          # open http://127.0.0.1:43175
 
 Open the generator in the top-right corner, pick a quick template or describe
 an asset, and generate. Once the preview looks right, open the export panel,
-choose format, engine, collider and animation, and download the GLB / OBJ or a
-full pack. Generated results can be saved to the local asset library with tag
-filtering, favorites, renaming and batch export.
+choose format (GLB / JSON glTF / OBJ), engine, collider and animation, and
+download a single file or a full pack. Generated results can be saved to the
+local asset library with tag filtering, favorites, renaming and batch export.
 
 ### 5. The review loop with an agent
 
@@ -95,7 +99,35 @@ an address, not a description, and can say back which surface it understood.
 
 ![A recording of dropping lettered pins A and B, filling a face with the paint bucket, and sending the batch to the agent](docs/media/demo.gif)
 
-### 6. Three ways in, one implementation
+### 6. Built-in chat and modeling knowledge
+
+AI3D now folds the chat panel into the workbench, so you can talk about the
+current model while generating, exporting or reviewing without opening a
+separate chat window. The conversation is still attached to the host session
+that started the task, so only a host that can write back into its own session
+can send and receive; without a return route the panel says chat is unavailable
+instead of inventing a reply. A knowledge search sits above the composer: type a
+term such as "LOD budget", "white model", "topology" or "PBR" and the offline
+pack returns cited entries with their source and licence. Selecting one inserts
+the citation straight into the message, and search works offline without a host.
+
+The pack copies no third-party files. It stores verifiable sources, licences
+and concise facts, which keeps it small enough to ship in an offline installer
+and reliable enough to hand to an agent as context. It currently covers:
+
+- The glTF 2.0 specification and the Khronos sample-asset corpus, for
+  interchange and compatibility questions.
+- Blender modeling and topology, game asset budgets and LOD, and PBR material
+  authoring, for professional workflow questions.
+- Public white-model and reference libraries such as Poly Haven, Kenney and
+  NASA 3D Resources, each tagged with its licence; CC0 resources are marked as
+  usable commercially without attribution.
+
+An MCP client can call the `ai3d_knowledge` tool against the same pack and gets
+structured entries with citations. The chat panel and MCP share one
+implementation, so the two surfaces cannot drift apart.
+
+### 7. Three ways in, one implementation
 
 The core does not know which harness is talking to it. All three entry points
 drive the same instance manager, with the same actions and the same results.
@@ -117,7 +149,7 @@ Where `send` is false, a submitted batch has the status `waiting`: durable,
 listed, collected by calling `read`. It is not a delivery that failed, and it
 never becomes stalled.
 
-### 7. Model limits
+### 8. Model limits
 
 | Limit          | Threshold                        | On exceeding                     |
 | -------------- | -------------------------------- | -------------------------------- |
@@ -134,15 +166,15 @@ it to measure it; `open` then publishes the same tessellation. Over the cap it
 says to simplify the model rather than giving a ratio, because there are no
 triangles in the file to decimate.
 
-### 8. Installing and running
+### 9. Installing and running
 
 From a clone, for the full development environment:
 
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 300 unit and integration tests
-npm run test:browser # 82 real-Chromium tests
+npm test             # unit and integration tests
+npm run test:browser # real-Chromium browser tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -183,7 +215,7 @@ install commands above use npm as the package manager, not as the source.
 The workbench listens on the loopback address by default. LAN mode binds one
 verified private IPv4 and always requires authorization.
 
-### 9. Desktop client
+### 10. Desktop client
 
 AI3D also ships as a Tauri desktop client that puts the same generator and
 workbench in its own window. The desktop app needs Node.js 22 or newer on the
@@ -208,7 +240,7 @@ window title is AI3D and the icon is the repository's `icon.png`. Desktop data
 application data directory, and the bundled service only listens on the local
 loopback address.
 
-### 10. Roadmap
+### 11. Roadmap
 
 Plans, not promises: the order can change as people use it. Ideas and requests
 are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions).
@@ -224,23 +256,29 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   variants.
 - **1.7** - review aids for game assets: UV and checker views, per-channel
   texture views, per-mesh triangle counts and a node tree with visibility.
-- **1.8** - game prop kits: dungeon pieces (brazier, runestone, spike trap)
-  and sci-fi pieces (turret, drone, comm antenna), with triangle, vertex and
-  part counts shown per asset so teams can check engine budgets before export.
-- **1.9** - scene kits: dungeon, camp and outpost presets that place nine
-  props deterministically from a seed, and export the whole scene with named
-  props intact.
-- **2.0** - animation playback: rigged animation you can play and step through
-  frame by frame.
+- **1.8 (done)** - game prop kits: dungeon pieces (brazier, runestone, spike
+  trap) and sci-fi pieces (turret, drone, comm antenna), with triangle, vertex
+  and part counts shown per asset so teams can check engine budgets before
+  export.
+- **1.9 (done)** - scene kits: eight presets including dungeon, camp and
+  outpost that place props deterministically from a seed, and export the whole
+  scene with named props intact.
+- **2.0 (done)** - animation playback: rigged animation you can play and step
+  through frame by frame.
+- **2.1** - built-in chat and modeling knowledge: talk to AI3D inside the app,
+  backed by a cited knowledge pack of public white-model and professional
+  modeling references, callable as an MCP tool.
+- **2.2** - knowledge pack maintenance: record source, license and refresh
+  date, support offline search and later incremental updates.
 
-### 11. Documentation
+### 12. Documentation
 
 - [AGENT-INTERFACE.md](AGENT-INTERFACE.md) - the contract an agent implements
 - [docs/zh/](docs/zh/) - design documents, in Chinese: positioning,
   requirements, versioning rules, roadmap
 - [Chinese README](README.md) - the Chinese project overview
 
-### 12. License
+### 13. License
 
 Apache-2.0. See [LICENSE](LICENSE).
 

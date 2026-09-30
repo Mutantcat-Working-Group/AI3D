@@ -268,6 +268,12 @@ export default {
   "chat.thinking": "Thinking…",
   "chat.you": "You",
   "chat.agent": "Agent",
+  "chat.knowledgePlaceholder": "Search modeling references…",
+  "chat.knowledgeSearch": "Search knowledge pack",
+  "chat.knowledgeSearching": "Searching the knowledge pack…",
+  "chat.knowledgeNone": "No matching reference.",
+  "chat.knowledgeCitation":
+    "[Knowledge] {title} — source: {source}, {url}, licence: {license}",
   "error.chatUnavailable":
     "Chat is unavailable because this instance has no return route to a conversation.",
 
@@ -470,7 +476,7 @@ export default {
   "gen.lodLevel": "LOD {level}",
   "gen.format": "Format",
   "gen.formatGlb": "GLB",
-  "gen.formatFbx": "FBX",
+  "gen.formatGltf": "glTF",
   "gen.formatObj": "OBJ",
   "gen.download": "Download",
   "gen.kit": "Scene Kits",
