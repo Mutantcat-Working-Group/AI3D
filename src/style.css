@@ -1930,6 +1930,41 @@ dialog .muted {
 .gen-kit .primary-button {
   margin-top: 2px;
 }
+.gen-modular {
+  padding: 0 12px 10px;
+}
+.gen-modular-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gen-modular-options label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.gen-modular-options input {
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-size: 12px;
+  font-family: inherit;
+}
+.gen-modular-crenel {
+  margin: 2px 0 8px;
+}
+.gen-modular-metric {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
 .gen-prop-editor {
   display: flex;
   flex-direction: column;

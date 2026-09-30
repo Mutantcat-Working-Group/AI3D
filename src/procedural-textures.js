@@ -65,6 +65,13 @@ export const TEXTURE_DEFAULTS = {
   crystal: "crystal",
   mushroom: "leaf",
   tree_stump: "wood",
+  wall: "stone",
+  wall_window: "stone",
+  wall_door: "stone",
+  wall_corner: "stone",
+  floor: "stone",
+  stairs: "stone",
+  arch: "stone",
 };
 
 export function textureKinds() {

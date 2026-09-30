@@ -66,6 +66,13 @@ const ASSET_TYPES = {
   crystal: { name: "Crystal", parts: ["base", "shard", "tip"] },
   mushroom: { name: "Mushroom", parts: ["stem", "cap", "spots"] },
   tree_stump: { name: "Tree Stump", parts: ["stump", "rings", "roots"] },
+  wall: { name: "Wall", parts: ["base", "body", "cap", "crenel"] },
+  wall_window: { name: "Wall with Window", parts: ["wall", "frame", "glass"] },
+  wall_door: { name: "Wall with Door", parts: ["wall", "frame", "threshold"] },
+  wall_corner: { name: "Corner Wall", parts: ["base", "body", "cap"] },
+  floor: { name: "Floor Tile", parts: ["slab", "joints", "kerb"] },
+  stairs: { name: "Stairs", parts: ["steps", "stringers"] },
+  arch: { name: "Arch", parts: ["plinth", "columns", "arch"] },
 };
 
 // Asset category tags for game engine classification
@@ -115,7 +122,79 @@ const ASSET_TAGS = {
   crystal: ["nature", "mineral", "collectible"],
   mushroom: ["nature", "vegetation", "collectible"],
   tree_stump: ["nature", "terrain", "outdoor"],
+  wall: ["building", "modular", "structure", "indoor"],
+  wall_window: ["building", "modular", "structure", "indoor"],
+  wall_door: ["building", "modular", "structure", "indoor"],
+  wall_corner: ["building", "modular", "structure", "indoor"],
+  floor: ["building", "modular", "structure", "indoor"],
+  stairs: ["building", "modular", "structure", "indoor"],
+  arch: ["building", "modular", "structure", "indoor"],
 };
+
+/* Modular kit pieces. A wall, a floor tile and a stair run only earn their
+   place in a game level if they line up: a wall four cells long has to be
+   exactly four cells long, and the next piece has to begin where this one
+   ends. So these pieces are built straight from real-world dimensions -
+   cell size times cell count - instead of being scaled to a requested size,
+   and they keep their own base on the ground. The panel, the prompt parser
+   and the normaliser below all read the same numbers, so nothing has to
+   translate one convention into another. */
+export const MODULAR_TYPES = [
+  "wall",
+  "wall_window",
+  "wall_door",
+  "wall_corner",
+  "floor",
+  "stairs",
+  "arch",
+];
+
+const MODULAR_DEFAULTS = {
+  cell: 2,
+  cells: 4,
+  height: 2,
+  depth: 1,
+  thickness: 0.2,
+  steps: 6,
+  crenel: false,
+};
+
+/* The builders assume sane proportions: a cell large enough to stand inside,
+   a run of cells a wall can actually tile, and steps a stair can climb. The
+   values are clamped rather than rejected so a stray keystroke still produces
+   a usable piece. */
+const MODULAR_LIMITS = {
+  cell: [0.25, 20],
+  cells: [1, 24],
+  height: [0.5, 16],
+  depth: [1, 16],
+  thickness: [0.05, 1],
+  steps: [2, 24],
+};
+
+export function isModularType(type) {
+  return MODULAR_TYPES.includes(type);
+}
+
+/** Clamp panel values into the ranges the builders rely on. */
+export function normalizeModularOptions(options = {}) {
+  const value = (key) => {
+    const numeric = Number(options?.[key]);
+    if (!Number.isFinite(numeric)) return MODULAR_DEFAULTS[key];
+    const [min, max] = MODULAR_LIMITS[key];
+    return Math.min(max, Math.max(min, numeric));
+  };
+  const whole = (key) => Math.round(value(key));
+  return {
+    cell: value("cell"),
+    cells: whole("cells"),
+    height: value("height"),
+    depth: whole("depth"),
+    thickness: value("thickness"),
+    steps: whole("steps"),
+    crenel: !!options?.crenel,
+  };
+}
 
 /* Real-world sizing. `size` is expressed in the chosen unit, but the geometry
    is always built in metres because every engine preset below assumes metres
@@ -219,6 +298,13 @@ const ASSET_COLLIDERS = {
   crystal: "sphere",
   mushroom: "capsule",
   tree_stump: "cylinder",
+  wall: "box",
+  wall_window: "box",
+  wall_door: "box",
+  wall_corner: "box",
+  floor: "box",
+  stairs: "mesh",
+  arch: "mesh",
 };
 
 // Animation presets target the named limbs every animated asset already
@@ -582,6 +668,7 @@ export function generateAsset(
     units = "m",
     fitAxis = "max",
     pivot = "center",
+    options = {},
   } = {},
 ) {
   const group = new THREE.Group();
@@ -591,6 +678,11 @@ export function generateAsset(
   segments = Math.max(4, Math.min(32, segments));
   const customColor = color ? new THREE.Color(color) : null;
   const rng = seed !== null ? mulberry32(seed) : Math.random;
+  // Modular pieces are measured, not scaled: their dimensions are the contract,
+  // so they are built straight from the cell maths below and skip the size
+  // normalisation every other type goes through.
+  const modular = isModularType(type);
+  const modularOptions = normalizeModularOptions(options);
 
   switch (type) {
     case "sword":
@@ -725,6 +817,27 @@ export function generateAsset(
     case "barrel_variants":
       buildBarrelVariants(group, size, segments, matStyle, customColor, rng);
       break;
+    case "wall":
+      buildWall(group, modularOptions, matStyle, customColor, rng);
+      break;
+    case "wall_window":
+      buildWallWindow(group, modularOptions, matStyle, customColor, rng);
+      break;
+    case "wall_door":
+      buildWallDoor(group, modularOptions, matStyle, customColor, rng);
+      break;
+    case "wall_corner":
+      buildWallCorner(group, modularOptions, matStyle, customColor, rng);
+      break;
+    case "floor":
+      buildFloor(group, modularOptions, matStyle, customColor, rng);
+      break;
+    case "stairs":
+      buildStairs(group, modularOptions, matStyle, customColor, rng);
+      break;
+    case "arch":
+      buildArch(group, modularOptions, matStyle, customColor, rng);
+      break;
     default:
       buildCube(group, size, segments, matStyle, customColor, rng);
   }
@@ -736,13 +849,15 @@ export function generateAsset(
     seed,
   });
 
+  const metres = sizeToMetres(size, units);
   // Scale first, then place the pivot in scaled space. Centering before scaling
   // would leave the box offset whenever the requested size is not exactly the
   // model span, which matters when a game engine drops the asset into a scene.
-  const metres = sizeToMetres(size, units);
-  const box = new THREE.Box3().setFromObject(group);
-  const extent = sizeExtent(box, fitAxis);
-  if (extent > 0) group.scale.setScalar(metres / extent);
+  if (!modular) {
+    const box = new THREE.Box3().setFromObject(group);
+    const extent = sizeExtent(box, fitAxis);
+    if (extent > 0) group.scale.setScalar(metres / extent);
+  }
   const scaledBox = new THREE.Box3().setFromObject(group);
   group.position.add(pivotOffset(scaledBox, pivot));
   // Engine import reads these, and a reviewer can see the real span without
@@ -787,6 +902,7 @@ export function generateVariantSet(
     units = "m",
     fitAxis = "max",
     pivot = "center",
+    options = {},
   } = {},
 ) {
   const total = Math.max(1, Math.min(12, Math.floor(count || 1)));
@@ -806,6 +922,7 @@ export function generateVariantSet(
       units,
       fitAxis,
       pivot,
+      options,
     });
     variants.push({ seed, index, model, stats: getAssetStats(model) });
   }
@@ -3770,6 +3887,667 @@ export function generateLOD(group, levels = 3) {
   }
 
   return lodLevels;
+}
+
+/* Modular pieces share one material vocabulary: a stone body, a darker trim
+   course, and the wood and glass an opening needs. A picked colour tints the
+   stone, because that is the surface a player actually looks at. */
+function modularMaterials(style, customColor = null) {
+  return {
+    stone: createMaterial(customColor ?? 0x918b80, style),
+    trim: createMaterial(0x6c675f, style),
+    shade: createMaterial(0x2f333a, style),
+    wood: createMaterial(0x8d6e63, style),
+    glass: new THREE.MeshStandardMaterial({
+      color: 0x39505f,
+      flatShading: style.flatShading,
+      roughness: 0.12,
+      metalness: 0.05,
+      transparent: true,
+      opacity: 0.32,
+    }),
+  };
+}
+
+function modBox(group, name, material, w, h, d, x, y, z) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  mesh.position.set(x, y, z);
+  mesh.name = name;
+  group.add(mesh);
+  return mesh;
+}
+
+/* Course heights are proportional to the cell so a half-metre wall and a
+   three-metre wall both keep a plinth that reads as a plinth. */
+function modCourses(cell) {
+  return {
+    base: Math.min(Math.max(cell * 0.14, 0.08), 0.4),
+    cap: Math.min(Math.max(cell * 0.16, 0.1), 0.5),
+  };
+}
+
+function buildWall(group, options, style, customColor = null) {
+  const { cell, cells, height, thickness, crenel } = options;
+  const mats = modularMaterials(style, customColor);
+  const length = cells * cell;
+  const span = height * cell;
+  const { base: baseH, cap: capH } = modCourses(cell);
+  const bodyH = Math.max(0.1, span - baseH - capH);
+  // The courses step outward in depth only. A course that also overhung the
+  // ends would leave a gap between neighbours, which is the one thing a
+  // modular wall cannot do.
+  const courseD = thickness + cell * 0.06;
+
+  modBox(group, "base", mats.trim, length, baseH, courseD, 0, baseH / 2, 0);
+  modBox(
+    group,
+    "body",
+    mats.stone,
+    length,
+    bodyH,
+    thickness,
+    0,
+    baseH + bodyH / 2,
+    0,
+  );
+  modBox(group, "cap", mats.trim, length, capH, courseD, 0, span - capH / 2, 0);
+
+  if (!crenel) return;
+  // Crenellations repeat once per cell with a half-cell gap, so a row of any
+  // length finishes level with the one it started from.
+  const merlons = new THREE.Group();
+  merlons.name = "crenel";
+  const merlonW = cell * 0.5;
+  const merlonH = Math.min(Math.max(cell * 0.3, 0.12), 0.8);
+  for (let i = 0; i < cells; i++) {
+    const x = -length / 2 + merlonW / 2 + i * cell;
+    modBox(
+      merlons,
+      `crenel-${i}`,
+      mats.trim,
+      merlonW,
+      merlonH,
+      thickness,
+      x,
+      span + merlonH / 2,
+      0,
+    );
+  }
+  group.add(merlons);
+}
+
+function buildWallWindow(group, options, style, customColor = null) {
+  const { cell, cells, height, thickness } = options;
+  const mats = modularMaterials(style, customColor);
+  const length = cells * cell;
+  const span = height * cell;
+  const openW = Math.min(cell * 0.9, length * 0.45);
+  const sill = Math.min(Math.max(cell * 0.55, 0.3), span * 0.45);
+  const openH = Math.min(cell * 0.9, Math.max(0.35, span - sill - 0.3));
+  const sideW = (length - openW) / 2;
+  const aboveH = span - sill - openH;
+  const walls = new THREE.Group();
+  walls.name = "wall";
+  const frame = new THREE.Group();
+  frame.name = "frame";
+
+  modBox(
+    walls,
+    "wall-left",
+    mats.stone,
+    sideW,
+    span,
+    thickness,
+    -(openW + sideW) / 2,
+    span / 2,
+    0,
+  );
+  modBox(
+    walls,
+    "wall-right",
+    mats.stone,
+    sideW,
+    span,
+    thickness,
+    (openW + sideW) / 2,
+    span / 2,
+    0,
+  );
+  modBox(
+    walls,
+    "wall-below",
+    mats.stone,
+    openW,
+    sill,
+    thickness,
+    0,
+    sill / 2,
+    0,
+  );
+  if (aboveH > 0.01)
+    modBox(
+      walls,
+      "wall-above",
+      mats.stone,
+      openW,
+      aboveH,
+      thickness,
+      0,
+      sill + openH + aboveH / 2,
+      0,
+    );
+
+  const frameD = thickness + 0.06;
+  modBox(
+    frame,
+    "frame-jamb-left",
+    mats.trim,
+    0.1,
+    openH,
+    frameD,
+    -openW / 2 - 0.05,
+    sill + openH / 2,
+    0,
+  );
+  modBox(
+    frame,
+    "frame-jamb-right",
+    mats.trim,
+    0.1,
+    openH,
+    frameD,
+    openW / 2 + 0.05,
+    sill + openH / 2,
+    0,
+  );
+  modBox(
+    frame,
+    "frame-sill",
+    mats.trim,
+    openW + 0.2,
+    0.08,
+    frameD,
+    0,
+    sill + 0.04,
+    0,
+  );
+  modBox(
+    frame,
+    "frame-lintel",
+    mats.trim,
+    openW + 0.24,
+    0.1,
+    frameD,
+    0,
+    sill + openH + 0.05,
+    0,
+  );
+  modBox(
+    group,
+    "glass",
+    mats.glass,
+    openW * 0.94,
+    openH * 0.94,
+    0.02,
+    0,
+    sill + openH / 2,
+    0,
+  );
+  group.add(walls, frame);
+}
+
+function buildWallDoor(group, options, style, customColor = null) {
+  const { cell, cells, height, thickness } = options;
+  const mats = modularMaterials(style, customColor);
+  const length = cells * cell;
+  const span = height * cell;
+  const openW = Math.min(cell * 1.2, length * 0.6);
+  const openH = Math.min(span * 0.78, Math.max(0.6, span - 0.3));
+  const sideW = (length - openW) / 2;
+  const aboveH = span - openH;
+  const walls = new THREE.Group();
+  walls.name = "wall";
+  const frame = new THREE.Group();
+  frame.name = "frame";
+
+  modBox(
+    walls,
+    "wall-left",
+    mats.stone,
+    sideW,
+    span,
+    thickness,
+    -(openW + sideW) / 2,
+    span / 2,
+    0,
+  );
+  modBox(
+    walls,
+    "wall-right",
+    mats.stone,
+    sideW,
+    span,
+    thickness,
+    (openW + sideW) / 2,
+    span / 2,
+    0,
+  );
+  if (aboveH > 0.01)
+    modBox(
+      walls,
+      "wall-above",
+      mats.stone,
+      openW,
+      aboveH,
+      thickness,
+      0,
+      openH + aboveH / 2,
+      0,
+    );
+  // A dark panel just inside the opening reads as depth behind the doorway
+  // rather than a hole punched clean through the wall.
+  modBox(
+    group,
+    "interior",
+    mats.shade,
+    openW * 0.96,
+    openH * 0.98,
+    thickness * 0.5,
+    0,
+    openH / 2,
+    thickness * 0.1,
+  );
+  const frameD = thickness + 0.06;
+  modBox(
+    frame,
+    "frame-jamb-left",
+    mats.wood,
+    0.12,
+    openH,
+    frameD,
+    -openW / 2 - 0.06,
+    openH / 2,
+    0,
+  );
+  modBox(
+    frame,
+    "frame-jamb-right",
+    mats.wood,
+    0.12,
+    openH,
+    frameD,
+    openW / 2 + 0.06,
+    openH / 2,
+    0,
+  );
+  modBox(
+    frame,
+    "frame-lintel",
+    mats.wood,
+    openW + 0.24,
+    0.12,
+    frameD,
+    0,
+    openH + 0.06,
+    0,
+  );
+  modBox(
+    group,
+    "threshold",
+    mats.wood,
+    openW + 0.4,
+    0.08,
+    thickness + 0.12,
+    0,
+    0.04,
+    0,
+  );
+  group.add(walls, frame);
+}
+
+/* The corner is the one piece that is not centred on its own origin: the two
+   legs run out along +X and +Z from the corner line, which is where a
+   straight wall reaching the corner leaves off. */
+function buildWallCorner(group, options, style, customColor = null) {
+  const { cell, cells, height, thickness, crenel } = options;
+  const mats = modularMaterials(style, customColor);
+  const leg = cells * cell;
+  const span = height * cell;
+  const { base: baseH, cap: capH } = modCourses(cell);
+  const bodyH = Math.max(0.1, span - baseH - capH);
+  const courseW = leg;
+  const courseD = thickness + cell * 0.06;
+  const inset = thickness / 2 + cell * 0.03;
+  const bases = new THREE.Group();
+  bases.name = "base";
+  const bodies = new THREE.Group();
+  bodies.name = "body";
+  const caps = new THREE.Group();
+  caps.name = "cap";
+
+  const legs = [
+    { axis: "x", w: courseW, d: courseD, x: leg / 2, z: inset },
+    { axis: "z", w: courseD, d: courseW, x: inset, z: leg / 2 },
+  ];
+  for (const { axis, w, d, x, z } of legs) {
+    const bx = axis === "x" ? x : thickness / 2;
+    const bz = axis === "x" ? thickness / 2 : z;
+    modBox(bases, `base-${axis}`, mats.trim, w, baseH, d, x, baseH / 2, z);
+    modBox(
+      bodies,
+      `body-${axis}`,
+      mats.stone,
+      axis === "x" ? leg : thickness,
+      bodyH,
+      axis === "x" ? thickness : leg,
+      bx,
+      baseH + bodyH / 2,
+      bz,
+    );
+    modBox(caps, `cap-${axis}`, mats.trim, w, capH, d, x, span - capH / 2, z);
+  }
+  group.add(bases, bodies, caps);
+
+  if (!crenel) return;
+  const merlons = new THREE.Group();
+  merlons.name = "crenel";
+  const merlonW = cell * 0.5;
+  const merlonH = Math.min(Math.max(cell * 0.3, 0.12), 0.8);
+  for (let i = 0; i < cells; i++) {
+    const t = merlonW / 2 + i * cell;
+    modBox(
+      merlons,
+      `crenel-x-${i}`,
+      mats.trim,
+      merlonW,
+      merlonH,
+      thickness,
+      t,
+      span + merlonH / 2,
+      thickness / 2,
+    );
+    modBox(
+      merlons,
+      `crenel-z-${i}`,
+      mats.trim,
+      thickness,
+      merlonH,
+      merlonW,
+      thickness / 2,
+      span + merlonH / 2,
+      t,
+    );
+  }
+  group.add(merlons);
+}
+
+/* Joints are dark strips sunk a hair below the surface. One mesh per tile
+   would buy nothing a strip does not already show, and a 12 x 12 floor stays
+   three dozen meshes rather than two hundred. */
+function buildFloor(group, options, style, customColor = null) {
+  const { cell, cells, depth, thickness } = options;
+  const mats = modularMaterials(style, customColor);
+  const width = cells * cell;
+  const length = depth * cell;
+  const slab = Math.min(Math.max(thickness, 0.05), 0.5);
+  modBox(group, "slab", mats.stone, width, slab, length, 0, slab / 2, 0);
+  const joints = new THREE.Group();
+  joints.name = "joints";
+  const kerbs = new THREE.Group();
+  kerbs.name = "kerb";
+
+  const jointW = Math.min(0.03, cell * 0.02);
+  for (let i = 1; i < cells; i++) {
+    const x = -width / 2 + (i * width) / cells;
+    modBox(
+      joints,
+      `joint-x-${i}`,
+      mats.shade,
+      jointW,
+      0.02,
+      length - 0.04,
+      x,
+      slab - 0.001,
+      0,
+    );
+  }
+  for (let j = 1; j < depth; j++) {
+    const z = -length / 2 + (j * length) / depth;
+    modBox(
+      joints,
+      `joint-z-${j}`,
+      mats.shade,
+      width - 0.04,
+      0.02,
+      jointW,
+      0,
+      slab - 0.001,
+      z,
+    );
+  }
+
+  // The kerb sits inside the footprint: a tile that overhangs its cell stops
+  // the row behind it from lining up.
+  const kerbH = Math.min(0.05, cell * 0.05);
+  const kerbW = Math.min(0.1, cell * 0.08);
+  modBox(
+    kerbs,
+    "kerb-north",
+    mats.trim,
+    width - kerbW * 2,
+    kerbH,
+    kerbW,
+    0,
+    slab,
+    -length / 2 + kerbW / 2,
+  );
+  modBox(
+    kerbs,
+    "kerb-south",
+    mats.trim,
+    width - kerbW * 2,
+    kerbH,
+    kerbW,
+    0,
+    slab,
+    length / 2 - kerbW / 2,
+  );
+  modBox(
+    kerbs,
+    "kerb-west",
+    mats.trim,
+    kerbW,
+    kerbH,
+    length - kerbW * 2,
+    -width / 2 + kerbW / 2,
+    slab,
+    0,
+  );
+  modBox(
+    kerbs,
+    "kerb-east",
+    mats.trim,
+    kerbW,
+    kerbH,
+    length - kerbW * 2,
+    width / 2 - kerbW / 2,
+    slab,
+    0,
+  );
+  group.add(joints, kerbs);
+}
+
+/* Steps are solid blocks rather than floating treads: the shape you can
+   actually walk up, and the only one a stair needs a collider for at all. */
+function buildStairs(group, options, style, customColor = null) {
+  const { cell, cells, height, depth, steps } = options;
+  const mats = modularMaterials(style, customColor);
+  const run = cells * cell;
+  const rise = height * cell;
+  const width = depth * cell;
+  const count = Math.max(2, Math.round(steps));
+  const stepD = run / count;
+  const stepH = rise / count;
+  const stepsGroup = new THREE.Group();
+  stepsGroup.name = "steps";
+  const stringers = new THREE.Group();
+  stringers.name = "stringers";
+
+  for (let i = 0; i < count; i++) {
+    const blockH = stepH * (i + 1);
+    modBox(
+      stepsGroup,
+      `step-${i}`,
+      mats.stone,
+      stepD,
+      blockH,
+      width,
+      -run / 2 + stepD * (i + 0.5),
+      blockH / 2,
+      0,
+    );
+  }
+
+  const stringerW = Math.min(0.1, Math.max(0.04, cell * 0.06));
+  const sides = [
+    ["left", -1],
+    ["right", 1],
+  ];
+  for (const [name, side] of sides) {
+    modBox(
+      stringers,
+      `stringer-${name}`,
+      mats.trim,
+      run,
+      rise,
+      stringerW,
+      0,
+      rise / 2,
+      (side * (width + stringerW)) / 2,
+    );
+  }
+  group.add(stepsGroup, stringers);
+}
+
+/* The arc is cut into voussoirs, one block per wedge, each turned to face the
+   centre, so the arch reads as masonry instead of a smooth tube. The spring
+   line is placed so the crown lands exactly on the requested height. */
+function buildArch(group, options, style, customColor = null) {
+  const { cell, cells, height, thickness } = options;
+  const mats = modularMaterials(style, customColor);
+  const span = cells * cell;
+  const totalH = height * cell;
+  const columnW = Math.min(cell * 0.4, span * 0.3);
+  const openingW = Math.max(0.2, span - columnW * 2);
+  const radius = openingW / 2;
+  const ringDepth = Math.min(thickness * 0.6, radius * 0.5);
+  const baseH = Math.min(Math.max(cell * 0.12, 0.1), 0.35);
+  const blocks = Math.max(6, Math.round(cells * 2));
+  const mid = radius + ringDepth / 2;
+  const wedgeW = (Math.PI * mid) / blocks;
+  let crownOffset = 0;
+  for (let i = 0; i < blocks; i++) {
+    const angle = ((i + 0.5) * Math.PI) / blocks;
+    const top =
+      Math.sin(angle) * mid +
+      (ringDepth / 2) * Math.abs(Math.sin(angle)) +
+      (wedgeW / 2) * Math.abs(Math.cos(angle));
+    crownOffset = Math.max(crownOffset, top);
+  }
+  const springH = Math.max(baseH + 0.2, totalH - crownOffset);
+  const columns = new THREE.Group();
+  columns.name = "columns";
+  const archGroup = new THREE.Group();
+  archGroup.name = "arch";
+
+  modBox(
+    group,
+    "plinth",
+    mats.stone,
+    span,
+    baseH,
+    thickness + 0.12,
+    0,
+    baseH / 2,
+    0,
+  );
+  const columnH = Math.max(0.1, springH - baseH);
+  modBox(
+    columns,
+    "column-left",
+    mats.stone,
+    columnW,
+    columnH,
+    thickness,
+    -(openingW / 2 + columnW / 2),
+    baseH + columnH / 2,
+    0,
+  );
+  modBox(
+    columns,
+    "column-right",
+    mats.stone,
+    columnW,
+    columnH,
+    thickness,
+    openingW / 2 + columnW / 2,
+    baseH + columnH / 2,
+    0,
+  );
+
+  for (let i = 0; i < blocks; i++) {
+    const angle = ((i + 0.5) * Math.PI) / blocks;
+    const block = modBox(
+      archGroup,
+      `voussoir-${i}`,
+      mats.stone,
+      ringDepth,
+      wedgeW,
+      thickness,
+      Math.cos(angle) * mid,
+      springH + Math.sin(angle) * mid,
+      0,
+    );
+    block.rotation.z = angle;
+  }
+
+  const impostW = ringDepth * 1.4;
+  const impostH = Math.min(0.12, cell * 0.1);
+  modBox(
+    archGroup,
+    "impost-left",
+    mats.trim,
+    impostW,
+    impostH,
+    thickness + 0.06,
+    -(openingW / 2 + impostW / 2 - 0.02),
+    springH - impostH / 2,
+    0,
+  );
+  modBox(
+    archGroup,
+    "impost-right",
+    mats.trim,
+    impostW,
+    impostH,
+    thickness + 0.06,
+    openingW / 2 + impostW / 2 - 0.02,
+    springH - impostH / 2,
+    0,
+  );
+  const keystoneH = Math.min(wedgeW * 2.2, cell * 0.8);
+  modBox(
+    archGroup,
+    "keystone",
+    mats.trim,
+    ringDepth,
+    keystoneH,
+    thickness + 0.06,
+    0,
+    springH + mid + ringDepth / 2 - keystoneH / 2,
+    0,
+  );
+  group.add(columns, archGroup);
 }
 
 /**

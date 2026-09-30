@@ -24,7 +24,7 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-45 built-in game asset templates, each with sensible part names, tags and
+52 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                    |
@@ -70,6 +70,9 @@ each one, and save the ones you like to the asset library.
 - **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
   and town kits place props deterministically from a seed, exportable as a
   whole scene.
+- **Modular kit** - wall, window wall, door wall, corner wall, floor, stairs
+  and arch pieces tile exactly on a grid with cell size, run length, height and
+  thickness controls.
 - **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
   vertex, part and draw-call counts, per-level LOD budgets and collider info.
 - **Download formats** - GLB, JSON glTF (`.gltf` with embedded resources) and
@@ -190,7 +193,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 319 unit and integration tests
+npm test             # 326 unit and integration tests
 npm run test:browser # 84 real-Chromium tests
 ```
 

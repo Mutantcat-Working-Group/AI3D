@@ -31,6 +31,7 @@ import {
   buildGamePackFiles,
   exportGamePack,
   getAssetTextureInfo,
+  isModularType,
 } from "../src/generator.js";
 import { unzipSync } from "fflate";
 
@@ -172,17 +173,42 @@ test("generateLOD keeps the original as level 0 and owns each level", () => {
 test("every asset type builds its declared parts, centered and sized", () => {
   for (const type of getAssetTypes()) {
     const info = getAssetTypeInfo(type);
-    const model = generateAsset(type, { size: 2, segments: 10, seed: 7 });
+    const modular = isModularType(type);
+    const model = generateAsset(type, {
+      size: 2,
+      segments: 10,
+      seed: 7,
+      ...(modular
+        ? {
+            options: {
+              cell: 2,
+              cells: 4,
+              height: 2,
+              depth: 2,
+              thickness: 0.2,
+              steps: 6,
+              crenel: true,
+            },
+          }
+        : {}),
+    });
     assert.ok(meshCount(model) > 0, `${type} has meshes`);
     const names = nodeNames(model);
     for (const part of info.parts) {
       assert.ok(names.has(part), `${type} has part ${part}`);
     }
     const bounds = modelBounds(model);
-    assert.ok(
-      Math.abs(bounds.size - 2) < 1e-5,
-      `${type} scales to the requested size`,
-    );
+    if (modular) {
+      assert.ok(
+        Math.abs(bounds.size - 8) < 1e-5,
+        `${type} keeps the modular grid contract`,
+      );
+    } else {
+      assert.ok(
+        Math.abs(bounds.size - 2) < 1e-5,
+        `${type} scales to the requested size`,
+      );
+    }
     assert.ok(bounds.center.length() < 1e-5, `${type} is centered`);
   }
 });

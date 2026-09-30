@@ -44,6 +44,9 @@ import {
   countTriangles,
   renderAssetThumbnail,
   getAssetTypes,
+  MODULAR_TYPES,
+  isModularType,
+  normalizeModularOptions,
   cloneModelDeep,
   decimateMesh,
   generateLOD,
@@ -269,6 +272,20 @@ app.innerHTML = `${SPRITE}
         </div>
       </div>
     </div>
+    <div class="gen-modular" id="gen-modular" hidden>
+      <div class="gen-types-title">${T("gen.modular")}</div>
+      <div id="gen-modular-pieces" class="gen-type-chips"></div>
+      <div class="gen-modular-options">
+        <label>${T("gen.modularCell")}<input type="number" id="gen-modular-cell" min="0.25" max="20" step="0.25" value="2"></label>
+        <label>${T("gen.modularCells")}<input type="number" id="gen-modular-cells" min="1" max="24" step="1" value="4"></label>
+        <label>${T("gen.modularHeight")}<input type="number" id="gen-modular-height" min="0.5" max="16" step="0.25" value="2"></label>
+        <label>${T("gen.modularDepth")}<input type="number" id="gen-modular-depth" min="1" max="16" step="1" value="1"></label>
+        <label>${T("gen.modularThickness")}<input type="number" id="gen-modular-thickness" min="0.05" max="1" step="0.05" value="0.2"></label>
+        <label>${T("gen.modularSteps")}<input type="number" id="gen-modular-steps" min="2" max="24" step="1" value="6"></label>
+      </div>
+      <label class="gen-check gen-modular-crenel">${T("gen.modularCrenel")}<input type="checkbox" id="gen-modular-crenel"></label>
+      <div id="gen-modular-metric" class="gen-modular-metric"></div>
+    </div>
     <div class="gen-form">
       <label>${T("gen.prompt")}</label>
       <textarea id="gen-prompt" placeholder="${T("gen.promptPlaceholder")}" rows="3"></textarea>
@@ -316,7 +333,7 @@ app.innerHTML = `${SPRITE}
         <button type="button" id="gen-seed-reset" class="quiet">${T("gen.colorReset")}</button>
         <button type="button" id="gen-seed-random" class="quiet">${T("gen.randomSeed")}</button>
       </div>
-      <div class="gen-material-row">
+      <div class="gen-material-row" id="gen-size-row">
         <label>${T("gen.size")} <input type="number" id="gen-size" min="0.001" max="10000" step="0.01" value="1"></label>
         <label>${T("gen.units")} <select id="gen-units">
           <option value="m">${T("gen.unit.m")}</option>
@@ -326,7 +343,7 @@ app.innerHTML = `${SPRITE}
           <option value="in">${T("gen.unit.in")}</option>
         </select></label>
       </div>
-      <div class="gen-material-row">
+      <div class="gen-material-row" id="gen-fit-row">
         <label>${T("gen.fit")} <select id="gen-fit">
           <option value="max">${T("gen.fit.max")}</option>
           <option value="height">${T("gen.fit.height")}</option>
@@ -2466,6 +2483,8 @@ const genState = {
   variants: [],
 };
 let selectedGenKit = "dungeon";
+let selectedGenModular = null;
+let lastGenPivot = "center";
 let selectedSceneProp = 0;
 
 /* The asset labels, aliases and colour, style and size words live beside the
@@ -2602,6 +2621,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
         fitAxis: asset.fitAxis ?? "max",
         pivot: asset.pivot ?? "center",
         segments: asset.segments,
+        options: asset.options,
         style: asset.style,
         color: asset.color || null,
         seed: asset.seed ?? null,
@@ -2726,6 +2746,9 @@ async function generateAsset() {
   }
   const { assetType, color } = readPromptSettings();
   const material = readMaterialSettings();
+  const modularOptions = isModularType(assetType.type)
+    ? readModularSettings()
+    : null;
   const seedInput = $("#gen-seed").value.trim();
   const seed =
     seedInput === "" ? null : Math.max(0, Math.floor(Number(seedInput) || 0));
@@ -2739,6 +2762,7 @@ async function generateAsset() {
       fitAxis: assetType.fitAxis,
       pivot: assetType.pivot,
       segments: assetType.segments,
+      options: modularOptions,
       style: assetType.style,
       color: color,
       seed,
@@ -2748,6 +2772,7 @@ async function generateAsset() {
     });
     genState.model = {
       ...assetType,
+      options: modularOptions,
       threeObject: model,
       color,
       seed,
@@ -2784,6 +2809,9 @@ function generateVariants() {
   }
   const { assetType, color } = readPromptSettings();
   const material = readMaterialSettings();
+  const modularOptions = isModularType(assetType.type)
+    ? readModularSettings()
+    : null;
   const seedInput = $("#gen-seed").value.trim();
   const baseSeed =
     seedInput === ""
@@ -2802,6 +2830,7 @@ function generateVariants() {
       fitAxis: assetType.fitAxis,
       pivot: assetType.pivot,
       segments: assetType.segments,
+      options: modularOptions,
       style: assetType.style,
       color,
       material,
@@ -2812,6 +2841,7 @@ function generateVariants() {
     });
     genState.variants = variants.map((variant) => ({
       ...assetType,
+      options: modularOptions,
       seed: variant.seed,
       stats: variant.stats,
       threeObject: variant.model,
@@ -3030,6 +3060,7 @@ function renderPromptHint() {
     parts.push(esc(t(GEN_STYLE_LABEL_KEYS[parsed.style])));
   hint.innerHTML = `<span class="gen-prompt-hint-label">${T("gen.understanding")}</span>${parts.join(" · ")}`;
   hint.hidden = false;
+  syncGenModularUI(detectedGenType());
 }
 
 function importGenModel() {
@@ -3258,6 +3289,7 @@ async function downloadGenPack() {
     fitAxis: genState.model.fitAxis ?? "max",
     pivot: genState.model.pivot ?? "center",
     segments: genState.model.segments ?? 16,
+    options: genState.model.options ?? null,
     spacing: genState.model.spacing ?? genState.model.scene?.spacing ?? 1,
     groundPadding:
       genState.model.groundPadding ??
@@ -3321,6 +3353,15 @@ function renderGenKitChips() {
     .join("");
 }
 
+function renderGenModularPieces() {
+  const container = $("#gen-modular-pieces");
+  if (!container) return;
+  container.innerHTML = MODULAR_TYPES.map(
+    (type) =>
+      `<button type="button" class="gen-type-chip${type === selectedGenModular ? " active" : ""}" data-modular="${esc(type)}">${esc(t(GEN_TYPE_KEYS[type]))}</button>`,
+  ).join("");
+}
+
 function readGenKitOptions() {
   const read = (selector, fallback, min, max) => {
     const value = Number($(selector)?.value);
@@ -3333,6 +3374,73 @@ function readGenKitOptions() {
     groundPadding: read("#gen-kit-ground", 0.6, 0, 3),
     propScale: read("#gen-kit-prop-scale", 1, 0.25, 3),
   };
+}
+
+/* Modular pieces are measured, not scaled, so their panel reads the same
+   numbers the generators build: cell, run length, height, depth, thickness
+   and steps are clamped once here and again by the normaliser. */
+function readModularSettings() {
+  const read = (selector, fallback, min, max) => {
+    const value = Number($(selector)?.value);
+    if (!Number.isFinite(value)) return fallback;
+    return Math.min(max, Math.max(min, value));
+  };
+  return normalizeModularOptions({
+    cell: read("#gen-modular-cell", 2, 0.25, 20),
+    cells: Math.round(read("#gen-modular-cells", 4, 1, 24)),
+    height: read("#gen-modular-height", 2, 0.5, 16),
+    depth: Math.round(read("#gen-modular-depth", 1, 1, 16)),
+    thickness: read("#gen-modular-thickness", 0.2, 0.05, 1),
+    steps: Math.round(read("#gen-modular-steps", 6, 2, 24)),
+    crenel: $("#gen-modular-crenel")?.checked,
+  });
+}
+
+function updateGenModularMetric() {
+  const metric = $("#gen-modular-metric");
+  if (!metric) return;
+  const { cell, cells, height, depth, thickness } = readModularSettings();
+  const length = Number((cell * cells).toFixed(3));
+  metric.textContent = `${t("gen.modularMetric")}: ${length} m x ${height} m x ${depth} m - ${t("gen.modularThickness")} ${thickness} m`;
+}
+
+/* A modular prompt owns the size controls: the piece is built on its grid
+   instead of being scaled, and the origin is pinned to the ground so the next
+   piece can line up against it. The chip row, the size rows and the origin
+   select therefore follow the parsed type instead of staying independent. */
+function syncGenModularUI(type = null) {
+  const panel = $("#gen-modular");
+  const sizeRow = $("#gen-size-row");
+  const fitRow = $("#gen-fit-row");
+  const pivot = $("#gen-pivot");
+  if (!panel || !sizeRow || !fitRow || !pivot) return;
+  const modular = isModularType(type);
+  panel.hidden = !modular;
+  sizeRow.hidden = modular;
+  fitRow.hidden = modular;
+  if (modular) {
+    if (pivot.value !== "ground") lastGenPivot = pivot.value;
+    pivot.value = "ground";
+    pivot.disabled = true;
+    if (type !== selectedGenModular) {
+      selectedGenModular = type;
+      renderGenModularPieces();
+    }
+    updateGenModularMetric();
+    return;
+  }
+  if (selectedGenModular) {
+    selectedGenModular = null;
+    renderGenModularPieces();
+  }
+  pivot.disabled = false;
+  if (lastGenPivot && pivot.value === "ground") pivot.value = lastGenPivot;
+}
+
+function detectedGenType() {
+  const prompt = $("#gen-prompt").value.trim();
+  if (!prompt) return null;
+  return parseAssetPrompt(prompt, $("#gen-style").value, promptLexicon).type;
 }
 
 function getSceneProps() {
@@ -3543,6 +3651,27 @@ $("#gen-types").addEventListener("click", (e) => {
   renderPromptHint();
   generateAsset();
 });
+$("#gen-modular-pieces").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-modular]");
+  if (!btn) return;
+  const type = btn.dataset.modular;
+  selectedGenModular = type;
+  renderGenModularPieces();
+  $("#gen-prompt").value = t(GEN_TYPE_KEYS[type]);
+  renderPromptHint();
+  generateAsset();
+});
+for (const selector of [
+  "#gen-modular-cell",
+  "#gen-modular-cells",
+  "#gen-modular-height",
+  "#gen-modular-depth",
+  "#gen-modular-thickness",
+  "#gen-modular-steps",
+  "#gen-modular-crenel",
+]) {
+  $(selector).addEventListener("input", updateGenModularMetric);
+}
 $("#gen-kits").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-kit]");
   if (!btn) return;
@@ -3802,6 +3931,18 @@ function loadAsset(id) {
   } else {
     genState.originalModel = cloneModelDeep(model);
   }
+  if (isModularType(asset.type)) {
+    const options = normalizeModularOptions(asset.options);
+    $("#gen-prompt").value = asset.prompt || t(GEN_TYPE_KEYS[asset.type]);
+    $("#gen-modular-cell").value = String(options.cell);
+    $("#gen-modular-cells").value = String(options.cells);
+    $("#gen-modular-height").value = String(options.height);
+    $("#gen-modular-depth").value = String(options.depth);
+    $("#gen-modular-thickness").value = String(options.thickness);
+    $("#gen-modular-steps").value = String(options.steps);
+    $("#gen-modular-crenel").checked = options.crenel;
+  }
+  syncGenModularUI(asset.type);
   genState.lods = [];
   genState.activeLod = 0;
   setGenOptimizePanel(false);

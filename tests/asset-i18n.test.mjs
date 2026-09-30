@@ -9,6 +9,9 @@ import { CATALOGUES } from "../src/i18n/index.js";
 const KEY_SUFFIXES = {
   tree_stump: "treeStump",
   barrel_variants: "barrelVariants",
+  wall_window: "wallWindow",
+  wall_door: "wallDoor",
+  wall_corner: "wallCorner",
 };
 
 test("every asset template ships a label and aliases in every language", () => {

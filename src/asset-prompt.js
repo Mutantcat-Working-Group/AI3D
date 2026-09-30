@@ -59,6 +59,13 @@ export const GEN_TYPE_KEYS = {
   mushroom: "gen.type.mushroom",
   tree_stump: "gen.type.treeStump",
   barrel_variants: "gen.type.barrelVariants",
+  wall: "gen.type.wall",
+  wall_window: "gen.type.wallWindow",
+  wall_door: "gen.type.wallDoor",
+  wall_corner: "gen.type.wallCorner",
+  floor: "gen.type.floor",
+  stairs: "gen.type.stairs",
+  arch: "gen.type.arch",
 };
 
 export const GEN_ALIAS_KEYS = {
@@ -107,6 +114,13 @@ export const GEN_ALIAS_KEYS = {
   mushroom: "gen.alias.mushroom",
   tree_stump: "gen.alias.treeStump",
   barrel_variants: "gen.alias.barrelVariants",
+  wall: "gen.alias.wall",
+  wall_window: "gen.alias.wallWindow",
+  wall_door: "gen.alias.wallDoor",
+  wall_corner: "gen.alias.wallCorner",
+  floor: "gen.alias.floor",
+  stairs: "gen.alias.stairs",
+  arch: "gen.alias.arch",
 };
 
 /* Colour words are a closed set on purpose. A preset whose hex a designer can
