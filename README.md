@@ -17,7 +17,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：用一句�
 
 ### 二、能生成什么
 
-内置 48 类游戏资产模板，按类型自动给出合理命名部位、标签和碰撞体预设：
+内置 45 类游戏资产模板，按类型自动给出合理命名部位、标签和碰撞体预设：
 
 | 分类 | 资产 |
 | --- | --- |
@@ -93,8 +93,8 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 276 unit and integration tests
-npm run test:browser # 77 real-Chromium tests
+npm test             # 277 unit and integration tests
+npm run test:browser # 78 real-Chromium tests
 ```
 
 `npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。

@@ -112,3 +112,37 @@ test("generated assets get an animated preview with play/pause and turntable con
   await spin.click();
   expect(await spin.getAttribute("aria-pressed")).toBe("false");
 });
+
+/* Quick templates were once able to render a chip whose translation key was
+   missing, and clicking it then fell back to the default cube. The dragon
+   chip is the easy witness: only the dragon preset ships a fly clip. */
+test("quick template chips resolve their own asset instead of the default cube", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  const dragon = page.locator('#gen-types [data-type="dragon"]');
+  await expect(dragon).toBeVisible();
+  await expect(dragon).not.toContainText(/gen\.type\./);
+  await dragon.click();
+
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await page.locator("#gen-preview-clip option").allTextContents()).join(
+          ",",
+        ),
+      { timeout: 10000 },
+    )
+    .toContain("fly");
+
+  for (const type of ["boat", "plane", "crystal", "tree_stump"]) {
+    const chip = page.locator(`#gen-types [data-type="${type}"]`);
+    await expect(chip).not.toContainText(/gen\.type\./);
+    await chip.click();
+    await expect(page.locator("#gen-preview")).toBeVisible();
+  }
+});

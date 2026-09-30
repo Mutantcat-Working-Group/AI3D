@@ -24,7 +24,7 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-48 built-in game asset templates, each with sensible part names, tags and
+45 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category | Assets |
@@ -140,8 +140,8 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 276 unit and integration tests
-npm run test:browser # 77 real-Chromium tests
+npm test             # 277 unit and integration tests
+npm run test:browser # 78 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites

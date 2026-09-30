@@ -2351,6 +2351,17 @@ const GEN_TYPE_KEYS = {
   statue: "gen.type.statue",
   pillar: "gen.type.pillar",
   well: "gen.type.well",
+  monster: "gen.type.monster",
+  dragon: "gen.type.dragon",
+  boat: "gen.type.boat",
+  plane: "gen.type.plane",
+  bike: "gen.type.bike",
+  campfire: "gen.type.campfire",
+  sign: "gen.type.sign",
+  crystal: "gen.type.crystal",
+  mushroom: "gen.type.mushroom",
+  tree_stump: "gen.type.treeStump",
+  barrel_variants: "gen.type.barrelVariants",
 };
 
 const GEN_ALIAS_KEYS = {
@@ -2388,6 +2399,17 @@ const GEN_ALIAS_KEYS = {
   statue: "gen.alias.statue",
   pillar: "gen.alias.pillar",
   well: "gen.alias.well",
+  monster: "gen.alias.monster",
+  dragon: "gen.alias.dragon",
+  boat: "gen.alias.boat",
+  plane: "gen.alias.plane",
+  bike: "gen.alias.bike",
+  campfire: "gen.alias.campfire",
+  sign: "gen.alias.sign",
+  crystal: "gen.alias.crystal",
+  mushroom: "gen.alias.mushroom",
+  tree_stump: "gen.alias.treeStump",
+  barrel_variants: "gen.alias.barrelVariants",
 };
 
 const GEN_KIT_KEYS = {
