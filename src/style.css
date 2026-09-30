@@ -1892,6 +1892,15 @@ dialog .muted {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+.gen-prop-actions {
+  display: flex;
+  gap: 6px;
+}
+.gen-prop-actions button {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
 .gen-form {
   padding: 0 12px 10px;
   display: flex;

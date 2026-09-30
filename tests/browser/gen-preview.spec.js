@@ -270,4 +270,14 @@ test("composed scene props can be edited, reloaded and deleted", async ({
 
   await page.locator("#gen-prop-delete").click();
   await expect(page.locator("#gen-prop-select option")).toHaveCount(8);
+
+  /* Duplicating clones the selected prop beside itself and selects the copy,
+     so the new prop is immediately editable; height lifts it off the floor. */
+  await page.locator("#gen-prop-select").selectOption("0");
+  await page.locator("#gen-prop-duplicate").click();
+  await expect(page.locator("#gen-prop-select option")).toHaveCount(9);
+  await expect(page.locator("#gen-prop-select")).toHaveValue("8");
+  await page.locator("#gen-prop-y").fill("1.5");
+  await page.locator("#gen-prop-y").blur();
+  await expect(page.locator("#gen-prop-y")).toHaveValue("1.5");
 });

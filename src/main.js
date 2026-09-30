@@ -36,6 +36,7 @@ import {
   composeGameKit,
   editSceneProp,
   removeSceneProp,
+  addSceneProp,
   getGameKits,
   exportGLB,
   exportOBJ,
@@ -113,6 +114,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-gen" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7.5v9l-9 5-9-5v-9z"/><path d="M12 2.5v19M3 7.5l9 5 9-5"/><path d="M7.5 5l9 5" opacity=".5"/></g>
 <g id="mc-scene" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/></g>
 <g id="mc-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.7.8-4.1 4 .9 5.7-5-2.7-5 2.7.9-5.7-4.1-4 5.7-.8z"/></g>
+<g id="mc-copy" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6.4 15H6a1.8 1.8 0 0 1-1.8-1.8V6A1.8 1.8 0 0 1 6 4.2h7.2A1.8 1.8 0 0 1 15 6v.4"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -241,9 +243,13 @@ app.innerHTML = `${SPRITE}
           <label>${T("gen.propSize")}<input id="gen-prop-size" type="number" min="0.01" max="100" step="0.05"></label>
           <label>${T("gen.propX")}<input id="gen-prop-x" type="number" step="0.05"></label>
           <label>${T("gen.propZ")}<input id="gen-prop-z" type="number" step="0.05"></label>
+          <label>${T("gen.propY")}<input id="gen-prop-y" type="number" step="0.05"></label>
           <label>${T("gen.propRotation")}<input id="gen-prop-rotation" type="number" step="15"></label>
         </div>
-        <button id="gen-prop-delete" class="quiet" type="button">${icon("trash")}<span>${T("gen.propDelete")}</span></button>
+        <div class="gen-prop-actions">
+          <button id="gen-prop-duplicate" class="quiet" type="button">${icon("copy")}<span>${T("gen.propDuplicate")}</span></button>
+          <button id="gen-prop-delete" class="quiet" type="button">${icon("trash")}<span>${T("gen.propDelete")}</span></button>
+        </div>
       </div>
     </div>
     <div class="gen-form">
@@ -3248,6 +3254,7 @@ function renderGenPropEditor() {
     .join("");
   $("#gen-prop-size").value = String(prop.size);
   $("#gen-prop-x").value = String(prop.x);
+  $("#gen-prop-y").value = String(prop.y);
   $("#gen-prop-z").value = String(prop.z);
   $("#gen-prop-rotation").value = String(
     Math.round(((prop.rotationY || 0) * 180) / Math.PI),
@@ -3430,6 +3437,7 @@ $("#gen-prop-type").addEventListener("change", (e) => {
 for (const [selector, field] of [
   ["#gen-prop-size", "size"],
   ["#gen-prop-x", "x"],
+  ["#gen-prop-y", "y"],
   ["#gen-prop-z", "z"],
 ]) {
   $(selector).addEventListener("change", (e) => {
@@ -3440,6 +3448,36 @@ $("#gen-prop-rotation").addEventListener("change", (e) => {
   applyScenePropEdit({
     rotationY: (Number(e.target.value) * Math.PI) / 180,
   });
+});
+/* Duplicating is the fastest way to build a cluster: it clones the selected
+   prop's type, size and seed, drops the copy beside the original and selects
+   it so the offset can be nudged without reaching for the list again. */
+$("#gen-prop-duplicate").addEventListener("click", () => {
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene) return;
+  const source = getSceneProps()[selectedSceneProp];
+  if (!source) return;
+  try {
+    const gap = (source.bounds?.width ?? 0.5) + 0.25;
+    addSceneProp(scene, {
+      type: source.type,
+      size: source.size,
+      seed: source.seed,
+      rotationY: source.rotationY,
+      x: source.x + gap,
+      y: source.y,
+      z: source.z,
+    });
+    genState.model.scene ||= {};
+    genState.model.scene.props = scene.userData.propList;
+    selectedSceneProp = scene.userData.propList.length - 1;
+    renderGenPropEditor();
+    syncGenPreview();
+    setGenStatus(t("gen.applied"), "ok");
+  } catch {
+    renderGenPropEditor();
+    setGenStatus(t("gen.error"), "error");
+  }
 });
 $("#gen-prop-delete").addEventListener("click", () => {
   const scene = genState.model?.threeObject;

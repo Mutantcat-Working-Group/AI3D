@@ -16,6 +16,7 @@ import {
   composeGameKit,
   editSceneProp,
   removeSceneProp,
+  addSceneProp,
   getGameKits,
   exportGLB,
   exportOBJ,
@@ -562,6 +563,46 @@ test("removeSceneProp removes a model and compacts placement names", () => {
         child.name.startsWith(`${next.name}-`) || child.name === next.name,
       );
   });
+});
+
+test("addSceneProp appends a model and export metadata", () => {
+  const scene = composeGameKit("camp", { seed: 21, propScale: 1.5 });
+  const before = scene.userData.propList.length;
+  const added = addSceneProp(scene, {
+    type: "tower",
+    size: 1.25,
+    seed: 4242,
+    x: 3.1,
+    z: -2.4,
+    rotationY: Math.PI / 2,
+  });
+
+  assert.equal(scene.userData.propList.length, before + 1);
+  assert.equal(scene.userData.propList.at(-1), added);
+  assert.equal(added.type, "tower");
+  assert.equal(added.size, 1.25);
+  assert.equal(added.seed, 4242);
+  assert.equal(added.x, 3.1);
+  assert.equal(added.z, -2.4);
+  assert.ok(Math.abs(added.rotationY - Math.PI / 2) < 0.0001);
+  assert.equal(added.collision, getColliderShape("tower"));
+  assert.ok(added.bounds.width > 0);
+  const model = scene.children.find((child) => child.name === added.name);
+  assert.ok(model, "the added prop gets a model in the scene");
+  assert.equal(model.position.x, 3.1);
+  assert.equal(model.position.z, -2.4);
+
+  // A saved scene rebuilds the added prop from its stored placement.
+  const rebuilt = composeGameKit("camp", {
+    seed: 21,
+    props: scene.userData.propList.map((prop) => ({ ...prop })),
+  });
+  assert.equal(rebuilt.userData.propList.length, before + 1);
+  const last = rebuilt.userData.propList.at(-1);
+  assert.equal(last.type, "tower");
+  assert.equal(last.size, 1.25);
+  assert.equal(last.x, 3.1);
+  assert.ok(rebuilt.children.some((child) => child.name === last.name));
 });
 
 test("exportGamePack exports composed scenes with props and theme", async () => {

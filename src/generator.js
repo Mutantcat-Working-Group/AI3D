@@ -1320,6 +1320,99 @@ export function removeSceneProp(scene, propIndex) {
   return removed;
 }
 
+/**
+ * Append a new prop to a composed scene. The placement lives in the same
+ * layout space as composeGameKit, so a saved scene rebuilds with the added prop
+ * exactly where the editor left it.
+ * @param {THREE.Group} scene - Scene returned by composeGameKit
+ * @param {object} placement - type, size, x, y, z, rotationY and seed overrides
+ * @returns {object} The new prop metadata
+ */
+export function addSceneProp(scene, placement = {}) {
+  const propList = scene?.userData?.propList;
+  if (!Array.isArray(propList)) {
+    throw new Error("Scene has no prop list to extend");
+  }
+  const theme = scene.userData.theme || {};
+  const index = propList.length;
+  const type =
+    placement.type && ASSET_TYPES[placement.type] ? placement.type : "cube";
+  const requestedSize = Number(placement.size);
+  const fallbackSize = theme.propScale ?? 1;
+  const size =
+    Math.round(
+      Math.min(
+        100,
+        Math.max(
+          0.01,
+          Number.isFinite(requestedSize) ? requestedSize : fallbackSize,
+        ),
+      ) * 1000,
+    ) / 1000;
+  const requestedSeed = Number(placement.seed);
+  const seed = Number.isFinite(requestedSeed)
+    ? Math.floor(requestedSeed)
+    : Math.floor(Math.random() * 100000);
+  const x = Number.isFinite(Number(placement.x)) ? Number(placement.x) : 0;
+  const z = Number.isFinite(Number(placement.z)) ? Number(placement.z) : 0;
+  const rotationY = Number.isFinite(Number(placement.rotationY))
+    ? Number(placement.rotationY)
+    : 0;
+
+  const model = generateAsset(type, {
+    size,
+    segments: theme.segments ?? 12,
+    style: theme.style ?? "lowpoly",
+    color: theme.color || null,
+    seed,
+    material: theme.material || null,
+    texture: theme.texture ?? "auto",
+    textureStrength: theme.textureStrength ?? 0.8,
+  });
+  const kit = scene.userData.kit || "kit";
+  model.name = `${kit}-${type}-${index + 1}`;
+  model.traverse((child) => {
+    if (child.isMesh) child.name = `${model.name}-${child.name}`;
+  });
+  model.position.set(x, 0, z);
+  // Generated assets are centered on their origin, so an unset height rests the
+  // prop on the ground instead of sinking half of it below the pavers.
+  const restingBox = new THREE.Box3().setFromObject(model);
+  const requestedY = Number(placement.y);
+  model.position.y = Number.isFinite(requestedY)
+    ? requestedY
+    : 0.06 - restingBox.min.y;
+  model.rotation.y = rotationY;
+  scene.add(model);
+
+  const placedBox = new THREE.Box3().setFromObject(model);
+  const next = {
+    name: model.name,
+    type,
+    size,
+    seed,
+    x: Math.round(x * 1000) / 1000,
+    y: Math.round(model.position.y * 1000) / 1000,
+    z: Math.round(z * 1000) / 1000,
+    rotationY: Math.round(rotationY * 10000) / 10000,
+    bounds: {
+      width: Math.round((placedBox.max.x - placedBox.min.x) * 1000) / 1000,
+      height: Math.round((placedBox.max.y - placedBox.min.y) * 1000) / 1000,
+      depth: Math.round((placedBox.max.z - placedBox.min.z) * 1000) / 1000,
+    },
+    collision: getColliderShape(type),
+  };
+  propList.push(next);
+  scene.userData.props = propList.length;
+  const bounds = new THREE.Box3().setFromObject(scene);
+  scene.userData.extent = {
+    width: bounds.max.x - bounds.min.x,
+    depth: bounds.max.z - bounds.min.z,
+    height: bounds.max.y - bounds.min.y,
+  };
+  return next;
+}
+
 export function getGameKits() {
   return Object.entries(GAME_KITS).map(([id, def]) => ({
     id,
