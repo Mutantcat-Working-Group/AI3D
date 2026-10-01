@@ -8,6 +8,7 @@ import {
   mcpOwner,
   serve,
   TOOL,
+  GENERATE_TOOL,
   PROTOCOL_VERSION,
 } from "../mcp/server.mjs";
 
@@ -79,10 +80,84 @@ test("the tool says up front that nothing here will announce a submission", asyn
   });
   assert.deepEqual(
     listed.result.tools.map((tool) => tool.name),
-    ["ai3d", "ai3d_knowledge"],
+    ["ai3d", "ai3d_knowledge", "ai3d_generate"],
   );
   assert.match(TOOL.description, /cannot be pushed to/);
   assert.equal(TOOL.inputSchema.required.includes("action"), true);
+  assert.equal(GENERATE_TOOL.inputSchema.required.includes("output"), true);
+});
+
+test("the generate tool writes a game pack into the workspace", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 12,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets",
+        type: "sword",
+        engine: "unity",
+        seed: 5,
+        name: "hero-sword",
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.type, "sword");
+  assert.equal(result.asset.id, "hero-sword");
+  assert.equal(result.asset.engine, "unity");
+  assert.ok(result.asset.stats.triangles > 0);
+
+  const zip = path.join(dir, "generated-assets/hero-sword/hero-sword.zip");
+  const glb = path.join(dir, "generated-assets/hero-sword/hero-sword.glb");
+  const manifest = path.join(
+    dir,
+    "generated-assets/hero-sword/pack/manifest.json",
+  );
+  assert.equal(fs.existsSync(zip), true);
+  assert.equal(fs.existsSync(glb), true);
+  assert.equal(fs.existsSync(manifest), true);
+  const parsed = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  assert.equal(parsed.engine.id, "unity");
+  assert.equal(parsed.assets[0].id, "hero-sword");
+});
+
+test("the generate tool resolves a natural-language prompt", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 13,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets/prompted",
+        prompt: "a red sword 1.5 m",
+        seed: 3,
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.type, "sword");
+  assert.equal(result.asset.color, "#c0392b");
+  assert.equal(result.asset.size, 1.5);
+  assert.equal(result.asset.units, "m");
+});
+
+test("the generate tool refuses paths outside the workspace", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 14,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: { output: "../escape", type: "sword" },
+    },
+  });
+  assert.equal(answer.result.isError, true);
+  const text = JSON.parse(answer.result.content[0].text);
+  assert.equal(text.code, "BAD_OUTPUT");
+  assert.equal(fs.existsSync(path.join(path.dirname(dir), "escape")), false);
 });
 
 test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {
@@ -175,6 +250,6 @@ test("the transport reads whole lines and refuses a broken one without dying", a
     written.map((m) => m.id),
     [1, 2, null],
   );
-  assert.equal(written[0].result.tools.length, 2);
+  assert.equal(written[0].result.tools.length, 3);
   assert.equal(written[2].error.code, -32700);
 });

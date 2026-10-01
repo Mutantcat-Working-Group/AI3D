@@ -19,6 +19,7 @@ import { InstanceManager, inspectInstall } from "../integration/manager.mjs";
 import { precheckModel, stepMeshFor } from "../integration/precheck.mjs";
 import { normalizeOrigin } from "../server/origin.mjs";
 import { KNOWLEDGE_TOOL, callKnowledgeTool } from "./knowledge.mjs";
+import { generateAssetToPack } from "../src/generator-service.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -28,12 +29,21 @@ export const PROTOCOL_VERSION = "2025-06-18";
 // bytes the bundled Skill carries. A second copy written for this surface would
 // start agreeing with the first and end up describing a different product.
 export function instructions(root = ROOT) {
-  const file = path.join(root, "skills/ai3d-review/SKILL.md");
-  if (!fs.existsSync(file)) return "";
-  return fs
-    .readFileSync(file, "utf8")
-    .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n+/, "")
-    .trim();
+  const files = [
+    "skills/ai3d-review/SKILL.md",
+    "skills/ai3d-generate/SKILL.md",
+  ];
+  return files
+    .map((file) => {
+      const full = path.join(root, file);
+      if (!fs.existsSync(full)) return "";
+      return fs
+        .readFileSync(full, "utf8")
+        .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n+/, "")
+        .trim();
+    })
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 // MCP offers no session identity — initialize names the client, not the
@@ -94,6 +104,93 @@ export const TOOL = {
   },
 };
 
+export const GENERATE_TOOL = {
+  name: "ai3d_generate",
+  description:
+    "Generate a game-ready 3D asset and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      output: {
+        type: "string",
+        description:
+          "Workspace-relative directory for the generated asset. Must stay inside the workspace.",
+      },
+      prompt: {
+        type: "string",
+        description:
+          'Natural-language asset description, e.g. "a red low-poly sword 1.5 m". Either prompt or type is required.',
+      },
+      type: {
+        type: "string",
+        description:
+          "Asset template id, e.g. sword, tree, house, character, chest. Overrides whatever a prompt resolves to.",
+      },
+      style: {
+        type: "string",
+        enum: ["lowpoly", "stylized", "realistic"],
+      },
+      color: { type: "string", description: "Hex color, e.g. #c0392b." },
+      size: {
+        type: "number",
+        exclusiveMinimum: 0,
+        description: "Asset size in the chosen units (default 1).",
+      },
+      units: {
+        type: "string",
+        enum: ["m", "cm", "mm", "ft", "in"],
+        description: "Units the size is given in (default m).",
+      },
+      seed: {
+        type: "integer",
+        minimum: 0,
+        description: "Deterministic variation seed.",
+      },
+      engine: {
+        type: "string",
+        enum: ["unity", "godot", "unreal"],
+        description: "Engine preset for the pack (default unity).",
+      },
+      withLod: {
+        type: "boolean",
+        description: "Include generated LOD levels in the pack.",
+      },
+      anchors: {
+        type: "boolean",
+        description: "Write named anchor nodes into exported GLBs.",
+      },
+      exportClips: {
+        type: "boolean",
+        description: "Export each animation clip as its own GLB.",
+      },
+      collision: {
+        type: "string",
+        enum: [
+          "auto",
+          "none",
+          "box",
+          "sphere",
+          "capsule",
+          "cylinder",
+          "convex",
+          "mesh",
+        ],
+        description: "Collider preset to include (default auto).",
+      },
+      animation: {
+        type: "string",
+        description: "Animation selection for the pack (default auto).",
+      },
+      name: {
+        type: "string",
+        description:
+          "Asset name and output folder slug (defaults to the type).",
+      },
+    },
+    required: ["output"],
+  },
+};
+
 export function createHandler({
   workspace = process.cwd(),
   root = ROOT,
@@ -133,9 +230,31 @@ export function createHandler({
         instructions: instructions(root),
       });
     if (method === "tools/list")
-      return reply({ tools: [TOOL, KNOWLEDGE_TOOL] });
+      return reply({ tools: [TOOL, KNOWLEDGE_TOOL, GENERATE_TOOL] });
     if (method === "tools/call") {
       const input = params?.arguments || {};
+      if (params?.name === GENERATE_TOOL.name) {
+        try {
+          const result = await generateAssetToPack({ workspace, ...input });
+          return reply({
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            structuredContent: result,
+          });
+        } catch (error) {
+          return reply({
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  code: error.code || "FAILED",
+                  message: String(error.message || error),
+                }),
+              },
+            ],
+          });
+        }
+      }
       if (params?.name === KNOWLEDGE_TOOL.name) {
         try {
           const result = callKnowledgeTool(input);

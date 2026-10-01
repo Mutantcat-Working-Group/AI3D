@@ -63,6 +63,29 @@ the reviewer can return to any of them and keep marking. Publishing therefore
 never needs anyone to step aside: there is no queue, and no "end the round"
 gate.
 
+## Generating assets with `ai3d_generate`
+
+Alongside review, the MCP entry point exposes `ai3d_generate`: describe the
+asset in one sentence or name a template type, and it runs the same
+deterministic generator the browser workbench uses, then writes a standalone
+GLB plus an engine pack into the workspace. This is a write to the workspace,
+not a review: the files land under the workspace-relative `output` directory
+(default `generated-assets/`), and the tool refuses any path that would escape
+the workspace.
+
+Inputs: `prompt` or `type` (at least one) and `output` (required), plus
+optional `style`, `color`, `size`, `units`, `seed`, `engine`
+(unity/godot/unreal), `withLod`, `anchors`, `exportClips`, `collision`,
+`animation` and `name`. A prompt resolves type, style, color, size and units
+from the same six-language catalogue the UI uses; an explicit `type` wins over
+whatever the prompt resolves.
+
+The result writes `<output>/<name>/<name>.zip` (the curated engine pack),
+`<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up
+axis), an unpacked `pack/` directory for inspection, and `summary.json`
+recording the parameters, stats and absolute paths. `ai3d_knowledge` remains
+the way to pull cited reference material before generating.
+
 ## `status.notifier` — whether anyone will tell you
 
 ```json

@@ -166,7 +166,10 @@ and reliable enough to hand to an agent as context. It currently covers:
 
 An MCP client can call the `ai3d_knowledge` tool against the same pack and gets
 structured entries with citations. The chat panel and MCP share one
-implementation, so the two surfaces cannot drift apart.
+implementation, so the two surfaces cannot drift apart. An MCP agent can also
+call `ai3d_generate` to create an asset from one sentence and write a GLB plus a
+Unity, Godot or Unreal engine pack into the workspace, sharing the same
+deterministic generator as the interface.
 
 ### 7. Three ways in, one implementation
 
