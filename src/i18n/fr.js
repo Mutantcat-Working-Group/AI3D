@@ -396,6 +396,16 @@ export default {
   "gen.type.coinPile": "Tas de pièces",
   "gen.type.minecart": "Wagonnet",
   "gen.type.berryBush": "Buisson à baies",
+  "gen.type.stoneCoffin": "Cercueil de pierre",
+  "gen.type.portcullis": "Herse",
+  "gen.type.cage": "Cage",
+  "gen.type.bonePile": "Tas d'os",
+  "gen.type.cobweb": "Toile d'araignée",
+  "gen.type.lever": "Levier",
+  "gen.type.urn": "Urne",
+  "gen.type.mummy": "Momie",
+  "gen.type.beehive": "Ruche",
+  "gen.type.wheatSheaf": "Gerbe de blé",
   "gen.type.fountain": "Fontaine",
   "gen.type.brazier": "Brasero",
   "gen.type.runestone": "Pierre runique",
@@ -481,6 +491,20 @@ export default {
   "gen.alias.minecart": "wagonnet,chariot de mine,wagon de mine,benne",
   "gen.alias.berryBush":
     "buisson à baies,arbuste à baies,framboisier,plant de baies",
+  "gen.alias.stoneCoffin":
+    "cercueil de pierre,sarcophage,coffre funéraire,cercueil",
+  "gen.alias.portcullis":
+    "herse,grille en fer,porte de château,barrière à grille",
+  "gen.alias.cage": "cage,cage de fer,cellule de prison,cellule",
+  "gen.alias.bonePile": "tas d'os,amas de crânes,ossements,tas de squelettes",
+  "gen.alias.cobweb":
+    "toile d'araignée,fil d'araignée,toile,toile de poussière",
+  "gen.alias.lever": "levier,manette,mécanisme,poignée mécanique",
+  "gen.alias.urn": "urne,urne funéraire,urne en terre cuite,urne à cendres",
+  "gen.alias.mummy": "momie,cadavre bandé,mort-vivant,corps embaumé",
+  "gen.alias.beehive": "ruche,niche à abeilles,rucher,nid d'abeilles",
+  "gen.alias.wheatSheaf":
+    "gerbe de blé,botte de blé,fagot de céréales,gerbe de récolte",
   "gen.alias.fountain": "fontaine,bassin,source",
   "gen.alias.brazier": "brasero,brasier,feu de camp",
   "gen.alias.runestone": "pierre runique,runes,stèle",

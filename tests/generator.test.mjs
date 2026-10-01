@@ -1173,6 +1173,16 @@ test("new game asset types build their declared parts", () => {
     "coin_pile",
     "minecart",
     "berry_bush",
+    "stone_coffin",
+    "portcullis",
+    "cage",
+    "bone_pile",
+    "cobweb",
+    "lever",
+    "urn",
+    "mummy",
+    "beehive",
+    "wheat_sheaf",
   ];
   newTypes.forEach((type) => {
     const model = generateAsset(type, { seed: 42 });

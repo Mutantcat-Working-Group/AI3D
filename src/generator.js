@@ -74,6 +74,16 @@ const ASSET_TYPES = {
   coin_pile: { name: "Coin Pile", parts: ["mound", "coins", "glints"] },
   minecart: { name: "Minecart", parts: ["bed", "wheels", "axles", "tongue"] },
   berry_bush: { name: "Berry Bush", parts: ["crown", "berries", "leaves"] },
+  stone_coffin: { name: "Stone Coffin", parts: ["body", "lid", "cross"] },
+  portcullis: { name: "Portcullis", parts: ["frame", "bars", "winch"] },
+  cage: { name: "Cage", parts: ["frame", "bars", "door", "lock"] },
+  bone_pile: { name: "Bone Pile", parts: ["mound", "bones", "skull"] },
+  cobweb: { name: "Cobweb", parts: ["hub", "strands", "threads"] },
+  lever: { name: "Lever", parts: ["base", "post", "handle", "weight"] },
+  urn: { name: "Urn", parts: ["body", "rim", "base"] },
+  mummy: { name: "Mummy", parts: ["body", "arms", "head"] },
+  beehive: { name: "Beehive", parts: ["body", "cap", "base", "bees"] },
+  wheat_sheaf: { name: "Wheat Sheaf", parts: ["stalks", "band", "heads"] },
   fountain: {
     name: "Fountain",
     parts: ["basin", "water", "pillar", "bowl", "jet"],
@@ -164,6 +174,16 @@ const ASSET_TAGS = {
   coin_pile: ["item", "treasure", "collectible", "indoor"],
   minecart: ["vehicle", "transport", "mine", "metal"],
   berry_bush: ["nature", "vegetation", "collectible", "outdoor"],
+  stone_coffin: ["dungeon", "structure", "funeral", "indoor"],
+  portcullis: ["structure", "defense", "dungeon", "metal"],
+  cage: ["structure", "container", "dungeon", "metal"],
+  bone_pile: ["item", "dungeon", "decoration", "outdoor"],
+  cobweb: ["item", "dungeon", "decoration", "indoor"],
+  lever: ["item", "mechanism", "dungeon", "metal"],
+  urn: ["item", "container", "funeral", "indoor"],
+  mummy: ["creature", "undead", "dungeon", "animated"],
+  beehive: ["structure", "nature", "village", "outdoor"],
+  wheat_sheaf: ["nature", "vegetation", "village", "outdoor"],
   car: ["vehicle", "transport", "outdoor"],
   character: ["creature", "character", "animated"],
   cube: ["primitive", "basic", "indoor"],
@@ -369,6 +389,16 @@ const ASSET_COLLIDERS = {
   coin_pile: "box",
   minecart: "box",
   berry_bush: "capsule",
+  stone_coffin: "box",
+  portcullis: "box",
+  cage: "box",
+  bone_pile: "capsule",
+  cobweb: "box",
+  lever: "box",
+  urn: "cylinder",
+  mummy: "capsule",
+  beehive: "capsule",
+  wheat_sheaf: "capsule",
   fountain: "box",
   brazier: "cylinder",
   runestone: "box",
@@ -430,6 +460,12 @@ const ANIMATION_PRESETS = {
   runestone: ["pulse"],
   tree: ["sway"],
   boat: ["bob"],
+  stone_coffin: ["open"],
+  portcullis: ["raise"],
+  cobweb: ["sway"],
+  lever: ["pull"],
+  mummy: ["lurch"],
+  beehive: ["buzz"],
 };
 
 // Asset types whose exports carry a real glTF skeleton instead of transform
@@ -1642,6 +1678,90 @@ export function buildAssetAnimations(model, type, size = 1) {
     });
   }
 
+  if (type === "stone_coffin") {
+    addClip("open", 2.2, {
+      lid: [
+        { t: 0, rot: [0, 0, 0], pos: [0, 0, 0] },
+        { t: 0.7, rot: [0, 0, 0.55], pos: [0.36 * size, 0.05 * size, 0] },
+        { t: 1.4, rot: [0, 0, 0.55], pos: [0.36 * size, 0.05 * size, 0] },
+        { t: 2.2, rot: [0, 0, 0], pos: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "portcullis") {
+    addClip("raise", 2.4, {
+      bars: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.8, pos: [0, 0.55 * size, 0] },
+        { t: 1.4, pos: [0, 0.55 * size, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "cobweb") {
+    addClip("sway", 3, {
+      hub: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.75, rot: [0.04, 0, 0.06] },
+        { t: 1.5, rot: [0, 0, 0] },
+        { t: 2.25, rot: [-0.04, 0, -0.05] },
+        { t: 3, rot: [0, 0, 0] },
+      ],
+      strands: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.75, rot: [0.08, 0, 0.1] },
+        { t: 1.5, rot: [0, 0, 0] },
+        { t: 2.25, rot: [-0.08, 0, -0.08] },
+        { t: 3, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "lever") {
+    addClip("pull", 2.4, {
+      handle: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.5, rot: [0.55, 0, 0] },
+        { t: 1.2, rot: [0.55, 0, 0] },
+        { t: 1.9, rot: [0, 0, 0] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "mummy") {
+    addClip("lurch", 2.6, {
+      body: [
+        { t: 0, rot: [0, 0, 0], pos: [0, 0, 0] },
+        { t: 0.65, rot: [0.12, 0, 0], pos: [0, 0.03 * size, -0.03 * size] },
+        { t: 1.3, rot: [0, 0, 0], pos: [0, 0, 0] },
+        { t: 1.95, rot: [0.12, 0, 0], pos: [0, 0.03 * size, -0.03 * size] },
+        { t: 2.6, rot: [0, 0, 0], pos: [0, 0, 0] },
+      ],
+      arms: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.65, rot: [0.28, 0, 0] },
+        { t: 1.3, rot: [0, 0, 0] },
+        { t: 1.95, rot: [0.28, 0, 0] },
+        { t: 2.6, rot: [0, 0, 0] },
+      ],
+    });
+  }
+
+  if (type === "beehive") {
+    addClip("buzz", 1.8, {
+      bees: [
+        { t: 0, pos: [0, 0, 0], scale: [1, 1, 1] },
+        { t: 0.45, pos: [0, 0.04 * size, 0], scale: [1.12, 1.12, 1.12] },
+        { t: 0.9, pos: [0, -0.02 * size, 0], scale: [0.94, 0.94, 0.94] },
+        { t: 1.35, pos: [0, 0.05 * size, 0], scale: [1.08, 1.08, 1.08] },
+        { t: 1.8, pos: [0, 0, 0], scale: [1, 1, 1] },
+      ],
+    });
+  }
+
   return clips;
 }
 
@@ -1922,6 +2042,36 @@ export function generateAsset(
       break;
     case "berry_bush":
       buildBerryBush(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "stone_coffin":
+      buildStoneCoffin(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "portcullis":
+      buildPortcullis(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "cage":
+      buildCage(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bone_pile":
+      buildBonePile(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "cobweb":
+      buildCobweb(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "lever":
+      buildLever(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "urn":
+      buildUrn(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "mummy":
+      buildMummy(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "beehive":
+      buildBeehive(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "wheat_sheaf":
+      buildWheatSheaf(group, size, segments, matStyle, customColor, rng);
       break;
     case "bridge":
       buildBridge(group, size, segments, matStyle, customColor, rng);
@@ -6255,6 +6405,706 @@ function buildBerryBush(
   group.add(leaves);
 }
 
+function buildStoneCoffin(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stoneMat = createMaterial(customColor || 0x8d9aa8, style);
+  const darkMat = createMaterial(0x5d6d7e, style);
+
+  const bodyGeo = new THREE.BoxGeometry(1.9 * size, 0.44 * size, 0.72 * size);
+  const body = new THREE.Mesh(bodyGeo, stoneMat);
+  body.position.y = 0.22 * size;
+  body.name = "body";
+  group.add(body);
+
+  const skirtGeo = new THREE.BoxGeometry(2 * size, 0.12 * size, 0.82 * size);
+  const skirt = new THREE.Mesh(skirtGeo, darkMat);
+  skirt.position.y = 0.06 * size;
+  skirt.name = "skirt";
+  group.add(skirt);
+
+  const lidGeo = new THREE.BoxGeometry(1.92 * size, 0.16 * size, 0.74 * size);
+  const lid = new THREE.Mesh(lidGeo, stoneMat);
+  lid.position.y = 0.52 * size;
+  lid.name = "lid";
+  group.add(lid);
+
+  const ridgeGeo = new THREE.BoxGeometry(1.66 * size, 0.1 * size, 0.42 * size);
+  const ridge = new THREE.Mesh(ridgeGeo, darkMat);
+  ridge.position.y = 0.66 * size;
+  ridge.rotation.z = 0.06;
+  ridge.name = "ridge";
+  group.add(ridge);
+
+  const crossGeo = new THREE.BoxGeometry(0.34 * size, 0.34 * size, 0.08 * size);
+  const cross = new THREE.Mesh(crossGeo, darkMat);
+  cross.position.set(0.62 * size, 0.9 * size, 0);
+  cross.name = "cross";
+  group.add(cross);
+}
+
+function buildPortcullis(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const ironMat = createMaterial(customColor || 0x455a64, style);
+  const darkMat = createMaterial(0x2d3a45, style);
+
+  const frame = new THREE.Group();
+  frame.name = "frame";
+  const postGeo = new THREE.BoxGeometry(0.16 * size, 1.7 * size, 0.16 * size);
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(postGeo, darkMat);
+    post.position.set(side * 0.62 * size, 0.85 * size, 0);
+    post.name = side < 0 ? "post-left" : "post-right";
+    frame.add(post);
+  }
+  const topGeo = new THREE.BoxGeometry(1.4 * size, 0.14 * size, 0.2 * size);
+  const top = new THREE.Mesh(topGeo, darkMat);
+  top.position.y = 1.68 * size;
+  top.name = "top";
+  frame.add(top);
+  group.add(frame);
+
+  const bars = new THREE.Group();
+  bars.name = "bars";
+  const barGeo = new THREE.BoxGeometry(0.07 * size, 1.3 * size, 0.06 * size);
+  for (let i = 0; i < 7; i++) {
+    const bar = new THREE.Mesh(barGeo, ironMat);
+    bar.position.set((-0.58 + i * 0.193) * size, 0.68 * size, 0);
+    bar.rotation.z = (rng() - 0.5) * 0.02;
+    bar.name = `bar-${i}`;
+    bars.add(bar);
+  }
+  const crossbarGeo = new THREE.BoxGeometry(
+    1.2 * size,
+    0.1 * size,
+    0.05 * size,
+  );
+  for (let i = 0; i < 4; i++) {
+    const crossbar = new THREE.Mesh(crossbarGeo, ironMat);
+    crossbar.position.y = (0.2 + i * 0.36) * size;
+    crossbar.name = `crossbar-${i}`;
+    bars.add(crossbar);
+  }
+  group.add(bars);
+
+  const winch = new THREE.Group();
+  winch.name = "winch";
+  const cylinderGeo = new THREE.CylinderGeometry(
+    0.09 * size,
+    0.11 * size,
+    0.18 * size,
+    segments,
+  );
+  cylinderGeo.rotateZ(Math.PI / 2);
+  const drum = new THREE.Mesh(cylinderGeo, darkMat);
+  drum.position.y = 1.38 * size;
+  drum.name = "drum";
+  winch.add(drum);
+  for (const side of [-1, 1]) {
+    const crankGeo = new THREE.BoxGeometry(
+      0.3 * size,
+      0.04 * size,
+      0.04 * size,
+    );
+    const crank = new THREE.Mesh(crankGeo, ironMat);
+    crank.position.set(side * 0.36 * size, 1.38 * size, 0);
+    crank.rotation.z = side * 0.25;
+    crank.name = side < 0 ? "crank-left" : "crank-right";
+    winch.add(crank);
+  }
+  group.add(winch);
+}
+
+function buildCage(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const ironMat = createMaterial(customColor || 0x4e5d6c, style);
+  const darkMat = createMaterial(0x2f3a45, style);
+
+  const frame = new THREE.Group();
+  frame.name = "frame";
+  const cornerGeo = new THREE.BoxGeometry(0.12 * size, 1.2 * size, 0.12 * size);
+  const corners = [
+    [-0.52, -0.52],
+    [-0.52, 0.52],
+    [0.52, -0.52],
+    [0.52, 0.52],
+  ];
+  for (let i = 0; i < corners.length; i++) {
+    const [x, z] = corners[i];
+    const corner = new THREE.Mesh(cornerGeo, darkMat);
+    corner.position.set(x * size, 0.6 * size, z * size);
+    corner.name = `corner-${i}`;
+    frame.add(corner);
+  }
+  const topGeo = new THREE.BoxGeometry(1.2 * size, 0.1 * size, 1.2 * size);
+  const top = new THREE.Mesh(topGeo, ironMat);
+  top.position.y = 1.24 * size;
+  top.name = "top";
+  frame.add(top);
+  group.add(frame);
+
+  const bars = new THREE.Group();
+  bars.name = "bars";
+  const barGeo = new THREE.BoxGeometry(0.045 * size, 1.05 * size, 0.045 * size);
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 5; i++) {
+      const bar = new THREE.Mesh(barGeo, ironMat);
+      bar.position.set(
+        side * 0.52 * size,
+        0.58 * size,
+        (-0.4 + i * 0.2) * size,
+      );
+      bar.name = side < 0 ? `bar-left-${i}` : `bar-right-${i}`;
+      bars.add(bar);
+    }
+  }
+  for (let i = 1; i < 5; i++) {
+    const bar = new THREE.Mesh(barGeo, ironMat);
+    bar.position.set((-0.52 + i * 0.26) * size, 0.58 * size, 0.52 * size);
+    bar.rotation.y = Math.PI / 2;
+    bar.name = `bar-front-${i}`;
+    bars.add(bar);
+  }
+  group.add(bars);
+
+  const doorGeo = new THREE.BoxGeometry(0.56 * size, 0.07 * size, 0.56 * size);
+  const door = new THREE.Mesh(doorGeo, ironMat);
+  door.position.set(0, 0.42 * size, 0.52 * size);
+  door.name = "door";
+  group.add(door);
+
+  const lockGeo = new THREE.BoxGeometry(0.12 * size, 0.18 * size, 0.06 * size);
+  const lock = new THREE.Mesh(lockGeo, darkMat);
+  lock.position.set(0, 0.24 * size, 0.56 * size);
+  lock.name = "lock";
+  group.add(lock);
+}
+
+function buildBonePile(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const boneMat = createMaterial(customColor || 0xd7cbb0, style);
+  const darkMat = createMaterial(0xa89f8c, style);
+
+  const moundGeo = new THREE.SphereGeometry(
+    0.62 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const mound = new THREE.Mesh(moundGeo, darkMat);
+  mound.position.y = 0.1 * size;
+  mound.scale.set(1.3, 0.36, 1);
+  mound.name = "mound";
+  group.add(mound);
+
+  const bones = new THREE.Group();
+  bones.name = "bones";
+  const longGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.05 * size,
+    0.55 * size,
+    6,
+  );
+  for (let i = 0; i < 6; i++) {
+    const bone = new THREE.Mesh(longGeo, boneMat);
+    const angle = (i / 6) * Math.PI * 2 + rng() * 0.5;
+    bone.position.set(
+      Math.cos(angle) * (0.3 + rng() * 0.18) * size,
+      (0.16 + rng() * 0.24) * size,
+      Math.sin(angle) * (0.3 + rng() * 0.18) * size,
+    );
+    bone.rotation.set(rng() * 0.8 - 0.4, rng() * Math.PI, rng() * 0.8 - 0.4);
+    bone.name = `bone-${i}`;
+    bones.add(bone);
+  }
+  for (let i = 0; i < 4; i++) {
+    const rib = new THREE.Mesh(
+      new THREE.TorusGeometry(0.14 * size, 0.025 * size, 6, 8, Math.PI),
+      boneMat,
+    );
+    const angle = rng() * Math.PI * 2;
+    rib.position.set(
+      Math.cos(angle) * (0.18 + rng() * 0.2) * size,
+      (0.16 + rng() * 0.16) * size,
+      Math.sin(angle) * (0.18 + rng() * 0.2) * size,
+    );
+    rib.rotation.set(rng(), rng() * Math.PI, rng());
+    rib.name = `rib-${i}`;
+    bones.add(rib);
+  }
+  group.add(bones);
+
+  const skullGeo = new THREE.SphereGeometry(
+    0.14 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const skull = new THREE.Mesh(skullGeo, boneMat);
+  skull.position.set(0.3 * size, 0.42 * size, -0.14 * size);
+  skull.scale.set(1.12, 0.9, 1);
+  skull.rotation.set(-0.3, 0.8, 0.2);
+  skull.name = "skull";
+  group.add(skull);
+}
+
+function buildCobweb(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const webMat = createMaterial(customColor || 0xe3ddcc, style);
+  webMat.transparent = true;
+  webMat.opacity = 0.42;
+
+  const hubGeo = new THREE.SphereGeometry(0.045 * size, 8, 6);
+  const hub = new THREE.Mesh(hubGeo, webMat);
+  hub.position.y = 0.92 * size;
+  hub.name = "hub";
+  group.add(hub);
+
+  const strands = new THREE.Group();
+  strands.name = "strands";
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const strandGeo = new THREE.CylinderGeometry(
+      0.008 * size,
+      0.012 * size,
+      0.95 * size,
+      4,
+    );
+    const strand = new THREE.Mesh(strandGeo, webMat);
+    strand.position.set(
+      Math.cos(angle) * 0.48 * size,
+      (0.92 - Math.sin(angle) * 0.34) * size,
+      Math.sin(angle) * 0.44 * size,
+    );
+    strand.rotation.z = Math.cos(angle) * 0.68;
+    strand.rotation.x = -Math.sin(angle) * 0.62;
+    strand.name = `strand-${i}`;
+    strands.add(strand);
+  }
+  group.add(strands);
+
+  const threads = new THREE.Group();
+  threads.name = "threads";
+  for (let ring = 0; ring < 4; ring++) {
+    const radius = 0.16 + ring * 0.16;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + ring * 0.2;
+      const a = angle;
+      const b = angle + Math.PI / 8;
+      const ma = (a + b) / 2;
+      const ax = Math.cos(a) * radius;
+      const az = Math.sin(a) * radius * 0.85;
+      const bx = Math.cos(b) * radius;
+      const bz = Math.sin(b) * radius * 0.85;
+      const mx = (ax + bx) / 2;
+      const mz = (az + bz) / 2;
+      const len = Math.hypot(bx - ax, bz - az) * size;
+      if (len < 0.01 * size) continue;
+      const threadGeo = new THREE.CylinderGeometry(
+        0.006 * size,
+        0.006 * size,
+        len,
+        4,
+      );
+      const thread = new THREE.Mesh(threadGeo, webMat);
+      thread.position.set(
+        mx * size,
+        (0.92 - Math.sin(ma) * radius * 0.6) * size,
+        mz * size,
+      );
+      const dir = new THREE.Vector3(
+        bx - ax,
+        Math.sin(ma) * radius * 0.6,
+        bz - az,
+      ).normalize();
+      thread.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      thread.name = `thread-${ring}-${i}`;
+      threads.add(thread);
+    }
+  }
+  group.add(threads);
+}
+
+function buildLever(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const metalMat = createMaterial(customColor || 0x546e7a, style);
+  const darkMat = createMaterial(0x37474f, style);
+
+  const baseGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.34 * size,
+    0.1 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, darkMat);
+  base.position.y = 0.05 * size;
+  base.name = "base";
+  group.add(base);
+
+  const postGeo = new THREE.CylinderGeometry(
+    0.07 * size,
+    0.09 * size,
+    0.72 * size,
+    segments,
+  );
+  const post = new THREE.Mesh(postGeo, metalMat);
+  post.position.y = 0.44 * size;
+  post.name = "post";
+  group.add(post);
+
+  const handleGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.045 * size,
+    0.4 * size,
+    segments,
+  );
+  const handle = new THREE.Mesh(handleGeo, metalMat);
+  handle.position.set(0.2 * size, 0.72 * size, 0);
+  handle.rotation.z = -1.25;
+  handle.name = "handle";
+  group.add(handle);
+
+  const knobGeo = new THREE.SphereGeometry(0.06 * size, 10, 8);
+  const knob = new THREE.Mesh(knobGeo, darkMat);
+  knob.position.set(0.53 * size, 0.9 * size, 0);
+  knob.name = "knob";
+  group.add(knob);
+
+  const weightGeo = new THREE.BoxGeometry(0.2 * size, 0.3 * size, 0.2 * size);
+  const weight = new THREE.Mesh(weightGeo, darkMat);
+  weight.position.y = 0.24 * size;
+  weight.name = "weight";
+  group.add(weight);
+}
+
+function buildUrn(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const clayMat = createMaterial(customColor || 0x9a6b4f, style);
+  const darkMat = createMaterial(0x6d4c41, style);
+
+  const bodyGeo = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(0.16 * size, 0),
+      new THREE.Vector2(0.46 * size, 0.16 * size),
+      new THREE.Vector2(0.5 * size, 0.5 * size),
+      new THREE.Vector2(0.4 * size, 0.78 * size),
+      new THREE.Vector2(0.22 * size, 0.92 * size),
+      new THREE.Vector2(0.2 * size, 1 * size),
+    ],
+    segments,
+  );
+  const body = new THREE.Mesh(bodyGeo, clayMat);
+  body.scale.y = 0.9;
+  body.position.y = 0.44 * size;
+  body.name = "body";
+  group.add(body);
+
+  const rimGeo = new THREE.TorusGeometry(
+    0.22 * size,
+    0.035 * size,
+    8,
+    segments,
+  );
+  const rim = new THREE.Mesh(rimGeo, darkMat);
+  rim.position.y = 1.04 * size;
+  rim.rotation.x = Math.PI / 2;
+  rim.name = "rim";
+  group.add(rim);
+
+  const baseGeo = new THREE.CylinderGeometry(
+    0.22 * size,
+    0.28 * size,
+    0.08 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, darkMat);
+  base.position.y = 0.04 * size;
+  base.name = "base";
+  group.add(base);
+}
+
+function buildMummy(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const wrapMat = createMaterial(customColor || 0xc8b69a, style);
+  const darkMat = createMaterial(0x9c8a70, style);
+
+  const legs = new THREE.Group();
+  legs.name = "legs";
+  const legGeo = new THREE.CylinderGeometry(
+    0.12 * size,
+    0.14 * size,
+    0.52 * size,
+    segments,
+  );
+  for (const side of [-1, 1]) {
+    const leg = new THREE.Mesh(legGeo, wrapMat);
+    leg.position.set(side * 0.11 * size, 0.26 * size, 0);
+    leg.scale.x = 1.4;
+    leg.name = side < 0 ? "leg-left" : "leg-right";
+    legs.add(leg);
+  }
+  group.add(legs);
+
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.2 * size,
+    0.16 * size,
+    0.66 * size,
+    segments,
+  );
+  const body = new THREE.Mesh(bodyGeo, wrapMat);
+  body.position.y = 0.85 * size;
+  body.scale.x = 1.35;
+  body.name = "body";
+  group.add(body);
+
+  const arms = new THREE.Group();
+  arms.name = "arms";
+  const armGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.075 * size,
+    0.5 * size,
+    6,
+  );
+  for (const side of [-1, 1]) {
+    const arm = new THREE.Mesh(armGeo, wrapMat);
+    arm.position.set(side * 0.26 * size, 0.92 * size, 0);
+    arm.rotation.z = side * 0.4;
+    arm.rotation.x = (rng() - 0.5) * 0.3;
+    arm.name = side < 0 ? "arm-left" : "arm-right";
+    arms.add(arm);
+  }
+  group.add(arms);
+
+  const headGeo = new THREE.SphereGeometry(
+    0.13 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const head = new THREE.Mesh(headGeo, darkMat);
+  head.position.y = 1.32 * size;
+  head.scale.set(1.15, 1.1, 0.85);
+  head.name = "head";
+  group.add(head);
+
+  const bandGeo = new THREE.TorusGeometry(
+    0.13 * size,
+    0.02 * size,
+    6,
+    segments,
+  );
+  const band = new THREE.Mesh(bandGeo, wrapMat);
+  band.position.y = 1.32 * size;
+  band.rotation.x = Math.PI / 2;
+  band.scale.set(1.2, 0.85, 1);
+  band.name = "band";
+  group.add(band);
+}
+
+function buildBeehive(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const strawMat = createMaterial(customColor || 0xd2a45c, style);
+  const darkMat = createMaterial(0xb98a3e, style);
+  const beeMat = createMaterial(0x3e2723, style);
+  const wingMat = createMaterial(0xffffff, style);
+
+  const baseGeo = new THREE.CylinderGeometry(
+    0.38 * size,
+    0.44 * size,
+    0.08 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, darkMat);
+  base.position.y = 0.04 * size;
+  base.name = "base";
+  group.add(base);
+
+  const body = new THREE.Group();
+  body.name = "body";
+  const tierGeo = new THREE.CylinderGeometry(
+    0.42 * size,
+    0.38 * size,
+    0.3 * size,
+    10,
+  );
+  for (let i = 0; i < 3; i++) {
+    const tier = new THREE.Mesh(tierGeo, strawMat);
+    tier.position.y = (0.28 + i * 0.26) * size;
+    if (i > 0) tier.scale.set(1 - i * 0.1, 1, 1 - i * 0.1);
+    tier.name = `tier-${i}`;
+    body.add(tier);
+  }
+  const ringGeo = new THREE.TorusGeometry(0.36 * size, 0.025 * size, 6, 10);
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(ringGeo, darkMat);
+    ring.position.y = (0.42 + i * 0.26) * size;
+    ring.rotation.x = Math.PI / 2;
+    ring.scale.set(1 - i * 0.1, 1, 1 - i * 0.1);
+    ring.name = `ring-${i}`;
+    body.add(ring);
+  }
+  group.add(body);
+
+  const capGeo = new THREE.ConeGeometry(0.3 * size, 0.26 * size, 10);
+  const cap = new THREE.Mesh(capGeo, strawMat);
+  cap.position.y = 1.18 * size;
+  cap.name = "cap";
+  group.add(cap);
+
+  const bees = new THREE.Group();
+  bees.name = "bees";
+  const beeGeo = new THREE.SphereGeometry(0.045 * size, 8, 6);
+  for (let i = 0; i < 7; i++) {
+    const bee = new THREE.Mesh(beeGeo, beeMat);
+    const angle = rng() * Math.PI * 2;
+    bee.position.set(
+      Math.cos(angle) * (0.3 + rng() * 0.34) * size,
+      (0.5 + rng() * 0.9) * size,
+      Math.sin(angle) * (0.3 + rng() * 0.34) * size,
+    );
+    bee.name = `bee-${i}`;
+    const wing = new THREE.Mesh(
+      new THREE.SphereGeometry(0.03 * size, 6, 4),
+      wingMat,
+    );
+    wing.position.y = 0.05 * size;
+    wing.scale.set(0.5, 0.15, 1);
+    wing.name = `wing-${i}`;
+    bee.add(wing);
+    bees.add(bee);
+  }
+  group.add(bees);
+}
+
+function buildWheatSheaf(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const strawMat = createMaterial(customColor || 0xd9a441, style);
+  const grainMat = createMaterial(0x8d6a2f, style);
+  const bandMat = createMaterial(0x6d4c2f, style);
+
+  const stalks = new THREE.Group();
+  stalks.name = "stalks";
+  const stalkGeo = new THREE.CylinderGeometry(
+    0.015 * size,
+    0.022 * size,
+    1.1 * size,
+    5,
+  );
+  for (let i = 0; i < 22; i++) {
+    const stalk = new THREE.Mesh(stalkGeo, strawMat);
+    const angle = rng() * Math.PI * 2;
+    const radius = (i % 4) * 0.13 + rng() * 0.08;
+    stalk.position.set(
+      Math.cos(angle) * radius * size,
+      0.55 * size,
+      Math.sin(angle) * radius * size,
+    );
+    stalk.rotation.z = Math.cos(angle) * (0.12 + radius * 0.5);
+    stalk.rotation.x = Math.sin(angle) * (0.12 + radius * 0.5);
+    stalk.name = `stalk-${i}`;
+    stalks.add(stalk);
+  }
+  group.add(stalks);
+
+  const heads = new THREE.Group();
+  heads.name = "heads";
+  const grainGeo = new THREE.CylinderGeometry(
+    0.03 * size,
+    0.045 * size,
+    0.28 * size,
+    5,
+  );
+  for (let i = 0; i < 16; i++) {
+    const head = new THREE.Mesh(grainGeo, grainMat);
+    const angle = rng() * Math.PI * 2;
+    const radius = (i % 4) * 0.14 + rng() * 0.1;
+    head.position.set(
+      Math.cos(angle) * radius * size,
+      (1.05 + rng() * 0.14) * size,
+      Math.sin(angle) * radius * size,
+    );
+    head.rotation.z = Math.cos(angle) * (0.2 + radius * 0.5);
+    head.rotation.x = Math.sin(angle) * (0.2 + radius * 0.5);
+    head.name = `head-${i}`;
+    heads.add(head);
+  }
+  group.add(heads);
+
+  const band = new THREE.Group();
+  band.name = "band";
+  const bandGeo = new THREE.TorusGeometry(0.2 * size, 0.03 * size, 6, 10);
+  const lower = new THREE.Mesh(bandGeo, bandMat);
+  lower.position.y = 0.34 * size;
+  lower.rotation.x = Math.PI / 2;
+  lower.scale.y = 1.15;
+  lower.name = "lower";
+  band.add(lower);
+  const upper = new THREE.Mesh(bandGeo, bandMat);
+  upper.position.y = 0.52 * size;
+  upper.rotation.x = Math.PI / 2;
+  upper.scale.y = 1.04;
+  upper.name = "upper";
+  band.add(upper);
+  group.add(band);
+}
+
 function buildCrate(
   group,
   size,
@@ -8341,6 +9191,12 @@ const ATTACHMENT_POINTS = {
   runestone: [{ name: "rune", role: "focus" }],
   sign: [{ name: "board", role: "surface" }],
   flag: [{ name: "pole", role: "mount" }],
+  stone_coffin: [{ name: "lid", role: "hinge" }],
+  portcullis: [{ name: "frame", role: "mount" }],
+  cage: [{ name: "door", role: "hinge" }],
+  lever: [{ name: "handle", role: "grip" }],
+  urn: [{ name: "rim", role: "socket" }],
+  beehive: [{ name: "cap", role: "mount" }],
 };
 
 /**
@@ -8502,6 +9358,16 @@ const AUDIT_GROUND_TYPES = new Set([
   "coin_pile",
   "minecart",
   "berry_bush",
+  "stone_coffin",
+  "portcullis",
+  "cage",
+  "bone_pile",
+  "cobweb",
+  "lever",
+  "urn",
+  "mummy",
+  "beehive",
+  "wheat_sheaf",
   "flag",
   "sign",
   "car",
@@ -8563,6 +9429,16 @@ const AUDIT_REQUIRED_PARTS = {
   coin_pile: ["mound", "coins"],
   minecart: ["bed", "wheels"],
   berry_bush: ["crown", "berries"],
+  stone_coffin: ["body", "lid"],
+  portcullis: ["frame", "bars"],
+  cage: ["frame", "bars"],
+  bone_pile: ["mound", "bones"],
+  cobweb: ["hub", "strands"],
+  lever: ["base", "handle"],
+  urn: ["body", "rim"],
+  mummy: ["body", "head"],
+  beehive: ["body", "cap"],
+  wheat_sheaf: ["stalks", "band"],
   house: ["walls", "roof"],
   car: ["body", "wheels"],
   bike: ["frame", "wheels"],
@@ -8598,6 +9474,12 @@ const AUDIT_EXPECTED_ANIMATIONS = {
   runestone: ["pulse"],
   tree: ["sway"],
   boat: ["bob"],
+  stone_coffin: ["open"],
+  portcullis: ["raise"],
+  cobweb: ["sway"],
+  lever: ["pull"],
+  mummy: ["lurch"],
+  beehive: ["buzz"],
 };
 
 const clampScore = (value) => Math.max(0, Math.min(1, value));

@@ -24,15 +24,15 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-80 built-in game asset templates, each with sensible part names, tags and
+90 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                             |
-| Creatures | character, monster, dragon, skeleton                                                                                      |
-| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain                                                   |
-| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand, bread, pie, meat leg, hay bale, rope coil, bucket, coin pile, berry bush |
+| Creatures | character, monster, dragon, skeleton, mummy                                                                              |
+| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain, portcullis, beehive                             |
+| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand, bread, pie, meat leg, hay bale, rope coil, bucket, coin pile, berry bush, stone coffin, cage, bone pile, cobweb, lever, urn, wheat sheaf |
 | Vehicles  | car, boat, plane, bike, wagon, minecart                                                                                   |
 | Sci-fi    | turret, drone, comm antenna                                                                                               |
 | Village   | windmill                                                                                                                   |
@@ -333,6 +333,12 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   leg, hay bale, rope coil, bucket, windmill, coin pile, minecart and berry
   bush, covering food, supplies, village and mine scenes; the minecart ships a
   wheel spin clip, and everything keeps type-specific tags, collider presets
+  and default PBR textures.
+- **2.8 (done)** - dungeon and wilderness templates: stone coffin, portcullis,
+  cage, bone pile, cobweb, lever, urn, mummy, beehive and wheat sheaf, covering
+  dungeon mechanisms, tombs, prisons and harvest fields; the coffin opens, the
+  portcullis raises, the lever pulls, the mummy lurches, the beehive buzzes and
+  the cobweb sways, and everything keeps type-specific tags, collider presets
   and default PBR textures.
 
 ### 12. Documentation
