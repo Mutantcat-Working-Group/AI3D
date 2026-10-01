@@ -5438,6 +5438,28 @@ export function getAssetLayoutInfo(object, type, options = {}) {
   };
 }
 
+/**
+ * Clone a generated model and attach empty anchor nodes at its recommended
+ * attachment points. The anchors carry `anchor_<role>` names plus `ai3d`
+ * userData so a game engine can find sockets by name after import.
+ * @param {THREE.Object3D} object - Generated model
+ * @param {string} type - Asset type key
+ * @returns {THREE.Object3D|null} Anchored clone, or null when not applicable
+ */
+export function buildAnchoredModel(object, type) {
+  const layout = getAssetLayoutInfo(object, type);
+  if (!layout || !layout.attachments.length) return null;
+  const clone = cloneModelDeep(object);
+  for (const point of layout.attachments) {
+    const anchor = new THREE.Object3D();
+    anchor.name = `anchor_${point.role}`;
+    anchor.position.set(point.position.x, point.position.y, point.position.z);
+    anchor.userData.ai3d = { role: point.role, part: point.name };
+    clone.add(anchor);
+  }
+  return clone;
+}
+
 /** Round a vector to 4 decimals so exported metadata stays compact. */
 function roundVec(vec) {
   return {
@@ -5993,6 +6015,7 @@ export function buildGamePackFiles({
       textureStrength: asset.textureStrength ?? 0.8,
       textureSize: asset.textureSize ?? 256,
       hierarchy: asset.hierarchy || null,
+      anchors: asset.anchors || null,
       tags: isScene
         ? Array.isArray(asset.tags)
           ? asset.tags
@@ -6105,6 +6128,7 @@ export async function exportGamePack({
   asset,
   engine = "unity",
   withLod = false,
+  anchors = false,
   thumbnailDataUrl = null,
   collision = "auto",
   animation = "auto",
@@ -6158,6 +6182,10 @@ export async function exportGamePack({
     duration: Math.round(clip.duration * 100) / 100,
     tracks: clip.tracks.length,
   }));
+  const hierarchy = getAssetLayoutInfo(model, asset.type);
+  const shouldAnchor = anchors && !isScene;
+  const anchorExportModel = (object) =>
+    shouldAnchor ? buildAnchoredModel(object, asset.type) || object : object;
   const lodLevels = [];
   let collisionInfo = null;
   let colliderBytes = null;
@@ -6181,9 +6209,10 @@ export async function exportGamePack({
   if (withLod) {
     const lods = generateLOD(model, 4);
     for (const lod of lods) {
-      lod.mesh.animations = selectedAnimations;
+      const lodExport = anchorExportModel(lod.mesh);
+      lodExport.animations = selectedAnimations;
       const glbBytes = new Uint8Array(
-        await exportGLB(lod.mesh, {
+        await exportGLB(lodExport, {
           ...options,
           animations: selectedAnimations,
         }),
@@ -6204,7 +6233,7 @@ export async function exportGamePack({
     lodLevels.length > 0
       ? lodLevels[0].glbBytes
       : new Uint8Array(
-          await exportGLB(model, {
+          await exportGLB(anchorExportModel(model), {
             ...options,
             animations: selectedAnimations,
           }),
@@ -6227,7 +6256,8 @@ export async function exportGamePack({
     ...asset,
     kind: isScene ? "scene" : asset.kind || "asset",
     scene: sceneMeta,
-    hierarchy: getAssetLayoutInfo(model, asset.type),
+    hierarchy,
+    anchors: shouldAnchor && hierarchy ? hierarchy.attachments : null,
     stats: getAssetStats(model),
     lodLevels,
     glbBytes,

@@ -63,7 +63,9 @@ each one, and save the ones you like to the asset library.
   attachment coordinates (weapon grips, character feet, chest hinges, light
   sockets, flag mounts and more), so a team can build prefab sockets without
   hand-measuring the mesh. The generator shows a read-only layout summary for
-  the current asset.
+  the current asset; enabling "Include named anchor nodes" writes empty
+  `anchor_<role>` nodes (with `ai3d` user data) into GLB/glTF exports so an
+  engine can find sockets by name after import.
 - **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
   fit axis (largest dimension / height / width / depth), and the origin can be
   centred, planted on the ground, or pinned to the base or the top, so a
@@ -205,7 +207,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 340 unit and integration tests
+npm test             # 342 unit and integration tests
 npm run test:browser # 84 real-Chromium tests
 ```
 

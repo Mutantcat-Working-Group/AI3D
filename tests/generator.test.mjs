@@ -12,6 +12,7 @@ import {
   countVertices,
   getAssetStats,
   getAssetLayoutInfo,
+  buildAnchoredModel,
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
@@ -453,6 +454,22 @@ test("getAssetLayoutInfo reports named parts and attachment points", () => {
   for (const part of layout.parts) {
     assert.ok(part.extent.width > 0, `${part.name} has measurable bounds`);
   }
+});
+
+test("buildAnchoredModel adds named attachment anchor nodes", () => {
+  const model = generateAsset("sword", { size: 1, seed: 7 });
+  const anchored = buildAnchoredModel(model, "sword");
+  assert.ok(anchored);
+  assert.notEqual(anchored, model, "anchor export uses a clone");
+  const anchors = [];
+  anchored.traverse((node) => {
+    if (node.name.startsWith("anchor_")) anchors.push(node);
+  });
+  const grip = anchors.find((node) => node.name === "anchor_grip");
+  assert.ok(grip, "grip anchor node exists");
+  assert.equal(grip.userData.ai3d.role, "grip");
+  assert.ok(grip.userData.ai3d.part);
+  assert.ok(anchors.length >= 1);
 });
 
 test("GLB export embeds procedural texture images", async () => {
@@ -1464,6 +1481,45 @@ test("exportGamePack ships standalone PBR textures and manifest metadata", async
     "textures/sword-tex/roughness.png",
     "textures/sword-tex/metalness.png",
   ]);
+});
+
+test("exportGamePack records exported anchors and leaves them out by default", async () => {
+  const source = generateAsset("sword", { size: 1, seed: 7 });
+  const anchoredZip = await exportGamePack({
+    model: source,
+    asset: { id: "sword-anchored", type: "sword", seed: 7 },
+    engine: "unity",
+    anchors: true,
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const anchoredFiles = unzipSync(anchoredZip);
+  const anchoredManifest = JSON.parse(
+    new TextDecoder().decode(anchoredFiles["manifest.json"]),
+  );
+  assert.equal(anchoredManifest.assets[0].anchors[0].role, "grip");
+  assert.equal(anchoredManifest.assets[0].anchors[0].position.z, 0);
+  const glb = new Uint8Array(anchoredFiles["models/sword-anchored/LOD0.glb"]);
+  const glbView = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
+  const glbJsonLength = glbView.getUint32(12, true);
+  const glbJson = JSON.parse(
+    new TextDecoder().decode(glb.subarray(20, 20 + glbJsonLength)),
+  );
+  assert.ok(
+    glbJson.nodes.some((node) => node.name === "anchor_grip"),
+    "anchor node is written into the exported GLB",
+  );
+
+  const plainZip = await exportGamePack({
+    model: source,
+    asset: { id: "sword-plain", type: "sword", seed: 7 },
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const plainFiles = unzipSync(plainZip);
+  const plainManifest = JSON.parse(
+    new TextDecoder().decode(plainFiles["manifest.json"]),
+  );
+  assert.equal(plainManifest.assets[0].anchors, null);
 });
 
 test("exportGamePack writes colliders and respects the none choice", async () => {

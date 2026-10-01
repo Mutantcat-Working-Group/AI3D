@@ -54,6 +54,7 @@ import {
   generateLOD,
   getAssetStats,
   getAssetLayoutInfo,
+  buildAnchoredModel,
   getAssetTags,
   getColliderShape,
   computeCollider,
@@ -453,6 +454,7 @@ app.innerHTML = `${SPRITE}
         <option value="zup">${T("gen.zUp")}</option>
       </select>
       <label class="gen-check"><input type="checkbox" id="gen-export-lod" checked>${T("gen.exportLod")}</label>
+      <label class="gen-check"><input type="checkbox" id="gen-export-anchors">${T("gen.exportAnchors")}</label>
       <label>${T("gen.engine")}</label>
       <select id="gen-engine">
         <option value="unity">${T("gen.engineUnity")}</option>
@@ -3322,6 +3324,7 @@ async function downloadGenModel() {
   const format = $("#gen-format").value;
   const options = exportOptionsForCurrentModel();
   const withLod = $("#gen-export-lod")?.checked || false;
+  const anchors = $("#gen-export-anchors")?.checked || false;
   const animationChoice = $("#gen-animation")?.value || "auto";
   const source = genState.originalModel || genState.model.threeObject;
   const baseName = `asset-${genState.model.type}`;
@@ -3329,23 +3332,29 @@ async function downloadGenModel() {
     if (withLod) {
       const lods = generateLOD(source, 4);
       for (const lod of lods) {
-        lod.mesh.animations = selectAnimations(lod.mesh, animationChoice);
+        const exportModel =
+          anchors && (format === "glb" || format === "gltf")
+            ? buildAnchoredModel(lod.mesh, genState.model.type) || lod.mesh
+            : lod.mesh;
+        exportModel.animations = selectAnimations(exportModel, animationChoice);
         await downloadObjectAsFile(
-          lod.mesh,
+          exportModel,
           `${baseName}-LOD${lod.level}`,
           format,
           options,
         );
       }
     } else {
+      const model = genState.model.threeObject;
+      const anchored =
+        anchors && (format === "glb" || format === "gltf")
+          ? buildAnchoredModel(model, genState.model.type) || model
+          : model;
       const exportModel =
         animationChoice === "auto"
-          ? genState.model.threeObject
-          : Object.assign(cloneModelDeep(genState.model.threeObject), {
-              animations: selectAnimations(
-                genState.model.threeObject,
-                animationChoice,
-              ),
+          ? anchored
+          : Object.assign(cloneModelDeep(anchored), {
+              animations: selectAnimations(anchored, animationChoice),
             });
       await downloadObjectAsFile(exportModel, baseName, format, options);
     }
@@ -3374,6 +3383,7 @@ async function downloadGenPack() {
   const collision = $("#gen-collision")?.value || "auto";
   const animation = $("#gen-animation")?.value || "auto";
   const withLod = $("#gen-export-lod")?.checked || false;
+  const anchors = $("#gen-export-anchors")?.checked || false;
   const source = genState.originalModel || genState.model.threeObject;
   const asset = {
     id: genState.model.id || `${genState.model.type}-${Date.now()}`,
@@ -3413,6 +3423,7 @@ async function downloadGenPack() {
       collision,
       animation,
       withLod,
+      anchors,
       thumbnailDataUrl,
     });
     downloadBytesAsFile(pack, `ai3d-pack-${assetSlugForUi(asset.id)}.zip`);

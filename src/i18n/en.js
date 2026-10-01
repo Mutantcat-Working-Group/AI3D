@@ -561,6 +561,7 @@ export default {
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
   "gen.exportLod": "Include LOD levels",
+  "gen.exportAnchors": "Include named anchor nodes",
   "gen.animation": "Animation",
   "gen.animationAuto": "Auto (keep all)",
   "gen.animationIdle": "Idle",

@@ -574,6 +574,7 @@ export default {
   "gen.yUp": "Y-up",
   "gen.zUp": "Z-up",
   "gen.exportLod": "LOD-Ebenen einbeziehen",
+  "gen.exportAnchors": "Benannte Ankerpunkte einbeziehen",
   "gen.animation": "Animation",
   "gen.animationAuto": "Automatisch (alle behalten)",
   "gen.animationIdle": "Leerlauf",
