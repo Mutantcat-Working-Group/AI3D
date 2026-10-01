@@ -11442,6 +11442,23 @@ function normaliseReadiness(readiness) {
   };
 }
 
+/* A composed scene has no mesh readiness of its own, so it borrows the design
+   audit: a failing design check means the level is not playable yet. The score
+   is reported as a percentage to match the per-asset readiness scale. */
+function readinessFromSceneDesign(record) {
+  const audit = record?.scene?.designAudit;
+  if (!audit || typeof audit !== "object") return null;
+  const fail = Number(audit.summary?.fail) || 0;
+  return {
+    score: Number.isFinite(audit.readiness)
+      ? Math.max(0, Math.min(100, Math.round(audit.readiness * 100)))
+      : null,
+    fail,
+    fixed: [],
+    skipped: [],
+  };
+}
+
 /**
  * Summarise per-asset game readiness into one portable report. Callers pass
  * the pack records (or library records) so the same numbers appear in the
@@ -11451,7 +11468,8 @@ function normaliseReadiness(readiness) {
  */
 export function summariseGameReadiness(records = []) {
   const rows = records.map((record) => {
-    const readiness = normaliseReadiness(record?.readiness);
+    const readiness =
+      normaliseReadiness(record?.readiness) || readinessFromSceneDesign(record);
     const status = !readiness
       ? "not-audited"
       : readiness.fail > 0
@@ -11575,7 +11593,9 @@ export function buildGamePackFiles({
     };
   });
 
-  const readinessSummary = records.some((record) => record.readiness)
+  const readinessSummary = records.some(
+    (record) => record.readiness || record.scene?.designAudit,
+  )
     ? summariseGameReadiness(records)
     : null;
 

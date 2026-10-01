@@ -229,7 +229,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 372 unit and integration tests
+npm test             # 374 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -375,6 +375,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   bounds and design role (loot container, locked prop) already converted into
   the target engine's axis and units (Unity/Godot Y-up meters, Unreal Z-up
   centimeters) so an editor script can place the level directly.
+- **2.14 (done)** - scene level readiness: a scene's design audit now folds
+  into the game pack's readiness summary and game-ready.json (a passing design
+  reads ready, any failing check reads needs-attention), and a pack that holds
+  only scenes still emits the readiness report without any mesh assets.
 
 ### 12. Documentation
 

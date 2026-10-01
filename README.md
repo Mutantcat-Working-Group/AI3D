@@ -114,7 +114,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 372 unit and integration tests
+npm test             # 374 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -187,6 +187,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.11（已完成）** — 场景设计元数据：八个场景套装带出生点、目标、掉落表、机关锁与导演指示，写进场景 userData、导出清单与游戏套装的设计文件 design.json，生成区同步显示场景设计摘要。
 - **2.12（已完成）** — 场景设计审计：关卡元数据按场景道具逐一校验（出生点、目标、掉落容器与物品、机关锁与触发器），游戏套装额外产出 design/<场景>.audit.json，生成区同步显示通过／警告／失败徽标，八个套装数据也已补齐缺失的宝箱、钥匙台、闸门等道具。
 - **2.13（已完成）** — 引擎场景蓝图：每个带设计的场景在游戏套装里额外产出 blueprints/<场景>.json，把每个道具的位置、朝向、包围盒与设计角色（掉落容器、机关锁）按目标引擎的坐标与单位换算（Unity/Godot 为 Y 轴米、Unreal 为 Z 轴厘米），方便编辑器脚本直接摆放场景。
+- **2.14（已完成）** — 场景关卡就绪度：带设计的场景现在把设计审计折算成关卡就绪度，并入游戏套装的 readiness 汇总与 game-ready.json（设计通过记 ready、存在失败项记 needs-attention），即使套装里只有场景资产、没有网格资产也照常输出就绪度报告。
 
 ### 十二、文档
 

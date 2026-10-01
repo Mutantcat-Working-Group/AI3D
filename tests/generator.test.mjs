@@ -2115,6 +2115,90 @@ test("summariseGameReadiness tallies ready, repaired and issue records", () => {
   );
 });
 
+test("summariseGameReadiness borrows a scene's design audit", () => {
+  const summary = summariseGameReadiness([
+    {
+      id: "dungeon-ready",
+      name: "Dungeon",
+      type: "dungeon",
+      kind: "scene",
+      scene: { designAudit: { readiness: 1, summary: { fail: 0 } } },
+    },
+    {
+      id: "outpost-blocked",
+      name: "Outpost",
+      type: "outpost",
+      kind: "scene",
+      scene: { designAudit: { readiness: 0.2, summary: { fail: 4 } } },
+    },
+    {
+      id: "bare-scene",
+      name: "Bare",
+      type: "town",
+      kind: "scene",
+      scene: { props: [] },
+    },
+  ]);
+
+  assert.deepEqual(
+    summary.rows.map((row) => [row.status, row.score]),
+    [
+      ["ready", 100],
+      ["needs-attention", 20],
+      ["not-audited", null],
+    ],
+  );
+  assert.deepEqual(
+    {
+      count: summary.count,
+      ready: summary.ready,
+      issues: summary.issues,
+      notAudited: summary.notAudited,
+    },
+    { count: 3, ready: 1, issues: 1, notAudited: 1 },
+  );
+});
+
+test("scene-only packs still emit a readiness summary and game-ready.json", () => {
+  const failingDesign = {
+    spawnPoints: { playerStart: 1, enemySpawn: 2 },
+    directives: ["Find the key before opening the portcullis."],
+  };
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        id: "dungeon-pack",
+        name: "Dungeon Pack",
+        type: "dungeon",
+        kind: "scene",
+        scene: { props: [], design: failingDesign },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const gameReady = JSON.parse(
+    new TextDecoder().decode(files["game-ready.json"]),
+  );
+
+  assert.equal(typeof manifest.assets[0].scene.designAudit.readiness, "number");
+  assert.deepEqual(manifest.readiness, {
+    count: 1,
+    ready: 0,
+    repaired: 0,
+    issues: 1,
+    notAudited: 0,
+  });
+  assert.equal(gameReady.count, 1);
+  assert.deepEqual(
+    gameReady.rows.map((row) => [row.kind, row.status]),
+    [["scene", "needs-attention"]],
+  );
+  assert.equal(typeof gameReady.rows[0].score, "number");
+});
+
 test("exportGamePack exports a real GLB at the preset scale", async () => {
   const source = generateAsset("tower", {
     size: 1.2,
