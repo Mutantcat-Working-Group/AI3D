@@ -114,7 +114,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 367 unit and integration tests
+npm test             # 371 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -185,6 +185,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.9（已完成）** — 玩法元数据：每个资产带引擎可读的交互与角色描述（宝箱可打开、吊闸可升起、火把可点亮、金币可拾取、怪物是敌人、坐骑可骑乘等），写进导出清单与游戏套装 manifest，生成区同步显示玩法摘要。
 - **2.10（已完成）** — 出生与 AI 元数据：角色、怪物、龙、骷髅、木乃伊与炮塔带阵营、AI 行为、生命、移动速度、警戒范围与攻击伤害，写进导出清单与游戏套装 manifest，生成区同步显示出生摘要。
 - **2.11（已完成）** — 场景设计元数据：八个场景套装带出生点、目标、掉落表、机关锁与导演指示，写进场景 userData、导出清单与游戏套装的设计文件 design.json，生成区同步显示场景设计摘要。
+- **2.12（已完成）** — 场景设计审计：关卡元数据按场景道具逐一校验（出生点、目标、掉落容器与物品、机关锁与触发器），游戏套装额外产出 design/<场景>.audit.json，生成区同步显示通过／警告／失败徽标，八个套装数据也已补齐缺失的宝箱、钥匙台、闸门等道具。
 
 ### 十二、文档
 

@@ -229,7 +229,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 367 unit and integration tests
+npm test             # 371 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -365,6 +365,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   points, objectives, loot tables, lock states and director hints, written
   into the scene userData, export manifests and a per-scene design.json in
   game packs, with a matching summary in the generator.
+- **2.12 (done)** - scene design audit: level metadata is checked prop by prop
+  (spawn points, objectives, loot containers and items, locks and their
+  triggers), game packs also emit a design/<scene>.audit.json, the generator
+  shows a pass/warn/fail badge, and the eight kits gained the chest, lever,
+  gate and urn props their designs referenced.
 
 ### 12. Documentation
 
