@@ -1770,6 +1770,7 @@ test("scene packs ship design metadata and a per-scene design.json", () => {
     "design/dungeon-1.audit.json",
   );
   assert.equal(manifest.assets[0].files.blueprint, "blueprints/dungeon-1.json");
+  assert.equal(manifest.assets[0].files.setup, "blueprints/dungeon-1.unity.cs");
   assert.deepEqual(written, design);
   assert.deepEqual(manifest.assets[0].scene.design, design);
   assert.deepEqual(manifest.assets[0].scene.designAudit, audit);
@@ -1778,6 +1779,81 @@ test("scene packs ship design metadata and a per-scene design.json", () => {
   assert.equal(blueprint.schema, "ai3d-scene-blueprint");
   assert.equal(blueprint.engine.id, "unity");
   assert.deepEqual(blueprint.spawnPoints, design.spawnPoints);
+});
+
+test("scene packs ship an editor setup script for the target engine", () => {
+  const design = {
+    spawnPoints: { playerStart: 1, enemySpawn: 1 },
+    objectives: [{ id: "clear-crypt", title: "Clear the crypt" }],
+    directives: ["Keep the summoner alive."],
+  };
+  const sceneAsset = samplePackAsset({
+    id: "crypt-7",
+    name: "Crypt",
+    type: "dungeon",
+    kind: "scene",
+    scene: {
+      kit: "dungeon",
+      seed: 7,
+      theme: { style: "lowpoly" },
+      props: [
+        {
+          name: "crypt-mummy-1",
+          type: "mummy",
+          size: 1,
+          x: 2,
+          y: 0,
+          z: -3,
+          rotationY: Math.PI / 2,
+        },
+        { name: "crypt-chest-2", type: "chest", size: 0.8, x: 0, y: 0, z: 3 },
+      ],
+      design,
+    },
+  });
+  const decoder = new TextDecoder();
+
+  const unity = unzipSync(
+    buildGamePackFiles({ assets: [sceneAsset], engine: "unity" }),
+  );
+  const unityManifest = JSON.parse(decoder.decode(unity["manifest.json"]));
+  assert.equal(
+    unityManifest.assets[0].files.setup,
+    "blueprints/crypt-7.unity.cs",
+  );
+  const cs = decoder.decode(unity["blueprints/crypt-7.unity.cs"]);
+  assert.match(cs, /class Crypt7SceneSetup/);
+  assert.match(
+    cs,
+    /SceneModelPath = "Assets\/AI3D\/crypt-7\/models\/crypt-7\/LOD0\.glb"/,
+  );
+  assert.match(cs, /new Vector3\(2f, 0f, -3f\)/);
+  assert.match(cs, /MenuItem\("Tools\/AI3D\/Build Crypt"\)/);
+  assert.match(cs, /AddComponent<AI3DSpawnMarker>/);
+  assert.match(cs, /Health = 90f/);
+  assert.match(
+    decoder.decode(unity["scripts/unity/AI3DSpawnMarker.cs"]),
+    /public class AI3DSpawnMarker/,
+  );
+
+  const unreal = unzipSync(
+    buildGamePackFiles({ assets: [sceneAsset], engine: "unreal" }),
+  );
+  const py = decoder.decode(unreal["blueprints/crypt-7.unreal.py"]);
+  assert.match(py, /import unreal/);
+  assert.match(py, /SCENE_NAME = "Crypt"/);
+  assert.match(py, /"location": \(200, -300, 0\)/);
+  assert.match(py, /"health": 90/);
+  assert.equal(unreal["scripts/unity/AI3DSpawnMarker.cs"], undefined);
+
+  const godot = unzipSync(
+    buildGamePackFiles({ assets: [sceneAsset], engine: "godot" }),
+  );
+  const gd = decoder.decode(godot["blueprints/crypt-7.godot.gd"]);
+  assert.match(gd, /extends EditorScript/);
+  assert.match(gd, /const MODEL_PATH := "res:\/\/models\/crypt-7\/LOD0\.glb"/);
+  assert.match(gd, /Vector3\(2, 0, -3\)/);
+  assert.match(gd, /marker\.set_meta\("ai3d_health", entry\["health"\]\)/);
 });
 
 test("scene blueprints carry engine-space transforms and design roles", () => {

@@ -232,7 +232,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 377 unit and integration tests
+npm test             # 378 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -391,6 +391,12 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   blueprint now carry faction, AI behaviour, health, move speed, aggro range
   and attack damage, collected into a top-level `spawns` list so a level script
   can place the enemies straight from the blueprint.
+- **2.17 (done)** - scene packs ship an editor setup script: a designed scene
+  now emits a builder for the target engine (`blueprints/<scene>.unity.cs`,
+  `blueprints/<scene>.unreal.py` or `blueprints/<scene>.godot.gd`) next to the
+  blueprint. One menu command drops the composed model into the level and
+  places every prop anchor and enemy spawn at its blueprint transform, with the
+  combat stats attached to the spawn markers.
 
 ### 12. Documentation
 

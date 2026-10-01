@@ -29,9 +29,12 @@ wilderness, town) or a prompt that names one, plus the optional layout knobs
 `spacing`, `groundPadding` and `propScale`. A scene ignores the per-mesh
 settings (`size`, `withLod`, `anchors`, `exportClips`, `collision`,
 `animation`) and instead writes the kit's design metadata, a design audit and
-an engine-space scene blueprint into the pack, so the level arrives with its
-spawn points, objectives, loot tables, locks and prop placements already in the
-target engine's axes and units.
+an engine-space scene blueprint plus an editor builder script for the target
+engine into the pack, so the level arrives with its spawn points, objectives,
+loot tables, locks and prop placements already in the target engine's axes and
+units. The builder drops the composed model in and places every anchor and
+enemy spawn at its blueprint transform, with the combat stats attached to the
+spawn markers.
 
 The tool writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up

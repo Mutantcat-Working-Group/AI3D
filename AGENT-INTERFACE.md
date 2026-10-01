@@ -84,9 +84,12 @@ an explicit `type` wins over whatever the prompt resolves.
 type is one of `dungeon`, `camp`, `outpost`, `village`, `temple`, `battle`,
 `wilderness` or `town`, and the optional layout knobs `spacing`,
 `groundPadding` and `propScale` apply only here. A scene pack also carries the
-kit's design metadata, a design audit and an engine-space scene blueprint, so
-the level arrives with its spawn points, objectives, loot tables, locks and
-prop placements already expressed in the target engine's axes and units.
+kit's design metadata, a design audit, an engine-space scene blueprint and an
+editor builder script for the target engine, so the level arrives with its
+spawn points, objectives, loot tables, locks and prop placements already
+expressed in the target engine's axes and units; the builder drops the
+composed model in and places every anchor and enemy spawn at its blueprint
+transform, with the combat stats attached to the spawn markers.
 
 The result writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up
