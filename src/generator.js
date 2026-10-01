@@ -2412,6 +2412,39 @@ const GAME_KITS = {
       { type: "urn", size: 0.85 },
       { type: "mummy", size: 1.05 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 3 },
+      objectives: [
+        {
+          id: "open-portcullis",
+          title: "Open the portcullis",
+          summary: "Pull the lever to lift the portcullis and reach the hall.",
+        },
+        {
+          id: "find-the-key",
+          title: "Find the key",
+          summary: "Search urns and the stone coffin for the key to the cage.",
+        },
+        {
+          id: "defeat-the-mummy",
+          title: "Defeat the mummy",
+          summary: "Defeat the mummy guard and claim the treasure chest.",
+        },
+      ],
+      lootTables: [
+        { container: "chest", items: ["potion", "gem", "key"] },
+        { container: "urn", items: ["gem", "coin_pile"] },
+        { container: "stone_coffin", items: ["sword", "shield"] },
+      ],
+      locks: [
+        { prop: "portcullis", state: "locked", opensWith: "lever" },
+        { prop: "cage", state: "locked", opensWith: "key" },
+      ],
+      directives: [
+        "Spawn the player at the center torch and enemies at enemySpawn points.",
+        "Keep the portcullis locked until the lever is pulled.",
+      ],
+    },
   },
   camp: {
     name: "Camp",
@@ -2427,6 +2460,30 @@ const GAME_KITS = {
       { type: "barrel", size: 0.8 },
       { type: "flag", size: 0.95 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 2 },
+      objectives: [
+        {
+          id: "secure-camp",
+          title: "Secure the camp",
+          summary: "Repel raiders and protect the camp flag.",
+        },
+        {
+          id: "stock-supplies",
+          title: "Stock supplies",
+          summary: "Open crates and barrels to restock the camp.",
+        },
+      ],
+      lootTables: [
+        { container: "crate", items: ["bread", "potion", "rope_coil"] },
+        { container: "barrel", items: ["coin_pile", "meat_leg"] },
+      ],
+      locks: [],
+      directives: [
+        "Keep the campfire lit as the safe-zone anchor.",
+        "Spawn allies at the flag and raiders at enemySpawn points.",
+      ],
+    },
   },
   outpost: {
     name: "Outpost",
@@ -2442,6 +2499,30 @@ const GAME_KITS = {
       { type: "cage", size: 1.05 },
       { type: "flag", size: 0.9 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 2, sentry: 2 },
+      objectives: [
+        {
+          id: "repel-attack",
+          title: "Repel the attack",
+          summary: "Hold the outpost against waves of attackers.",
+        },
+        {
+          id: "repair-turret",
+          title: "Repair the turret",
+          summary: "Activate the turret and restore the antenna link.",
+        },
+      ],
+      lootTables: [
+        { container: "crate", items: ["potion", "gem", "rope_coil"] },
+        { container: "barrel", items: ["bread", "coin_pile"] },
+      ],
+      locks: [{ prop: "portcullis", state: "locked", opensWith: "lever" }],
+      directives: [
+        "Place turrets at sentry points and wire them to the antenna.",
+        "Lock the portcullis until the outpost is defended.",
+      ],
+    },
   },
   village: {
     name: "Village",
@@ -2457,6 +2538,31 @@ const GAME_KITS = {
       { type: "flag", size: 0.9 },
       { type: "torch", size: 1 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 2 },
+      objectives: [
+        {
+          id: "harvest-village",
+          title: "Harvest the village",
+          summary: "Gather wheat and honey before nightfall.",
+        },
+        {
+          id: "light-the-torches",
+          title: "Light the torches",
+          summary: "Light every torch and brazier to keep the village safe.",
+        },
+      ],
+      lootTables: [
+        { container: "crate", items: ["bread", "wheat_sheaf", "potion"] },
+        { container: "barrel", items: ["meat_leg", "coin_pile"] },
+        { container: "beehive", items: ["gem", "bread"] },
+      ],
+      locks: [],
+      directives: [
+        "Spawn villagers around the well and attackers at enemySpawn points.",
+        "Keep the wheat sheaves and beehives outside the combat lines.",
+      ],
+    },
   },
   temple: {
     name: "Temple",
@@ -2472,6 +2578,30 @@ const GAME_KITS = {
       { type: "trap", size: 1.1 },
       { type: "tower", size: 0.9 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 2, guards: 2 },
+      objectives: [
+        {
+          id: "reach-the-relic",
+          title: "Reach the relic",
+          summary: "Cross the hall and recover the relic from the chest.",
+        },
+        {
+          id: "disable-the-traps",
+          title: "Disable the traps",
+          summary: "Activate the runestones to disarm the spike traps.",
+        },
+      ],
+      lootTables: [
+        { container: "chest", items: ["gem", "key", "potion"] },
+        { container: "urn", items: ["coin_pile", "gem"] },
+      ],
+      locks: [{ prop: "chest", state: "locked", opensWith: "key" }],
+      directives: [
+        "Arm the traps until the runestones are activated.",
+        "Place temple guards at guard points and the relic in the chest.",
+      ],
+    },
   },
   battle: {
     name: "Battlefield",
@@ -2487,6 +2617,30 @@ const GAME_KITS = {
       { type: "flag", size: 1.05 },
       { type: "trap", size: 1.1 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 4, dragon: 1 },
+      objectives: [
+        {
+          id: "defeat-the-waves",
+          title: "Defeat the waves",
+          summary: "Beat the monster squads before the dragon takes the field.",
+        },
+        {
+          id: "claim-the-standard",
+          title: "Claim the standard",
+          summary: "Capture the enemy flag to end the battle.",
+        },
+      ],
+      lootTables: [
+        { container: "chest", items: ["sword", "shield", "potion"] },
+        { container: "barrel", items: ["coin_pile", "meat_leg"] },
+      ],
+      locks: [],
+      directives: [
+        "Release the dragon only after the first wave falls.",
+        "Spawn the player near the friendly flag and enemies at enemySpawn points.",
+      ],
+    },
   },
   wilderness: {
     name: "Wilderness",
@@ -2502,6 +2656,31 @@ const GAME_KITS = {
       { type: "tent", size: 1.1 },
       { type: "well", size: 1.05 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 2, camp: 1 },
+      objectives: [
+        {
+          id: "gather-resources",
+          title: "Gather resources",
+          summary: "Collect crystals, mushrooms and berries in the wild.",
+        },
+        {
+          id: "set-up-camp",
+          title: "Set up camp",
+          summary: "Light the campfire and place tents for the night.",
+        },
+      ],
+      lootTables: [
+        { container: "chest", items: ["crystal", "potion", "key"] },
+        { container: "urn", items: ["mushroom", "gem"] },
+        { container: "crate", items: ["bread", "rope_coil"] },
+      ],
+      locks: [],
+      directives: [
+        "Keep hostile creatures near the mushroom and berry areas.",
+        "Anchor the camp at the well with the campfire as its center.",
+      ],
+    },
   },
   town: {
     name: "Town",
@@ -2517,6 +2696,30 @@ const GAME_KITS = {
       { type: "torch", size: 1 },
       { type: "bridge", size: 1.2 },
     ],
+    design: {
+      spawnPoints: { playerStart: 1, enemySpawn: 1, patrol: 2 },
+      objectives: [
+        {
+          id: "cross-the-town",
+          title: "Cross the town",
+          summary: "Travel from the bridge to the guild tower.",
+        },
+        {
+          id: "open-the-gate",
+          title: "Open the gate",
+          summary: "Find the gate key in the market crates.",
+        },
+      ],
+      lootTables: [
+        { container: "crate", items: ["key", "bread", "coin_pile"] },
+        { container: "barrel", items: ["potion", "meat_leg"] },
+      ],
+      locks: [{ prop: "gate", state: "locked", opensWith: "key" }],
+      directives: [
+        "Place patrol guards on the bridge and town square.",
+        "Hide the gate key in a market crate before the gate can open.",
+      ],
+    },
   },
 };
 
@@ -2576,6 +2779,9 @@ export function composeGameKit(
   group.name = `kit-${kit}`;
   group.userData.kit = kit;
   group.userData.groundColor = def.groundColor;
+  group.userData.design = def.design
+    ? JSON.parse(JSON.stringify(def.design))
+    : null;
   group.userData.theme = {
     style,
     color,
@@ -10882,6 +11088,7 @@ function buildSceneRecord(asset) {
         textureSize: asset.textureSize ?? 256,
       },
     props: Array.isArray(asset.scene?.props) ? asset.scene.props : [],
+    design: asset.scene?.design ?? asset.design ?? null,
   };
 }
 
@@ -10960,6 +11167,9 @@ export function buildGamePackFiles({
     const name = sanitiseAssetName(asset.name, slug);
     const isScene = asset.kind === "scene";
     const stats = normaliseAssetStats(asset.stats);
+    const sceneDesign = isScene
+      ? (asset.scene?.design ?? asset.design ?? null)
+      : null;
     return {
       id: asset.id || `${asset.type}-${slug}`,
       name,
@@ -11015,6 +11225,7 @@ export function buildGamePackFiles({
           preset.id === "godot" && asset.glbBytes
             ? `scenes/${slug}.tscn`
             : null,
+        design: sceneDesign ? `design/${slug}.json` : null,
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
         animations: (asset.animationFiles || []).map(
@@ -11089,6 +11300,11 @@ export function buildGamePackFiles({
     if (preset.id === "godot" && asset.glbBytes) {
       files[`scenes/${slug}.tscn`] = encoder.encode(
         godotSceneFile(record, slug),
+      );
+    }
+    if (record.scene?.design) {
+      files[`design/${slug}.json`] = encoder.encode(
+        JSON.stringify(record.scene.design, null, 2),
       );
     }
     for (const lod of asset.lodLevels || []) {
@@ -11174,6 +11390,8 @@ export async function exportGamePack({
           : Array.isArray(model.userData?.propList)
             ? model.userData.propList
             : [],
+        design:
+          asset.scene?.design ?? model.userData?.design ?? asset.design ?? null,
       }
     : null;
   const selectedAnimations = selectAnimations(model, animation);

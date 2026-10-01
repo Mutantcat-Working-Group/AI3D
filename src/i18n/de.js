@@ -628,6 +628,9 @@ export default {
   "spawn.ai.meleeChase": "Nahkampf-Pursuit",
   "spawn.ai.flyBreathe": "Fliegen + Atem",
   "spawn.ai.turretSweep": "Turmschwenk",
+  "gen.design": "Szenendesign",
+  "scene.design.summary":
+    "Spawns {spawns} · Ziele {objectives} · Beute {loot} · Schlösser {locks}",
   "gen.randomSeed": "Zufall",
   "gen.previewError": "Vorschau fehlgeschlagen",
   "gen.generate": "Generieren",

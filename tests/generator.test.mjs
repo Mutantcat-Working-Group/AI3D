@@ -1417,6 +1417,54 @@ test("spawn metadata equips creatures for engine AI and spawning", () => {
   assert.equal(getSpawnInfo("not_a_type"), null);
 });
 
+test("scene kits carry designer metadata for spawns, goals and loot", () => {
+  const assetTypes = getAssetTypes();
+  const kits = getGameKits();
+  assert.ok(kits.length >= 8, "every scene kit is described");
+  for (const kit of kits) {
+    const scene = composeGameKit(kit.id, { seed: 7, segments: 8 });
+    const design = scene.userData.design;
+    assert.ok(design, `${kit.id} carries design metadata`);
+    const spawns = Object.values(design.spawnPoints || {});
+    assert.ok(spawns.length > 0, `${kit.id} places spawn points`);
+    assert.ok(
+      spawns.every((count) => Number.isInteger(count) && count > 0),
+      `${kit.id} spawn counts are positive integers`,
+    );
+    assert.ok(
+      (design.objectives || []).length > 0,
+      `${kit.id} states its objectives`,
+    );
+    for (const objective of design.objectives) {
+      assert.ok(objective.id, `${kit.id} objective has an id`);
+      assert.ok(objective.title, `${kit.id} objective has a title`);
+      assert.ok(objective.summary, `${kit.id} objective has a summary`);
+    }
+    for (const loot of design.lootTables) {
+      assert.ok(loot.container, `${kit.id} loot names its container`);
+      assert.ok(
+        Array.isArray(loot.items) && loot.items.length > 0,
+        `${kit.id} loot lists items`,
+      );
+      for (const item of loot.items) {
+        assert.ok(
+          assetTypes.includes(item),
+          `${kit.id} loot item ${item} is a generated asset type`,
+        );
+      }
+    }
+    for (const lock of design.locks) {
+      assert.ok(lock.prop, `${kit.id} lock names its prop`);
+      assert.equal(lock.state, "locked", `${kit.id} locks start locked`);
+      assert.ok(lock.opensWith, `${kit.id} lock names its trigger`);
+    }
+    assert.ok(
+      Array.isArray(design.directives) && design.directives.length > 0,
+      `${kit.id} gives the level designer directives`,
+    );
+  }
+});
+
 test("computeCollider fits primitives to the generated bounds", () => {
   const box = computeCollider(
     generateAsset("crate", { size: 2, seed: 1 }),
@@ -1579,6 +1627,52 @@ test("game packs carry spawn and AI metadata for creatures", () => {
     interaction: "enemy",
     role: "enemy",
   });
+});
+
+test("scene packs ship design metadata and a per-scene design.json", () => {
+  const design = {
+    spawnPoints: { playerStart: 1, enemySpawn: 3 },
+    objectives: [
+      {
+        id: "open-portcullis",
+        title: "Open the portcullis",
+        summary: "Pull the lever to lift the portcullis.",
+      },
+    ],
+    lootTables: [{ container: "chest", items: ["potion", "gem"] }],
+    locks: [{ prop: "portcullis", state: "locked", opensWith: "lever" }],
+    directives: ["Keep the portcullis locked until the lever is pulled."],
+  };
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        id: "dungeon-1",
+        name: "Dungeon",
+        type: "dungeon",
+        kind: "scene",
+        scene: {
+          groundColor: 0x6b625a,
+          theme: { style: "lowpoly" },
+          props: [],
+          design,
+        },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const written = JSON.parse(
+    new TextDecoder().decode(files["design/dungeon-1.json"]),
+  );
+
+  assert.equal(manifest.assets[0].kind, "scene");
+  assert.equal(manifest.assets[0].gameplay, null);
+  assert.equal(manifest.assets[0].spawn, null);
+  assert.equal(manifest.assets[0].files.design, "design/dungeon-1.json");
+  assert.deepEqual(written, design);
+  assert.deepEqual(manifest.assets[0].scene.design, design);
 });
 
 test("Godot packs include an instanceable tscn wrapper for each model", () => {

@@ -361,6 +361,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   skeleton, mummy and turret carry faction, AI behaviour, health, move speed,
   aggro range and attack damage, written into export manifests and game pack
   manifests, with a matching summary in the generator.
+- **2.11 (done)** - scene design metadata: all eight scene kits carry spawn
+  points, objectives, loot tables, lock states and director hints, written
+  into the scene userData, export manifests and a per-scene design.json in
+  game packs, with a matching summary in the generator.
 
 ### 12. Documentation
 

@@ -588,6 +588,9 @@ export default {
   "spawn.ai.meleeChase": "近战追击",
   "spawn.ai.flyBreathe": "飞行吐息",
   "spawn.ai.turretSweep": "炮塔扫描",
+  "gen.design": "场景设计",
+  "scene.design.summary":
+    "出生点 {spawns} · 目标 {objectives} · 掉落 {loot} · 机关 {locks}",
   "gen.randomSeed": "随机",
   "gen.previewError": "预览失败",
   "gen.generate": "生成",

@@ -634,6 +634,9 @@ export default {
   "spawn.ai.meleeChase": "Poursuite mêlée",
   "spawn.ai.flyBreathe": "Vol + souffle",
   "spawn.ai.turretSweep": "Balayage de tourelle",
+  "gen.design": "Conception de scène",
+  "scene.design.summary":
+    "Apparitions {spawns} · objectifs {objectives} · butins {loot} · verrous {locks}",
   "gen.randomSeed": "Aléatoire",
   "gen.previewError": "Aperçu échoué",
   "gen.generate": "Générer",

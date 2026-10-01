@@ -2803,28 +2803,50 @@ function renderGenLayout() {
     tag.title = part.name;
     wrap.append(tag);
   }
-  const gameplay = getGameplayInfo(genState.model.type);
-  const tag = document.createElement("span");
-  tag.className = "gen-layout-tag gen-layout-gameplay";
-  tag.textContent = `${t("gen.gameplay")}: ${
-    t(gameplayInteractionLabels[gameplay.interaction]) || gameplay.interaction
-  } · ${t(gameplayRoleLabels[gameplay.role]) || gameplay.role}`;
-  tag.title = `${gameplay.interaction} / ${gameplay.role}`;
-  wrap.append(tag);
-  const spawn = getSpawnInfo(genState.model.type);
-  if (spawn) {
-    const spawnTag = document.createElement("span");
-    spawnTag.className = "gen-layout-tag gen-layout-spawn";
-    spawnTag.textContent = `${t("gen.spawn")}: ${
-      t(spawnFactionLabels[spawn.faction]) || spawn.faction
-    } · ${t(spawnAiLabels[spawn.ai]) || spawn.ai}`;
-    spawnTag.title = t("spawn.stats", {
-      health: spawn.health,
-      speed: spawn.moveSpeed,
-      aggro: spawn.aggroRange,
-      damage: spawn.attackDamage,
-    });
-    wrap.append(spawnTag);
+  if (genState.model?.kind === "scene") {
+    const design = genState.model.scene?.design || null;
+    if (design) {
+      const spawnCount = Object.values(design.spawnPoints || {}).reduce(
+        (total, count) => total + (Number(count) || 0),
+        0,
+      );
+      const designTag = document.createElement("span");
+      designTag.className = "gen-layout-tag gen-layout-design";
+      designTag.textContent = `${t("gen.design")}: ${t("scene.design.summary", {
+        spawns: spawnCount,
+        objectives: (design.objectives || []).length,
+        loot: (design.lootTables || []).length,
+        locks: (design.locks || []).length,
+      })}`;
+      designTag.title = (design.objectives || [])
+        .map((objective) => `${objective.title} - ${objective.summary}`)
+        .join("\n");
+      wrap.append(designTag);
+    }
+  } else {
+    const gameplay = getGameplayInfo(genState.model.type);
+    const tag = document.createElement("span");
+    tag.className = "gen-layout-tag gen-layout-gameplay";
+    tag.textContent = `${t("gen.gameplay")}: ${
+      t(gameplayInteractionLabels[gameplay.interaction]) || gameplay.interaction
+    } · ${t(gameplayRoleLabels[gameplay.role]) || gameplay.role}`;
+    tag.title = `${gameplay.interaction} / ${gameplay.role}`;
+    wrap.append(tag);
+    const spawn = getSpawnInfo(genState.model.type);
+    if (spawn) {
+      const spawnTag = document.createElement("span");
+      spawnTag.className = "gen-layout-tag gen-layout-spawn";
+      spawnTag.textContent = `${t("gen.spawn")}: ${
+        t(spawnFactionLabels[spawn.faction]) || spawn.faction
+      } · ${t(spawnAiLabels[spawn.ai]) || spawn.ai}`;
+      spawnTag.title = t("spawn.stats", {
+        health: spawn.health,
+        speed: spawn.moveSpeed,
+        aggro: spawn.aggroRange,
+        damage: spawn.attackDamage,
+      });
+      wrap.append(spawnTag);
+    }
   }
   wrap.hidden = false;
 }
@@ -4037,6 +4059,7 @@ function composeGameKitScene(kitId) {
         groundColor: scene.userData.groundColor ?? null,
         theme: scene.userData.theme,
         props: scene.userData.propList || [],
+        design: scene.userData.design || null,
       },
     };
     genState.originalModel = null;
@@ -4488,6 +4511,8 @@ function loadAsset(id) {
       props:
         model.userData.propList ||
         (Array.isArray(asset.scene?.props) ? asset.scene.props : []),
+      design:
+        asset.scene?.design ?? model.userData?.design ?? asset.design ?? null,
     };
     // A saved scene is only editable if the controls that built it come back
     // with the same numbers. Without this a re-compose would draw a different

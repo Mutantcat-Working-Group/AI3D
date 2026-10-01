@@ -613,6 +613,9 @@ export default {
   "spawn.ai.meleeChase": "近接追跡",
   "spawn.ai.flyBreathe": "飛行ブレス",
   "spawn.ai.turretSweep": "タレット走査",
+  "gen.design": "シーン設計",
+  "scene.design.summary":
+    "スポーン {spawns}・目標 {objectives}・戦利品 {loot}・仕掛け {locks}",
   "gen.randomSeed": "ランダム",
   "gen.previewError": "プレビュー失敗",
   "gen.generate": "生成",

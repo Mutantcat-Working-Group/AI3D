@@ -614,6 +614,9 @@ export default {
   "spawn.ai.meleeChase": "Melee chase",
   "spawn.ai.flyBreathe": "Fly + breath",
   "spawn.ai.turretSweep": "Turret sweep",
+  "gen.design": "Scene design",
+  "scene.design.summary":
+    "Spawns {spawns} · objectives {objectives} · loot tables {loot} · locks {locks}",
   "gen.randomSeed": "Random",
   "gen.previewError": "Preview failed",
   "gen.generate": "Generate",
