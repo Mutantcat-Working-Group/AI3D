@@ -485,6 +485,7 @@ export default {
   "gen.textureStrength": "Strength",
   "gen.textureSize": "Texture Resolution",
   "gen.textureStrip": "Texture Preview",
+  "gen.layout": "Layout",
   "gen.randomSeed": "Random",
   "gen.previewError": "Preview failed",
   "gen.generate": "Generate",

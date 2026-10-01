@@ -58,6 +58,12 @@ each one, and save the ones you like to the asset library.
   vertices. All presets are emitted as engine-side collider files. The preview
   can overlay the proxy the export would ship, so an oversized or floating
   collider shows up before the pack is built.
+- **Named parts and attachment points** - every asset keeps a full named part
+  hierarchy, and exports record each part's centre and bounds plus recommended
+  attachment coordinates (weapon grips, character feet, chest hinges, light
+  sockets, flag mounts and more), so a team can build prefab sockets without
+  hand-measuring the mesh. The generator shows a read-only layout summary for
+  the current asset.
 - **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
   fit axis (largest dimension / height / width / depth), and the origin can be
   centred, planted on the ground, or pinned to the base or the top, so a
@@ -79,7 +85,8 @@ each one, and save the ones you like to the asset library.
   pieces on the same grid, deterministic from a seed and exportable as a whole
   scene.
 - **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
-  vertex, part and draw-call counts, per-level LOD budgets and collider info.
+  vertex, part and draw-call counts, the named part hierarchy and attachment
+  points, per-level LOD budgets and collider info.
 - **Download formats** - GLB, JSON glTF (`.gltf` with embedded resources) and
   OBJ. The UI no longer offers FBX, which was never actually implemented.
 
@@ -198,7 +205,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 339 unit and integration tests
+npm test             # 340 unit and integration tests
 npm run test:browser # 84 real-Chromium tests
 ```
 
@@ -295,6 +302,9 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   modeling references, callable as an MCP tool.
 - **2.2** - knowledge pack maintenance: record source, license and refresh
   date, support offline search and later incremental updates.
+- **2.3** - named part hierarchy and attachment points: export manifests carry
+  part bounds and recommended attachment coordinates, and the generator shows a
+  layout summary for the current asset.
 
 ### 12. Documentation
 

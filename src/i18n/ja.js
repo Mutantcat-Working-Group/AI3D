@@ -484,6 +484,7 @@ export default {
   "gen.textureStrength": "強さ",
   "gen.textureSize": "テクスチャ解像度",
   "gen.textureStrip": "テクスチャプレビュー",
+  "gen.layout": "レイアウト",
   "gen.randomSeed": "ランダム",
   "gen.previewError": "プレビュー失敗",
   "gen.generate": "生成",

@@ -5345,6 +5345,118 @@ export function getAssetStats(object) {
   return stats;
 }
 
+/** Recommended game attachment points, resolved against the generated part
+ * nodes by name so the layout metadata stays useful for a real prefab. */
+const ATTACHMENT_POINTS = {
+  sword: [{ name: "handle", role: "grip" }],
+  axe: [{ name: "handle", role: "grip" }],
+  hammer: [{ name: "handle", role: "grip" }],
+  spear: [{ name: "shaft", role: "grip" }],
+  bow: [{ name: "riser", role: "grip" }],
+  shield: [{ name: "body", role: "mount" }],
+  character: [{ name: "legs", role: "foot" }],
+  monster: [{ name: "legs", role: "foot" }],
+  dragon: [{ name: "legs", role: "foot" }],
+  car: [{ name: "body", role: "mount" }],
+  bike: [{ name: "frame", role: "mount" }],
+  plane: [{ name: "fuselage", role: "mount" }],
+  boat: [{ name: "hull", role: "mount" }],
+  drone: [{ name: "body", role: "mount" }],
+  chest: [{ name: "lid", role: "hinge" }],
+  torch: [{ name: "cup", role: "socket" }],
+  brazier: [{ name: "basin", role: "socket" }],
+  campfire: [{ name: "logs", role: "socket" }],
+  well: [{ name: "bucket", role: "socket" }],
+  antenna: [{ name: "dish", role: "socket" }],
+  turret: [{ name: "barrel", role: "socket" }],
+  crystal: [{ name: "tip", role: "focus" }],
+  runestone: [{ name: "rune", role: "focus" }],
+  sign: [{ name: "board", role: "surface" }],
+  flag: [{ name: "pole", role: "mount" }],
+};
+
+/**
+ * Measure the named part hierarchy of a generated asset. Every part gets a
+ * local-space center, extents and recommended attachment point role so a game
+ * team can build prefab sockets, weapon grips or foot references without
+ * hand-measuring the mesh again.
+ * @param {THREE.Object3D} object - Generated model
+ * @param {string} type - Asset type key
+ * @param {object} [options] - Optional extra placement metadata
+ * @returns {object|null} { root, parts, attachments } or null when unknown
+ */
+export function getAssetLayoutInfo(object, type, options = {}) {
+  const def = ASSET_TYPES[type];
+  if (!def || !object?.isObject3D) return null;
+  object.updateMatrixWorld(true);
+  const rootBox = new THREE.Box3().setFromObject(object);
+  const root = {
+    center: roundVec(rootBox.getCenter(new THREE.Vector3())),
+    extent: roundVecToExtent(rootBox.getSize(new THREE.Vector3())),
+    min: roundVec(rootBox.min),
+    max: roundVec(rootBox.max),
+  };
+  const parts = def.parts
+    .map((part) => {
+      const node = object.getObjectByName(part);
+      if (!node) return null;
+      const box = new THREE.Box3().setFromObject(node);
+      if (box.isEmpty()) return null;
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      return {
+        name: part,
+        center: roundVec(center),
+        extent: roundVecToExtent(size),
+        min: roundVec(box.min),
+        max: roundVec(box.max),
+      };
+    })
+    .filter(Boolean);
+  const attachments = (ATTACHMENT_POINTS[type] || [])
+    .map((point) => {
+      const part = parts.find((entry) => entry.name === point.name);
+      if (!part) return null;
+      const pivot = new THREE.Vector3(
+        part.center.x,
+        part.center.y,
+        part.center.z,
+      );
+      if (point.role === "foot") pivot.y = part.min.y;
+      return {
+        name: point.name,
+        role: point.role,
+        position: roundVec(pivot),
+      };
+    })
+    .filter(Boolean);
+  return {
+    root,
+    parts,
+    attachments,
+    ...(options.placement ? { placement: options.placement } : {}),
+  };
+}
+
+/** Round a vector to 4 decimals so exported metadata stays compact. */
+function roundVec(vec) {
+  return {
+    x: Math.round(vec.x * 10000) / 10000,
+    y: Math.round(vec.y * 10000) / 10000,
+    z: Math.round(vec.z * 10000) / 10000,
+  };
+}
+
+/** Convert a vector into a width/height/depth metadata shape. */
+function roundVecToExtent(vec) {
+  const rounded = roundVec(vec);
+  return {
+    width: rounded.x,
+    height: rounded.y,
+    depth: rounded.z,
+  };
+}
+
 /* A convex hull only needs the extremes of a mesh, so a dense model is thinned
    before the hull is built. Capping the candidates keeps a browser frame from
    stalling while still leaving every silhouette-defining vertex in place. */
@@ -5880,6 +5992,7 @@ export function buildGamePackFiles({
       texture: asset.texture || null,
       textureStrength: asset.textureStrength ?? 0.8,
       textureSize: asset.textureSize ?? 256,
+      hierarchy: asset.hierarchy || null,
       tags: isScene
         ? Array.isArray(asset.tags)
           ? asset.tags
@@ -6114,6 +6227,7 @@ export async function exportGamePack({
     ...asset,
     kind: isScene ? "scene" : asset.kind || "asset",
     scene: sceneMeta,
+    hierarchy: getAssetLayoutInfo(model, asset.type),
     stats: getAssetStats(model),
     lodLevels,
     glbBytes,

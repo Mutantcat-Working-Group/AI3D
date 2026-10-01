@@ -459,6 +459,7 @@ export default {
   "gen.textureStrength": "强度",
   "gen.textureSize": "贴图分辨率",
   "gen.textureStrip": "贴图预览",
+  "gen.layout": "布局",
   "gen.randomSeed": "随机",
   "gen.previewError": "预览失败",
   "gen.generate": "生成",

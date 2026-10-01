@@ -11,6 +11,7 @@ import {
   getAssetTypeInfo,
   countVertices,
   getAssetStats,
+  getAssetLayoutInfo,
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
@@ -431,6 +432,27 @@ test("texture PNGs honour the requested resolution", () => {
   // 8-byte signature and 4-byte length + 4-byte "IHDR" type.
   assert.equal(view.getUint32(16, false), 512);
   assert.equal(view.getUint32(20, false), 512);
+});
+
+test("getAssetLayoutInfo reports named parts and attachment points", () => {
+  const model = generateAsset("character", {
+    size: 1,
+    seed: 11,
+    pivot: "ground",
+  });
+  const layout = getAssetLayoutInfo(model, "character");
+  assert.ok(layout);
+  assert.equal(layout.root.min.y, 0);
+  assert.deepEqual(
+    new Set(layout.parts.map((p) => p.name)),
+    new Set(["head", "body", "arms", "legs"]),
+  );
+  const foot = layout.attachments.find((a) => a.role === "foot");
+  assert.ok(foot);
+  assert.ok(Math.abs(foot.position.y) < 1e-6);
+  for (const part of layout.parts) {
+    assert.ok(part.extent.width > 0, `${part.name} has measurable bounds`);
+  }
 });
 
 test("GLB export embeds procedural texture images", async () => {
@@ -1434,6 +1456,8 @@ test("exportGamePack ships standalone PBR textures and manifest metadata", async
   assert.equal(manifest.assets[0].texture.kind, "metal");
   assert.equal(manifest.assets[0].texture.strength, 0.9);
   assert.equal(manifest.assets[0].textureSize, 128);
+  assert.ok(manifest.assets[0].hierarchy?.parts.length >= 5);
+  assert.equal(manifest.assets[0].hierarchy.attachments[0].role, "grip");
   assert.deepEqual(manifest.assets[0].files.textures, [
     "textures/sword-tex/albedo.png",
     "textures/sword-tex/normal.png",

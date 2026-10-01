@@ -81,6 +81,10 @@ test("generated assets get an animated preview with play/pause and turntable con
   await page.locator("#gen-generate").click();
 
   await expect(page.locator("#gen-preview")).toBeVisible();
+  await expect(page.locator("#gen-layout")).toBeVisible();
+  await expect(
+    page.locator(".gen-layout-tag", { hasText: "legs · foot" }),
+  ).toBeVisible();
   await expect
     .poll(() => page.locator("#gen-preview-stage canvas").count(), {
       timeout: 10000,

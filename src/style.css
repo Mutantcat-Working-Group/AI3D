@@ -2284,6 +2284,30 @@ dialog .muted {
 .gen-status.error {
   color: var(--error-ink);
 }
+.gen-layout {
+  padding: 0 12px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.gen-layout[hidden] {
+  display: none;
+}
+.gen-layout b {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.gen-layout-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--line-1);
+  border-radius: 3px;
+  background: var(--bg-1);
+  color: var(--text-2);
+  white-space: nowrap;
+}
 .gen-actions {
   padding: 0 12px 10px;
   display: flex;

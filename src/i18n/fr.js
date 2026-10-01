@@ -496,6 +496,7 @@ export default {
   "gen.textureStrength": "Intensité",
   "gen.textureSize": "Résolution de texture",
   "gen.textureStrip": "Aperçu de la texture",
+  "gen.layout": "Disposition",
   "gen.randomSeed": "Aléatoire",
   "gen.previewError": "Aperçu échoué",
   "gen.generate": "Générer",

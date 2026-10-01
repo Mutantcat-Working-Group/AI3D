@@ -459,6 +459,7 @@ export default {
   "gen.textureStrength": "強度",
   "gen.textureSize": "貼圖解析度",
   "gen.textureStrip": "貼圖預覽",
+  "gen.layout": "佈局",
   "gen.randomSeed": "隨機",
   "gen.previewError": "預覽失敗",
   "gen.generate": "產生",

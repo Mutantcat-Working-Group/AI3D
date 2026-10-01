@@ -53,6 +53,7 @@ import {
   decimateMesh,
   generateLOD,
   getAssetStats,
+  getAssetLayoutInfo,
   getAssetTags,
   getColliderShape,
   computeCollider,
@@ -396,6 +397,7 @@ app.innerHTML = `${SPRITE}
       <div id="gen-variants" class="gen-variants-grid" aria-live="polite"></div>
     </div>
     <div id="gen-status" class="gen-status"></div>
+    <div id="gen-layout" class="gen-layout" hidden></div>
     <div class="gen-library-header">
       <input id="gen-search" placeholder="${t("gen.promptPlaceholder")}">
       <select id="gen-tag-filter" class="gen-tag-filter" aria-label="Filter by tag">
@@ -2695,6 +2697,33 @@ function setGenStatus(message, type = "") {
   status.className = `gen-status ${type}`;
 }
 
+function renderGenLayout() {
+  const wrap = $("#gen-layout");
+  if (!wrap) return;
+  wrap.replaceChildren();
+  const model = genState.model?.threeObject;
+  const layout = model ? getAssetLayoutInfo(model, genState.model.type) : null;
+  if (!layout || !layout.parts.length) {
+    wrap.hidden = true;
+    return;
+  }
+  const roles = new Map(
+    layout.attachments.map((point) => [point.name, point.role]),
+  );
+  const title = document.createElement("b");
+  title.textContent = t("gen.layout");
+  wrap.append(title);
+  for (const part of layout.parts) {
+    const role = roles.get(part.name);
+    const tag = document.createElement("span");
+    tag.className = "gen-layout-tag";
+    tag.textContent = role ? `${part.name} · ${role}` : part.name;
+    tag.title = part.name;
+    wrap.append(tag);
+  }
+  wrap.hidden = false;
+}
+
 function setGenActions(show) {
   $("#gen-actions").hidden = !show;
 }
@@ -2852,6 +2881,7 @@ async function generateAsset() {
     setGenActions(true);
     setGenOptimizePanel(false);
     updateGenScenePackButton();
+    renderGenLayout();
     showGenPreview();
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
@@ -2993,6 +3023,7 @@ function loadVariant(index) {
   setGenExportPanel(false);
   setGenActions(true);
   setGenStatus(t("gen.applied"), "ok");
+  renderGenLayout();
   updateGenScenePackButton();
   showGenPreview();
 }
@@ -3668,6 +3699,7 @@ function composeGameKitScene(kitId) {
     setGenExportPanel(false);
     setGenActions(true);
     updateGenScenePackButton();
+    renderGenLayout();
     setGenStatus(
       `${t("gen.sceneReady")} (${scene.userData.props} ${t("gen.parts")} · ${stats.triangles} ${t("gen.triangles")})`,
       "ok",
@@ -3746,6 +3778,7 @@ function composeModularSceneScene(presetId) {
     setGenExportPanel(false);
     setGenActions(true);
     updateGenScenePackButton();
+    renderGenLayout();
     setGenStatus(
       `${t("gen.sceneReady")} (${scene.userData.pieceList.length} ${t("gen.parts")} · ${stats.triangles} ${t("gen.triangles")})`,
       "ok",
@@ -4149,6 +4182,7 @@ function loadAsset(id) {
   setGenStatus(t("gen.applied"), "ok");
   setGenActions(true);
   updateGenScenePackButton();
+  renderGenLayout();
   syncGenPreview();
 }
 
