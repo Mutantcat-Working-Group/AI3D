@@ -11033,7 +11033,9 @@ function engineVector(prop, preset) {
  * Build an engine-space blueprint for one composed scene. It resolves which
  * prop plays which design role (loot container, locked prop), converts every
  * transform into the pack's engine space and carries the design block plus the
- * design audit so the level can be rebuilt outside AI3D.
+ * design audit so the level can be rebuilt outside AI3D. Creature props also
+ * carry their spawn metadata, and the blueprint collects them into a `spawns`
+ * list so the level's enemies arrive with their placement.
  */
 export function buildSceneBlueprint(record, preset) {
   const scene = record?.scene || {};
@@ -11057,16 +11059,30 @@ export function buildSceneBlueprint(record, preset) {
     if (lockByProp.has(prop.type)) {
       roles.lock = lockByProp.get(prop.type);
     }
-    return {
+    const placement = {
       name: prop.name,
       type: prop.type,
       position: engineVector(prop, preset),
       heading: Math.round((((prop.rotationY || 0) * 180) / Math.PI) * 10) / 10,
       bounds: prop.bounds || null,
       collision: prop.collision || null,
-      roles: Object.keys(roles).length ? roles : undefined,
     };
+    // A creature prop is a spawn point as much as a mesh: carry the engine
+    // spawn metadata so the level's enemies travel with their placement.
+    const spawn = getSpawnInfo(prop.type);
+    if (spawn) placement.spawn = spawn;
+    if (Object.keys(roles).length) placement.roles = roles;
+    return placement;
   });
+  const spawns = placements
+    .filter((placement) => placement.spawn)
+    .map((placement) => ({
+      name: placement.name,
+      type: placement.type,
+      position: placement.position,
+      heading: placement.heading,
+      ...placement.spawn,
+    }));
   return {
     schema: "ai3d-scene-blueprint",
     version: "1.0",
@@ -11084,6 +11100,7 @@ export function buildSceneBlueprint(record, preset) {
     locks: design?.locks || [],
     directives: design?.directives || [],
     props: placements,
+    spawns,
     audit: scene.designAudit || null,
   };
 }
@@ -11114,6 +11131,10 @@ function engineReadme(preset, records) {
               (prop) => `- ${prop.type}${prop.size ? ` (${prop.size}x)` : ""}`,
             )
             .join("\n") + "\n";
+      }
+      const spawns = props.filter((prop) => getSpawnInfo(prop.type));
+      if (spawns.length > 0) {
+        heading += `Spawns: ${spawns.map((prop) => prop.type).join(", ")}\n`;
       }
       if (scene.files?.blueprint) {
         heading += `Blueprint: ${scene.files.blueprint}\n`;

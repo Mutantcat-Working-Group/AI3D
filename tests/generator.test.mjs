@@ -1841,6 +1841,7 @@ test("scene blueprints carry engine-space transforms and design roles", () => {
     state: "locked",
     opensWith: "key",
   });
+  assert.deepEqual(unity.spawns, []);
   assert.deepEqual(unity.audit, { readiness: 1, checks: [] });
 
   const unreal = buildSceneBlueprint(record, {
@@ -1851,6 +1852,66 @@ test("scene blueprints carry engine-space transforms and design roles", () => {
     units: "centimeters",
   });
   assert.deepEqual(unreal.props[0].position, { x: 100, y: -200, z: -50 });
+});
+
+test("scene blueprints mark creature props as spawn actors", () => {
+  const record = {
+    id: "dungeon-3",
+    name: "Dungeon",
+    kind: "scene",
+    type: "dungeon",
+    scene: {
+      kit: "dungeon",
+      seed: 4,
+      theme: { style: "lowpoly" },
+      props: [
+        {
+          name: "dungeon-mummy-1",
+          type: "mummy",
+          size: 1,
+          x: 2,
+          y: 0,
+          z: 1,
+          rotationY: Math.PI,
+        },
+        { name: "dungeon-urn-2", type: "urn", size: 0.9, x: -1, y: 0, z: 0 },
+      ],
+      design: { spawnPoints: { playerStart: 1, enemySpawn: 1 } },
+      designAudit: { readiness: 1, checks: [] },
+    },
+  };
+
+  const blueprint = buildSceneBlueprint(record, {
+    id: "unity",
+    name: "Unity",
+    upAxis: "Y",
+    scale: 1,
+    units: "meters",
+  });
+
+  assert.deepEqual(blueprint.props[0].spawn, {
+    faction: "hostile",
+    ai: "melee-chase",
+    health: 90,
+    moveSpeed: 1.6,
+    aggroRange: 8,
+    attackDamage: 12,
+  });
+  assert.equal(blueprint.props[1].spawn, undefined);
+  assert.deepEqual(blueprint.spawns, [
+    {
+      name: "dungeon-mummy-1",
+      type: "mummy",
+      position: { x: 2, y: 0, z: 1 },
+      heading: 180,
+      faction: "hostile",
+      ai: "melee-chase",
+      health: 90,
+      moveSpeed: 1.6,
+      aggroRange: 8,
+      attackDamage: 12,
+    },
+  ]);
 });
 
 test("Godot packs include an instanceable tscn wrapper for each model", () => {

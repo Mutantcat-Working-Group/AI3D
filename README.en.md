@@ -27,15 +27,15 @@ instead of staying a preview image.
 90 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
-| Category  | Assets                                                                                                                    |
-| --------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                             |
-| Creatures | character, monster, dragon, skeleton, mummy                                                                              |
-| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain, portcullis, beehive                             |
+| Category  | Assets                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                                                                                                                                                                                                                                                                                                 |
+| Creatures | character, monster, dragon, skeleton, mummy                                                                                                                                                                                                                                                                                                                                                    |
+| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain, portcullis, beehive                                                                                                                                                                                                                                                                                                   |
 | Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand, bread, pie, meat leg, hay bale, rope coil, bucket, coin pile, berry bush, stone coffin, cage, bone pile, cobweb, lever, urn, wheat sheaf |
-| Vehicles  | car, boat, plane, bike, wagon, minecart                                                                                   |
-| Sci-fi    | turret, drone, comm antenna                                                                                               |
-| Village   | windmill                                                                                                                   |
+| Vehicles  | car, boat, plane, bike, wagon, minecart                                                                                                                                                                                                                                                                                                                                                        |
+| Sci-fi    | turret, drone, comm antenna                                                                                                                                                                                                                                                                                                                                                                    |
+| Village   | windmill                                                                                                                                                                                                                                                                                                                                                                                       |
 
 Beyond the quick templates you can describe an asset in natural language and
 choose a style (low-poly / realistic / stylized), then tune color, roughness,
@@ -232,7 +232,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 376 unit and integration tests
+npm test             # 377 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -387,6 +387,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   outpost, village, temple, battle, wilderness, town) from a `type` or a
   sentence, writing a GLB, an engine pack, the design metadata, the design
   audit and an engine-space scene blueprint into the workspace.
+- **2.16 (done)** - blueprints mark spawn actors: creature props in a scene
+  blueprint now carry faction, AI behaviour, health, move speed, aggro range
+  and attack damage, collected into a top-level `spawns` list so a level script
+  can place the enemies straight from the blueprint.
 
 ### 12. Documentation
 
