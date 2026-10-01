@@ -2411,6 +2411,7 @@ const GAME_KITS = {
       { type: "lever", size: 0.9 },
       { type: "urn", size: 0.85 },
       { type: "mummy", size: 1.05 },
+      { type: "chest", size: 1 },
     ],
     design: {
       spawnPoints: { playerStart: 1, enemySpawn: 3 },
@@ -2498,6 +2499,7 @@ const GAME_KITS = {
       { type: "portcullis", size: 1.1 },
       { type: "cage", size: 1.05 },
       { type: "flag", size: 0.9 },
+      { type: "lever", size: 0.9 },
     ],
     design: {
       spawnPoints: { playerStart: 1, enemySpawn: 2, sentry: 2 },
@@ -2577,6 +2579,7 @@ const GAME_KITS = {
       { type: "chest", size: 0.9 },
       { type: "trap", size: 1.1 },
       { type: "tower", size: 0.9 },
+      { type: "urn", size: 0.9 },
     ],
     design: {
       spawnPoints: { playerStart: 1, enemySpawn: 2, guards: 2 },
@@ -2616,6 +2619,8 @@ const GAME_KITS = {
       { type: "brazier", size: 1.1 },
       { type: "flag", size: 1.05 },
       { type: "trap", size: 1.1 },
+      { type: "chest", size: 1 },
+      { type: "barrel", size: 0.85 },
     ],
     design: {
       spawnPoints: { playerStart: 1, enemySpawn: 4, dragon: 1 },
@@ -2655,6 +2660,9 @@ const GAME_KITS = {
       { type: "wheat_sheaf", size: 1.15 },
       { type: "tent", size: 1.1 },
       { type: "well", size: 1.05 },
+      { type: "chest", size: 1 },
+      { type: "urn", size: 0.9 },
+      { type: "crate", size: 0.9 },
     ],
     design: {
       spawnPoints: { playerStart: 1, enemySpawn: 2, camp: 1 },
@@ -2695,6 +2703,7 @@ const GAME_KITS = {
       { type: "barrel", size: 0.8 },
       { type: "torch", size: 1 },
       { type: "bridge", size: 1.2 },
+      { type: "gate", size: 1.15 },
     ],
     design: {
       spawnPoints: { playerStart: 1, enemySpawn: 1, patrol: 2 },
@@ -11063,6 +11072,8 @@ function engineReadme(preset, records) {
 
 /** Build the manifest block for a composed scene pack. */
 function buildSceneRecord(asset) {
+  const props = Array.isArray(asset.scene?.props) ? asset.scene.props : [];
+  const design = asset.scene?.design ?? asset.design ?? null;
   return {
     kit: asset.type,
     sceneKind:
@@ -11087,8 +11098,252 @@ function buildSceneRecord(asset) {
         textureStrength: asset.textureStrength ?? 0.8,
         textureSize: asset.textureSize ?? 256,
       },
-    props: Array.isArray(asset.scene?.props) ? asset.scene.props : [],
-    design: asset.scene?.design ?? asset.design ?? null,
+    props,
+    design,
+    designAudit: design
+      ? auditSceneDesign(design, {
+          props,
+          kind:
+            asset.scene?.sceneKind === "modular-scene" ||
+            (asset.scene?.modular && asset.scene.modular.preset)
+              ? "modular-scene"
+              : "kit",
+        })
+      : null,
+  };
+}
+
+/* Scene design metadata points at props and items by type key, so the audit
+   can only check it against the scene's own prop list and the asset
+   catalogue. It reports what a level designer still has to wire up before the
+   scene is playable, using the same pass/warn/fail shape as the model audit. */
+const SCENE_LOCK_STATES = new Set(["locked", "open", "sealed"]);
+
+function designStatus(score) {
+  if (score >= 1) return "pass";
+  if (score >= 0.5) return "warn";
+  return "fail";
+}
+
+/**
+ * Audit the designer metadata attached to a composed scene. Checks that spawn
+ * points are usable, objectives and directives are described, loot tables
+ * point at props that exist in the scene and known item types, and every lock
+ * can actually be opened by a prop or key the scene contains.
+ * @param {object} design - Scene design block from a kit or saved record
+ * @param {object} [options] - Audit options
+ * @param {Array<object|string>} [options.props] - Scene prop placements
+ * @param {string} [options.kind] - "kit" or "modular-scene"
+ * @returns {object} Audit report with checks, summary and readiness
+ */
+export function auditSceneDesign(design, options = {}) {
+  const sceneKind = options.kind === "modular-scene" ? "modular-scene" : "kit";
+  const propTypes = new Set(
+    (options.props || [])
+      .map((prop) => (typeof prop === "string" ? prop : prop?.type))
+      .filter(Boolean),
+  );
+
+  if (!design || typeof design !== "object") {
+    return {
+      overview: { kind: sceneKind },
+      checks: [
+        {
+          id: "design",
+          label: "design",
+          score: 0,
+          status: "fail",
+          details: ["no scene design metadata"],
+        },
+      ],
+      summary: { pass: 0, warn: 0, fail: 1, blocked: true, ready: false },
+      readiness: 0,
+    };
+  }
+
+  const checks = [];
+  const spawnPoints =
+    design.spawnPoints && typeof design.spawnPoints === "object"
+      ? design.spawnPoints
+      : {};
+  const spawnEntries = Object.entries(spawnPoints);
+  const playerStart = Number(spawnPoints.playerStart);
+  const invalidSpawns = spawnEntries.filter(([, count]) => {
+    const value = Number(count);
+    return !Number.isFinite(value) || value < 0;
+  });
+  let spawnScore = 1;
+  if (spawnEntries.length === 0) spawnScore = 0;
+  else if (!Number.isFinite(playerStart) || playerStart < 1) spawnScore = 0.5;
+  if (invalidSpawns.length > 0) spawnScore = Math.min(spawnScore, 0.5);
+  const spawnDetails = spawnEntries.length
+    ? [
+        `${spawnEntries.length} spawn groups`,
+        Number.isFinite(playerStart) && playerStart >= 1
+          ? `playerStart ${playerStart}`
+          : "missing playerStart",
+      ]
+    : ["no spawn points"];
+  if (invalidSpawns.length > 0) {
+    spawnDetails.push(
+      `invalid: ${invalidSpawns.map(([key]) => key).join(", ")}`,
+    );
+  }
+  checks.push({
+    id: "spawn-points",
+    label: "spawn points",
+    score: spawnScore,
+    status: designStatus(spawnScore),
+    details: spawnDetails,
+  });
+
+  const objectives = Array.isArray(design.objectives) ? design.objectives : [];
+  const objectiveIds = objectives.map((objective) => objective?.id);
+  const duplicateObjectiveIds = objectiveIds.filter(
+    (id, index) => id && objectiveIds.indexOf(id) !== index,
+  );
+  const describedObjectives = objectives.filter(
+    (objective) =>
+      objective?.id && objective?.title && objective?.summary !== undefined,
+  );
+  const objectiveScore = objectives.length
+    ? clampScore(describedObjectives.length / objectives.length) *
+      (duplicateObjectiveIds.length ? 0.7 : 1)
+    : 0;
+  checks.push({
+    id: "objectives",
+    label: "objectives",
+    score: objectiveScore,
+    status: designStatus(objectiveScore),
+    details: objectives.length
+      ? [
+          `${objectives.length} objectives`,
+          `${describedObjectives.length} fully described`,
+          duplicateObjectiveIds.length
+            ? `duplicate ids: ${[...new Set(duplicateObjectiveIds)].join(", ")}`
+            : "unique ids",
+        ]
+      : ["no objectives"],
+  });
+
+  const lootTables = Array.isArray(design.lootTables) ? design.lootTables : [];
+  const lootIssues = [];
+  const lootItemCount = lootTables.reduce(
+    (total, table) =>
+      total + (Array.isArray(table?.items) ? table.items.length : 0),
+    0,
+  );
+  for (const table of lootTables) {
+    const container = table?.container;
+    if (!container) {
+      lootIssues.push("table without container");
+    } else if (propTypes.size > 0 && !propTypes.has(container)) {
+      lootIssues.push(`container not in scene: ${container}`);
+    }
+    for (const item of Array.isArray(table?.items) ? table.items : []) {
+      if (!ASSET_TYPES[item]) lootIssues.push(`unknown item: ${item}`);
+    }
+  }
+  let lootScore = 1;
+  if (lootTables.length === 0) lootScore = 0.5;
+  if (lootIssues.length > 0) lootScore = Math.min(lootScore, 0.25);
+  checks.push({
+    id: "loot-tables",
+    label: "loot tables",
+    score: lootScore,
+    status: designStatus(lootScore),
+    details: lootTables.length
+      ? [
+          `${lootTables.length} tables`,
+          `${lootItemCount} item slots`,
+          ...lootIssues.slice(0, 4),
+        ]
+      : ["no loot tables"],
+  });
+
+  const locks = Array.isArray(design.locks) ? design.locks : [];
+  const lockTriggers = new Set(
+    lootTables.flatMap((table) =>
+      Array.isArray(table?.items) ? table.items : [],
+    ),
+  );
+  const lockIssues = [];
+  for (const lock of locks) {
+    const prop = lock?.prop;
+    const opensWith = lock?.opensWith;
+    if (!prop) {
+      lockIssues.push("lock without prop");
+      continue;
+    }
+    if (propTypes.size > 0 && !propTypes.has(prop)) {
+      lockIssues.push(`locked prop not in scene: ${prop}`);
+    }
+    if (!opensWith) {
+      lockIssues.push(`lock without trigger: ${prop}`);
+    } else if (
+      propTypes.size > 0 &&
+      !propTypes.has(opensWith) &&
+      !lockTriggers.has(opensWith)
+    ) {
+      lockIssues.push(`trigger unavailable: ${opensWith}`);
+    }
+    if (lock?.state && !SCENE_LOCK_STATES.has(lock.state)) {
+      lockIssues.push(`unknown state: ${lock.state}`);
+    }
+  }
+  const lockScore = locks.length
+    ? clampScore((locks.length - lockIssues.length) / locks.length)
+    : 1;
+  checks.push({
+    id: "locks",
+    label: "locks",
+    score: lockScore,
+    status: designStatus(lockScore),
+    details: locks.length
+      ? [
+          `${locks.length} locks`,
+          lockIssues.length
+            ? `${lockIssues.length} issues`
+            : "every lock wired",
+          ...lockIssues.slice(0, 4),
+        ]
+      : ["no locks"],
+  });
+
+  const directives = Array.isArray(design.directives)
+    ? design.directives.filter(
+        (line) => typeof line === "string" && line.trim(),
+      )
+    : [];
+  const directiveScore = directives.length ? 1 : 0;
+  checks.push({
+    id: "directives",
+    label: "directives",
+    score: directiveScore,
+    status: designStatus(directiveScore),
+    details: directives.length
+      ? [`${directives.length} directives`]
+      : ["no directives"],
+  });
+
+  const tally = { pass: 0, warn: 0, fail: 0 };
+  checks.forEach((check) => {
+    tally[check.status] = (tally[check.status] || 0) + 1;
+  });
+  const readiness =
+    checks.reduce((sum, check) => sum + check.score, 0) / checks.length;
+
+  return {
+    overview: { kind: sceneKind },
+    checks,
+    summary: {
+      pass: tally.pass,
+      warn: tally.warn,
+      fail: tally.fail,
+      blocked: tally.fail > 0,
+      ready: tally.fail === 0 && tally.warn === 0,
+    },
+    readiness: Math.round(readiness * 100) / 100,
   };
 }
 
@@ -11226,6 +11481,7 @@ export function buildGamePackFiles({
             ? `scenes/${slug}.tscn`
             : null,
         design: sceneDesign ? `design/${slug}.json` : null,
+        designAudit: sceneDesign ? `design/${slug}.audit.json` : null,
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
         animations: (asset.animationFiles || []).map(
@@ -11306,6 +11562,11 @@ export function buildGamePackFiles({
       files[`design/${slug}.json`] = encoder.encode(
         JSON.stringify(record.scene.design, null, 2),
       );
+      if (record.scene.designAudit) {
+        files[`design/${slug}.audit.json`] = encoder.encode(
+          JSON.stringify(record.scene.designAudit, null, 2),
+        );
+      }
     }
     for (const lod of asset.lodLevels || []) {
       if (lod.glbBytes) {

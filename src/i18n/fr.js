@@ -637,6 +637,8 @@ export default {
   "gen.design": "Conception de scène",
   "scene.design.summary":
     "Apparitions {spawns} · objectifs {objectives} · butins {loot} · verrous {locks}",
+  "gen.designAudit": "Audit de conception",
+  "scene.design.readiness": "OK {pass} · alertes {warn} · échecs {fail}",
   "gen.randomSeed": "Aléatoire",
   "gen.previewError": "Aperçu échoué",
   "gen.generate": "Générer",

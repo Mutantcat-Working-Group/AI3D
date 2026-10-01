@@ -16,6 +16,7 @@ import {
   getGameplayInfo,
   getSpawnInfo,
   auditGameAsset,
+  auditSceneDesign,
   repairGameAsset,
   generateVariantSet,
   exportAssetManifest,
@@ -644,7 +645,7 @@ test("game kits compose a named, centred scene on a ground", () => {
     const propNodes = scene.children.filter((child) =>
       child.name.startsWith(`${kit.id}-`),
     );
-    assert.equal(propNodes.length, 9, `${kit.id} places every prop`);
+    assert.ok(propNodes.length >= 9, `${kit.id} places its props`);
     const bounds = modelBounds(scene);
     assert.ok(bounds.center.length() < 1e-5, `${kit.id} is centred`);
     const groundTile = firstMesh(scene);
@@ -701,12 +702,20 @@ test("game kits include battle, wilderness and town presets", () => {
     outpost: ["portcullis", "cage"],
     village: ["wheat_sheaf", "beehive"],
   };
+  const counts = {
+    battle: 11,
+    wilderness: 12,
+    town: 10,
+    dungeon: 10,
+    outpost: 10,
+    village: 9,
+  };
   for (const [id, expected] of Object.entries(themed)) {
     const scene = composeGameKit(id, { seed: 23 });
     const propNodes = scene.children.filter((child) =>
       child.name.startsWith(`${id}-`),
     );
-    assert.equal(propNodes.length, 9, `${id} places every prop`);
+    assert.equal(propNodes.length, counts[id], `${id} places every prop`);
     for (const type of expected) {
       assert.ok(
         propNodes.some((node) => node.name.includes(type)),
@@ -752,7 +761,7 @@ test("game kits apply the chosen theme to every prop", () => {
     groundPadding: 0.6,
     propScale: 1,
   });
-  assert.equal(scene.userData.propList.length, 9);
+  assert.equal(scene.userData.propList.length, 10);
   const prop = scene.children.find((child) =>
     child.name.startsWith("dungeon-"),
   );
@@ -867,7 +876,7 @@ test("removeSceneProp removes a model and compacts placement names", () => {
   const removed = removeSceneProp(scene, 1);
 
   assert.equal(removed.name, removedName);
-  assert.equal(scene.userData.propList.length, 8);
+  assert.equal(scene.userData.propList.length, 9);
   assert.equal(
     scene.children.some((child) => child.name === removedName),
     false,
@@ -1465,6 +1474,84 @@ test("scene kits carry designer metadata for spawns, goals and loot", () => {
   }
 });
 
+test("auditSceneDesign passes every shipped kit as level-designer ready", () => {
+  for (const kit of getGameKits()) {
+    const scene = composeGameKit(kit.id, { seed: 3, segments: 8 });
+    const report = auditSceneDesign(scene.userData.design, {
+      props: scene.userData.propList,
+      kind: "kit",
+    });
+    assert.equal(
+      report.summary.fail,
+      0,
+      `${kit.id} has no design failures: ${JSON.stringify(report.checks)}`,
+    );
+    assert.equal(report.summary.ready, true, `${kit.id} design reads as ready`);
+    assert.equal(report.readiness, 1, `${kit.id} readiness is 1`);
+    assert.ok(
+      report.checks.some((check) => check.id === "locks"),
+      `${kit.id} audits its locks`,
+    );
+    assert.ok(
+      report.checks.some((check) => check.id === "loot-tables"),
+      `${kit.id} audits its loot tables`,
+    );
+  }
+});
+
+test("auditSceneDesign flags broken spawns, loot and locks", () => {
+  const report = auditSceneDesign(
+    {
+      spawnPoints: { enemySpawn: 2 },
+      objectives: [{ id: "reach", title: "Reach", summary: "" }],
+      lootTables: [{ container: "vault", items: ["potion", "unicorn"] }],
+      locks: [{ prop: "portcullis", state: "melted", opensWith: "wrench" }],
+      directives: [],
+    },
+    { props: [{ type: "portcullis" }, { type: "chest" }] },
+  );
+
+  const byId = Object.fromEntries(report.checks.map((c) => [c.id, c]));
+  assert.equal(byId["spawn-points"].status, "warn");
+  assert.match(byId["spawn-points"].details.join(" "), /missing playerStart/);
+  assert.equal(byId["loot-tables"].status, "fail");
+  assert.match(byId["loot-tables"].details.join(" "), /unknown item: unicorn/);
+  assert.match(
+    byId["loot-tables"].details.join(" "),
+    /container not in scene: vault/,
+  );
+  assert.equal(byId.locks.status, "fail");
+  assert.match(byId.locks.details.join(" "), /trigger unavailable: wrench/);
+  assert.equal(byId.directives.status, "fail");
+  assert.equal(report.summary.blocked, true);
+  assert.equal(report.summary.ready, false);
+});
+
+test("auditSceneDesign reports clean metadata for a wired scene", () => {
+  const report = auditSceneDesign(
+    {
+      spawnPoints: { playerStart: 1, enemySpawn: 4 },
+      objectives: [
+        { id: "open-gate", title: "Open the gate", summary: "Find the key." },
+      ],
+      lootTables: [{ container: "chest", items: ["key", "potion"] }],
+      locks: [{ prop: "portcullis", state: "locked", opensWith: "key" }],
+      directives: ["Spawn the player at the gate."],
+    },
+    { props: [{ type: "chest" }, { type: "portcullis" }] },
+  );
+
+  assert.equal(report.summary.fail, 0);
+  assert.equal(report.summary.ready, true);
+  assert.equal(report.readiness, 1);
+});
+
+test("auditSceneDesign blocks when the design block is missing", () => {
+  const report = auditSceneDesign(null);
+  assert.equal(report.summary.blocked, true);
+  assert.equal(report.checks[0].status, "fail");
+});
+
 test("computeCollider fits primitives to the generated bounds", () => {
   const box = computeCollider(
     generateAsset("crate", { size: 2, seed: 1 }),
@@ -1666,13 +1753,23 @@ test("scene packs ship design metadata and a per-scene design.json", () => {
   const written = JSON.parse(
     new TextDecoder().decode(files["design/dungeon-1.json"]),
   );
+  const audit = JSON.parse(
+    new TextDecoder().decode(files["design/dungeon-1.audit.json"]),
+  );
 
   assert.equal(manifest.assets[0].kind, "scene");
   assert.equal(manifest.assets[0].gameplay, null);
   assert.equal(manifest.assets[0].spawn, null);
   assert.equal(manifest.assets[0].files.design, "design/dungeon-1.json");
+  assert.equal(
+    manifest.assets[0].files.designAudit,
+    "design/dungeon-1.audit.json",
+  );
   assert.deepEqual(written, design);
   assert.deepEqual(manifest.assets[0].scene.design, design);
+  assert.deepEqual(manifest.assets[0].scene.designAudit, audit);
+  assert.equal(typeof audit.readiness, "number");
+  assert.ok(Array.isArray(audit.checks) && audit.checks.length > 0);
 });
 
 test("Godot packs include an instanceable tscn wrapper for each model", () => {

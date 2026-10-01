@@ -616,6 +616,8 @@ export default {
   "gen.design": "シーン設計",
   "scene.design.summary":
     "スポーン {spawns}・目標 {objectives}・戦利品 {loot}・仕掛け {locks}",
+  "gen.designAudit": "設計監査",
+  "scene.design.readiness": "合格 {pass}・警告 {warn}・失敗 {fail}",
   "gen.randomSeed": "ランダム",
   "gen.previewError": "プレビュー失敗",
   "gen.generate": "生成",

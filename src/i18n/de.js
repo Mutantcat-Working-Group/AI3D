@@ -631,6 +631,8 @@ export default {
   "gen.design": "Szenendesign",
   "scene.design.summary":
     "Spawns {spawns} · Ziele {objectives} · Beute {loot} · Schlösser {locks}",
+  "gen.designAudit": "Design-Prüfung",
+  "scene.design.readiness": "OK {pass} · Warnung {warn} · Fehler {fail}",
   "gen.randomSeed": "Zufall",
   "gen.previewError": "Vorschau fehlgeschlagen",
   "gen.generate": "Generieren",

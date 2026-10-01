@@ -617,6 +617,8 @@ export default {
   "gen.design": "Scene design",
   "scene.design.summary":
     "Spawns {spawns} · objectives {objectives} · loot tables {loot} · locks {locks}",
+  "gen.designAudit": "Design audit",
+  "scene.design.readiness": "pass {pass} · warn {warn} · fail {fail}",
   "gen.randomSeed": "Random",
   "gen.previewError": "Preview failed",
   "gen.generate": "Generate",

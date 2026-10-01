@@ -591,6 +591,8 @@ export default {
   "gen.design": "场景设计",
   "scene.design.summary":
     "出生点 {spawns} · 目标 {objectives} · 掉落 {loot} · 机关 {locks}",
+  "gen.designAudit": "设计审计",
+  "scene.design.readiness": "通过 {pass} · 警告 {warn} · 失败 {fail}",
   "gen.randomSeed": "随机",
   "gen.previewError": "预览失败",
   "gen.generate": "生成",

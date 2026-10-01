@@ -59,6 +59,7 @@ import {
   getGameplayInfo,
   getSpawnInfo,
   auditGameAsset,
+  auditSceneDesign,
   repairGameAsset,
   getColliderShape,
   computeCollider,
@@ -2822,6 +2823,35 @@ function renderGenLayout() {
         .map((objective) => `${objective.title} - ${objective.summary}`)
         .join("\n");
       wrap.append(designTag);
+      const audit =
+        genState.model.scene?.designAudit ||
+        auditSceneDesign(design, {
+          props: genState.model.scene?.props || [],
+          kind: genState.model.scene?.sceneKind,
+        });
+      const auditTag = document.createElement("span");
+      auditTag.className = `gen-layout-tag gen-layout-design-audit ${
+        audit.summary.fail > 0
+          ? "is-fail"
+          : audit.summary.warn > 0
+            ? "is-warn"
+            : "is-pass"
+      }`;
+      auditTag.textContent = `${t("gen.designAudit")}: ${t(
+        "scene.design.readiness",
+        {
+          pass: audit.summary.pass,
+          warn: audit.summary.warn,
+          fail: audit.summary.fail,
+        },
+      )}`;
+      auditTag.title = audit.checks
+        .map(
+          (check) =>
+            `${check.label} (${check.status}) - ${check.details.join("; ")}`,
+        )
+        .join("\n");
+      wrap.append(auditTag);
     }
   } else {
     const gameplay = getGameplayInfo(genState.model.type);
@@ -3994,6 +4024,7 @@ function applyScenePropEdit(changes) {
     editSceneProp(scene, selectedSceneProp, changes);
     genState.model.scene ||= {};
     genState.model.scene.props = scene.userData.propList;
+    genState.model.scene.designAudit = sceneDesignAudit(scene);
     renderGenPropEditor();
     syncGenPreview();
     setGenStatus(t("gen.applied"), "ok");
@@ -4001,6 +4032,18 @@ function applyScenePropEdit(changes) {
     renderGenPropEditor();
     setGenStatus(t("gen.error"), "error");
   }
+}
+
+/* Re-audit the designer metadata against the current prop list, so editing or
+   deleting a prop updates the readiness badge without a full recompose. */
+function sceneDesignAudit(scene) {
+  const design = scene?.userData?.design;
+  if (!design) return null;
+  return auditSceneDesign(design, {
+    props: scene.userData.propList || [],
+    kind:
+      scene.userData.sceneKind === "modular-scene" ? "modular-scene" : "kit",
+  });
 }
 
 function composeGameKitScene(kitId) {
@@ -4060,6 +4103,7 @@ function composeGameKitScene(kitId) {
         theme: scene.userData.theme,
         props: scene.userData.propList || [],
         design: scene.userData.design || null,
+        designAudit: sceneDesignAudit(scene),
       },
     };
     genState.originalModel = null;
@@ -4514,6 +4558,9 @@ function loadAsset(id) {
       design:
         asset.scene?.design ?? model.userData?.design ?? asset.design ?? null,
     };
+    genState.model.scene.designAudit = sceneDesignAudit(
+      genState.model.threeObject,
+    );
     // A saved scene is only editable if the controls that built it come back
     // with the same numbers. Without this a re-compose would draw a different
     // scene from the same card, which reads as the load having failed.
