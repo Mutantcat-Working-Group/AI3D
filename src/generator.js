@@ -714,10 +714,7 @@ export function buildProceduralRig(model, type) {
   for (const mesh of meshes) {
     const def = bindByPart.get(mesh.name);
     const joint = def ? bones.get(def.name) : null;
-    const skinned = new THREE.SkinnedMesh(
-      mesh.geometry.clone(),
-      mesh.material,
-    );
+    const skinned = new THREE.SkinnedMesh(mesh.geometry.clone(), mesh.material);
     skinned.name = mesh.name;
     skinned.position.copy(mesh.position);
     skinned.rotation.copy(mesh.rotation);
@@ -771,8 +768,14 @@ export function buildProceduralRig(model, type) {
         skinIndex[i * 4] = index;
         skinWeight[i * 4] = 1;
       }
-      geometry.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4));
-      geometry.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4));
+      geometry.setAttribute(
+        "skinIndex",
+        new THREE.BufferAttribute(skinIndex, 4),
+      );
+      geometry.setAttribute(
+        "skinWeight",
+        new THREE.BufferAttribute(skinWeight, 4),
+      );
     }
   }
 
@@ -814,14 +817,10 @@ export function buildProceduralRig(model, type) {
     const skinIndex = new Uint16Array(pos.count * 4);
     const skinWeight = new Float32Array(pos.count * 4);
     for (let i = 0; i < pos.count; i++) {
-      let fraction =
-        ySpan < 1e-9 ? 0.5 : (pos.getY(i) - minY) / ySpan;
+      let fraction = ySpan < 1e-9 ? 0.5 : (pos.getY(i) - minY) / ySpan;
       fraction = Math.max(0, Math.min(1, fraction));
       let index = 0;
-      while (
-        index < stops.length - 2 &&
-        fraction > stops[index + 1].f
-      ) {
+      while (index < stops.length - 2 && fraction > stops[index + 1].f) {
         index++;
       }
       const low = stops[index].f;
@@ -837,7 +836,10 @@ export function buildProceduralRig(model, type) {
       skinWeight[i * 4 + 1] = t;
     }
     geometry.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4));
-    geometry.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4));
+    geometry.setAttribute(
+      "skinWeight",
+      new THREE.BufferAttribute(skinWeight, 4),
+    );
   }
 
   model.userData.rig = {
@@ -5948,19 +5950,121 @@ export function exportGLB(object, options = {}) {
   const wrapped = scale !== 1 ? wrapForExport(object, options, false) : object;
   ensureNodeFileReader();
   ensureNodeCanvasPolyfill();
+  const exportable = withCanvasMetalRoughMaps(wrapped);
   return new Promise((resolve, reject) => {
     const exporter = new GLTFExporter();
     exporter.parse(
-      wrapped,
+      exportable,
       (result) => resolve(result),
       (error) => reject(error),
       {
         binary: true,
         upAxis,
-        animations: animations || wrapped.animations || [],
+        animations: animations || exportable.animations || [],
       },
     );
   });
+}
+
+/* GLTFExporter merges separate metalness/roughness maps by drawing both
+   images onto one canvas. That assumes `texture.image` is a drawable, but
+   the procedural maps are DataTextures whose image is raw pixels, so the
+   browser canvas rejects them. Convert just the maps that would hit the
+   merge path into canvas-backed clones before handing the scene over; the
+   rest of the scene keeps its normal texture handling. */
+function withCanvasMetalRoughMaps(object) {
+  let needsConversion = false;
+  object.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    for (const material of materials) {
+      if (
+        material?.metalnessMap &&
+        material?.roughnessMap &&
+        material.metalnessMap !== material.roughnessMap &&
+        (isRawDataImage(material.metalnessMap.image) ||
+          isRawDataImage(material.roughnessMap.image))
+      ) {
+        needsConversion = true;
+        return;
+      }
+    }
+  });
+  if (!needsConversion) return object;
+
+  const clone = cloneModelDeep(object);
+  const textureClones = new Map();
+  clone.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    const originalMaterials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    let changed = false;
+    const materials = originalMaterials.map((material) => {
+      if (
+        !material?.metalnessMap ||
+        !material?.roughnessMap ||
+        material.metalnessMap === material.roughnessMap ||
+        (!isRawDataImage(material.metalnessMap.image) &&
+          !isRawDataImage(material.roughnessMap.image))
+      ) {
+        return material;
+      }
+      const next = material.clone();
+      if (isRawDataImage(material.metalnessMap.image)) {
+        next.metalnessMap = dataTextureAsCanvas(
+          material.metalnessMap,
+          textureClones,
+        );
+      }
+      if (isRawDataImage(material.roughnessMap.image)) {
+        next.roughnessMap = dataTextureAsCanvas(
+          material.roughnessMap,
+          textureClones,
+        );
+      }
+      next.needsUpdate = true;
+      changed = true;
+      return next;
+    });
+    if (changed) {
+      child.material = Array.isArray(child.material) ? materials : materials[0];
+    }
+  });
+  return clone;
+}
+
+function isRawDataImage(image) {
+  return Boolean(
+    image && image.width > 0 && image.height > 0 && image.data !== undefined,
+  );
+}
+
+function dataTextureAsCanvas(texture, cache) {
+  if (cache.has(texture)) return cache.get(texture);
+  const image = texture.image;
+  const width = image.width;
+  const height = image.height;
+  const canvas =
+    typeof document !== "undefined"
+      ? document.createElement("canvas")
+      : new OffscreenCanvas(width, height);
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const data = new Uint8ClampedArray(
+    image.data.buffer,
+    image.data.byteOffset,
+    image.data.byteLength,
+  );
+  context.putImageData(new ImageData(data, width, height), 0, 0);
+  const clone = texture.clone();
+  clone.image = canvas;
+  clone.needsUpdate = true;
+  cache.set(texture, clone);
+  return clone;
 }
 
 /**
@@ -5974,10 +6078,11 @@ export function exportGLTF(object, options = {}) {
   const wrapped = scale !== 1 ? wrapForExport(object, options, false) : object;
   ensureNodeFileReader();
   ensureNodeCanvasPolyfill();
+  const exportable = withCanvasMetalRoughMaps(wrapped);
   return new Promise((resolve, reject) => {
     const exporter = new GLTFExporter();
     exporter.parse(
-      wrapped,
+      exportable,
       (result) =>
         resolve(
           typeof result === "string" ? result : JSON.stringify(result, null, 2),
@@ -5986,7 +6091,7 @@ export function exportGLTF(object, options = {}) {
       {
         binary: false,
         upAxis,
-        animations: animations || wrapped.animations || [],
+        animations: animations || exportable.animations || [],
       },
     );
   });
@@ -6405,17 +6510,18 @@ export function auditGameAsset(object, type, options = {}) {
     AUDIT_REQUIRED_PARTS[type] ||
     (type === "scene"
       ? []
-      : declaredParts.filter((name) =>
-          name === "body" ||
-          name === "head" ||
-          name === "base" ||
-          name === "handle" ||
-          name === "grip" ||
-          name === "frame" ||
-          name === "wheels" ||
-          name === "hull" ||
-          name === "roof" ||
-          name === "walls",
+      : declaredParts.filter(
+          (name) =>
+            name === "body" ||
+            name === "head" ||
+            name === "base" ||
+            name === "handle" ||
+            name === "grip" ||
+            name === "frame" ||
+            name === "wheels" ||
+            name === "hull" ||
+            name === "roof" ||
+            name === "walls",
         ));
   const missingRequired = required.filter((name) => !foundParts.includes(name));
 
@@ -6526,25 +6632,24 @@ export function auditGameAsset(object, type, options = {}) {
     : [];
   const lastReduction =
     lodTriangleCounts.length >= 2
-      ? 1 - lodTriangleCounts[lodTriangleCounts.length - 1] / lodTriangleCounts[0]
+      ? 1 -
+        lodTriangleCounts[lodTriangleCounts.length - 1] / lodTriangleCounts[0]
       : 0;
   const meaningfulDrop = lodTriangleCounts.length >= 2 && lastReduction >= 0.15;
   const skinKept =
     lodTriangleCounts.length >= 2 &&
-    (generatedLods || lodLevels)
-      .slice(1)
-      .every((level) => {
-        let hasSkin = true;
-        level.mesh?.traverse((child) => {
-          if (child.isSkinnedMesh) {
-            hasSkin =
-              hasSkin &&
-              !!child.geometry?.attributes?.skinIndex &&
-              !!child.geometry?.attributes?.skinWeight;
-          }
-        });
-        return hasSkin;
+    (generatedLods || lodLevels).slice(1).every((level) => {
+      let hasSkin = true;
+      level.mesh?.traverse((child) => {
+        if (child.isSkinnedMesh) {
+          hasSkin =
+            hasSkin &&
+            !!child.geometry?.attributes?.skinIndex &&
+            !!child.geometry?.attributes?.skinWeight;
+        }
       });
+      return hasSkin;
+    });
   const lodScore = riggable
     ? lodTriangleCounts.length >= 2 && meaningfulDrop && skinKept
       ? 1
@@ -6554,10 +6659,10 @@ export function auditGameAsset(object, type, options = {}) {
           ? 0.3
           : 0.25
     : lodTriangleCounts.length >= 2 && meaningfulDrop
-        ? 1
-        : lodTriangleCounts.length >= 2
-          ? 0.6
-          : 0.3;
+      ? 1
+      : lodTriangleCounts.length >= 2
+        ? 0.6
+        : 0.3;
   checks.push({
     id: "lod",
     label: "lod",
@@ -6624,7 +6729,9 @@ export function auditGameAsset(object, type, options = {}) {
   });
   const allSkinned =
     (skinCounts.length > 0 &&
-      skinCounts.every((entry) => entry.joints && entry.weights && entry.bound)) ||
+      skinCounts.every(
+        (entry) => entry.joints && entry.weights && entry.bound,
+      )) ||
     skinned.length === 0;
   const rigScore = riggable
     ? skeletonGroup && boneCount >= 3 && allSkinned
@@ -6713,11 +6820,7 @@ export function auditGameAsset(object, type, options = {}) {
   const dimMax = dimValues.length ? Math.max(...dimValues) : 0;
   const degenerate = dimValues.some((value) => value < 1e-4);
   const dimScore =
-    dimMax >= 0.01 && dimMax <= 60 && !degenerate
-      ? 1
-      : dimMax > 0
-        ? 0.6
-        : 0;
+    dimMax >= 0.01 && dimMax <= 60 && !degenerate ? 1 : dimMax > 0 ? 0.6 : 0;
   checks.push({
     id: "dimensions",
     label: "dimensions",
@@ -6726,9 +6829,7 @@ export function auditGameAsset(object, type, options = {}) {
     status: auditScoreFromStatus(dimScore),
     details: [
       `w ${dims.width || 0} m, h ${dims.height || 0} m, d ${dims.depth || 0} m`,
-      dimMax < 0.01 || dimMax > 60
-        ? "dimensions look outside game scale"
-        : "",
+      dimMax < 0.01 || dimMax > 60 ? "dimensions look outside game scale" : "",
     ].filter(Boolean),
   });
 
@@ -6918,11 +7019,9 @@ function collectRepairRecords(object, type, report, options = {}) {
       if (
         failed.has("material") &&
         child.material &&
-        !(
-          Array.isArray(child.material)
-            ? child.material.every((mat) => mat?.isMeshStandardMaterial)
-            : child.material.isMeshStandardMaterial
-        )
+        !(Array.isArray(child.material)
+          ? child.material.every((mat) => mat?.isMeshStandardMaterial)
+          : child.material.isMeshStandardMaterial)
       ) {
         ensureRepairMaterial(child);
         materialCount += 1;
@@ -6930,8 +7029,7 @@ function collectRepairRecords(object, type, report, options = {}) {
     });
     if (uvCount) records.push({ code: "uv", count: uvCount });
     if (normalCount) records.push({ code: "normal", count: normalCount });
-    if (materialCount)
-      records.push({ code: "material", count: materialCount });
+    if (materialCount) records.push({ code: "material", count: materialCount });
   }
 
   if (failed.has("budget")) {
@@ -6939,8 +7037,8 @@ function collectRepairRecords(object, type, report, options = {}) {
     const target = Math.max(100, Math.floor(budget * 0.8));
     if (triangles > target) {
       const thresholds = [
-        0.01, 0.02, 0.04, 0.06, 0.1, 0.15, 0.25, 0.4, 0.6, 0.9, 1.4, 2.2,
-        3.2, 4.5,
+        0.01, 0.02, 0.04, 0.06, 0.1, 0.15, 0.25, 0.4, 0.6, 0.9, 1.4, 2.2, 3.2,
+        4.5,
       ];
       let current = triangles;
       for (const threshold of thresholds) {
@@ -7574,9 +7672,7 @@ function normaliseReadiness(readiness) {
       ? Math.max(0, Math.min(100, Math.round(readiness.score)))
       : null,
     fail,
-    fixed: Array.isArray(readiness.fixed)
-      ? readiness.fixed.map(String)
-      : [],
+    fixed: Array.isArray(readiness.fixed) ? readiness.fixed.map(String) : [],
     skipped: Array.isArray(readiness.skipped)
       ? readiness.skipped.map(String)
       : [],

@@ -591,7 +591,8 @@ export default {
   "gen.gameReadyPack": "ゲーム対応パック",
   "gen.gameReadyRepair": "書き出し前に自動修復",
   "gen.gameReadyRunning": "{current}/{total} 個のアセットを準備中",
-  "gen.gameReadyDone": "{ready}/{total} 個がゲーム対応・{fixed} 個を修復・{issues} 個が要対応",
+  "gen.gameReadyDone":
+    "{ready}/{total} 個がゲーム対応・{fixed} 個を修復・{issues} 個が要対応",
   "gen.libraryExport": "ライブラリを書き出す",
   "gen.libraryImport": "ライブラリを読み込む",
   "gen.libraryExported": "{count} 件のアセットを書き出しました",
@@ -613,6 +614,10 @@ export default {
   "gen.variantsSaveAll": "すべて保存",
   "gen.variantsReady": "{count} 個のバリアントを準備しました",
   "gen.variantsEmpty": "一括生成してシード別の候補を比較してください",
+  "gen.variantsPack": "バリアントパックをエクスポート",
+  "gen.variantsPackReady":
+    "{count} 件のバリアントをエンジンパックにまとめました",
+  "gen.variantsPackRunning": "バリアント {current}/{total} を準備中",
   "gen.manifest": "アセットマニフェスト",
   "gen.manifestExport": "マニフェストをエクスポート",
   "gen.manifestFormat": "マニフェスト形式",

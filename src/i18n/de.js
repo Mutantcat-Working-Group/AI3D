@@ -605,7 +605,8 @@ export default {
   "gen.gameReadyPack": "Spielbereites Paket",
   "gen.gameReadyRepair": "Vor Export reparieren",
   "gen.gameReadyRunning": "Bereite {current}/{total} Assets vor",
-  "gen.gameReadyDone": "{ready}/{total} spielbereit · {fixed} repariert · {issues} brauchen Aufmerksamkeit",
+  "gen.gameReadyDone":
+    "{ready}/{total} spielbereit · {fixed} repariert · {issues} brauchen Aufmerksamkeit",
   "gen.libraryExport": "Bibliothek exportieren",
   "gen.libraryImport": "Bibliothek importieren",
   "gen.libraryExported": "{count} Assets exportiert",
@@ -628,6 +629,9 @@ export default {
   "gen.variantsReady": "{count} Varianten bereit",
   "gen.variantsEmpty":
     "Generiere eine Charge, um Seed-Varianten zu vergleichen",
+  "gen.variantsPack": "Variantenpaket exportieren",
+  "gen.variantsPackReady": "{count} Varianten für die Engine gepackt",
+  "gen.variantsPackRunning": "Vorbereiten von Variante {current}/{total}",
   "gen.manifest": "Asset-Manifest",
   "gen.manifestExport": "Manifest exportieren",
   "gen.manifestFormat": "Manifest-Format",

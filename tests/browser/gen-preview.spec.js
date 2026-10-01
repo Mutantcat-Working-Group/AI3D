@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { once } from "node:events";
+import { unzipSync } from "fflate";
 
 const repo = process.cwd(),
   url = "http://127.0.0.1:43179";
@@ -272,10 +273,12 @@ test("the readiness audit lists every game check for the generated asset", async
   const panel = page.locator("#gen-audit-panel");
   await expect(panel).toBeVisible();
   await expect(page.locator("#gen-audit-summary strong")).toHaveText(/\d+%/);
-  await expect(page.locator("#gen-audit-list .gen-audit-check")).toHaveCount(11);
-  await expect(page.locator("#gen-audit-list .gen-audit-check.pass")).toHaveCount(
+  await expect(page.locator("#gen-audit-list .gen-audit-check")).toHaveCount(
     11,
   );
+  await expect(
+    page.locator("#gen-audit-list .gen-audit-check.pass"),
+  ).toHaveCount(11);
   await expect(page.locator("#gen-audit-summary")).toContainText("11 Pass");
 });
 
@@ -442,4 +445,48 @@ test("composed scene props can be edited, reloaded and deleted", async ({
   await page.locator("#gen-prop-y").fill("1.5");
   await page.locator("#gen-prop-y").blur();
   await expect(page.locator("#gen-prop-y")).toHaveValue("1.5");
+});
+
+/* A variant batch is a real game-pipeline batch: one click turns the seed
+   takes into a single engine pack with a per-variant LOD chain, and the zip
+   is the proof rather than another preview screenshot. */
+test("a variant batch exports as one engine pack with LOD files", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator("#gen-prompt").fill("low-poly crate");
+  await page.locator("#gen-variants-generate").click();
+  await expect(page.locator("#gen-variants .gen-variant-card")).toHaveCount(4, {
+    timeout: 20000,
+  });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.locator("#gen-variants-pack").click(),
+  ]);
+  const chunks = [];
+  for await (const chunk of await download.createReadStream())
+    chunks.push(chunk);
+  const files = unzipSync(Buffer.concat(chunks));
+  const manifest = JSON.parse(
+    Buffer.from(files["manifest.json"]).toString("utf8"),
+  );
+
+  expect(manifest.count).toBe(4);
+  expect(manifest.assets[0].lodLevels.map((lod) => lod.level)).toEqual([
+    0, 1, 2, 3,
+  ]);
+  expect(manifest.assets.every((asset) => asset.lodLevels.length === 4)).toBe(
+    true,
+  );
+  const slug = manifest.assets[0].id;
+  for (const level of [0, 1, 2, 3]) {
+    const model = files[`models/${slug}/LOD${level}.glb`];
+    expect(model).toBeDefined();
+    expect(model.length).toBeGreaterThan(0);
+  }
+  await expect(page.locator("#gen-status")).toContainText(/packed/i);
 });

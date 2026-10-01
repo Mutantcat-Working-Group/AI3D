@@ -76,7 +76,11 @@ each one, and save the ones you like to the asset library.
   materials and import metadata rather than pretending to produce native
   `.prefab` / `.meta` / `.uasset`. The pack carries meshes, materials,
   colliders, animation info, a whole-pack triangle / vertex / part / draw-call
-  budget and a manifest with engine-ready names.
+  budget and a manifest with engine-ready names; enabling "Include LOD levels"
+  writes a per-asset 0-3 LOD chain into it.
+- **Variant batches** - up to 12 seeded takes can be packed at once as one
+  engine pack, each with its own thumbnail, collider and 4-level LOD chain,
+  so a whole set of a prop's forms ships in a single download.
 - **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
   and town kits place props deterministically from a seed, exportable as a
   whole scene.
@@ -208,7 +212,7 @@ From a clone, for the full development environment:
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 355 unit and integration tests
-npm run test:browser # 84 real-Chromium tests
+npm run test:browser # 86 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites

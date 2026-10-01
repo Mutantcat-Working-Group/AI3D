@@ -397,6 +397,7 @@ app.innerHTML = `${SPRITE}
         </select>
         <button id="gen-variants-generate" class="quiet">${T("gen.variantsGenerate")}</button>
         <button id="gen-variants-save-all" class="quiet" hidden>${T("gen.variantsSaveAll")}</button>
+        <button id="gen-variants-pack" class="quiet" hidden>${T("gen.variantsPack")}</button>
       </div>
       <div id="gen-variants" class="gen-variants-grid" aria-live="polite"></div>
     </div>
@@ -2974,7 +2975,10 @@ function renderVariantGrid() {
   const container = $("#gen-variants");
   if (!container) return;
   const saveAll = $("#gen-variants-save-all");
-  saveAll.hidden = genState.variants.length === 0;
+  const pack = $("#gen-variants-pack");
+  const hasVariants = genState.variants.length > 0;
+  saveAll.hidden = !hasVariants;
+  pack.hidden = !hasVariants;
   if (genState.variants.length === 0) {
     container.innerHTML = `<div class="gen-library-empty">${t("gen.variantsEmpty")}</div>`;
     return;
@@ -2999,6 +3003,64 @@ function renderVariantGrid() {
   genState.variants.forEach((variant, index) =>
     renderAssetPreview({ ...variant, id: `variant-${index}` }),
   );
+}
+
+async function exportVariantPack() {
+  const variants = genState.variants;
+  if (variants.length === 0) {
+    setGenStatus(t("gen.variantsEmpty"), "warn");
+    return;
+  }
+  const engine = $("#gen-engine")?.value || "unity";
+  const enginePreset = getEnginePresets().find((p) => p.id === engine) || {
+    upAxis: "Y",
+    scale: 1,
+  };
+  const collisionChoice = $("#gen-collision")?.value || "auto";
+  const animationChoice = $("#gen-animation")?.value || "auto";
+  const withLod = $("#gen-export-lod")?.checked ?? false;
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const packAssets = [];
+    for (let i = 0; i < variants.length; i++) {
+      setGenStatus(
+        t("gen.variantsPackRunning", {
+          current: String(i + 1),
+          total: String(variants.length),
+        }),
+        "info",
+      );
+      const { threeObject, ...record } = variants[i];
+      packAssets.push(
+        await buildLibraryPackAsset(
+          {
+            ...record,
+            kind: "asset",
+            id: `${record.type}-${record.seed}`,
+            name: `${record.type} #${record.seed}`,
+          },
+          {
+            engine,
+            enginePreset,
+            collisionChoice,
+            animationChoice,
+            withLod,
+          },
+        ),
+      );
+    }
+    const pack = buildGamePackFiles({ assets: packAssets, engine });
+    downloadBytesAsFile(
+      pack,
+      `ai3d-variants-${new Date().toISOString().slice(0, 10)}.zip`,
+    );
+    setGenStatus(
+      t("gen.variantsPackReady", { count: String(variants.length) }),
+      "ok",
+    );
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  }
 }
 
 function saveVariant(index) {
@@ -3275,9 +3337,7 @@ function renderGenAuditReport(report) {
     const main = document.createElement("div");
     main.className = "gen-audit-check-main";
     const title = document.createElement("strong");
-    title.textContent = t(
-      GEN_AUDIT_LABEL_KEYS[check.id] ?? check.id,
-    );
+    title.textContent = t(GEN_AUDIT_LABEL_KEYS[check.id] ?? check.id);
     const details = document.createElement("small");
     details.textContent = check.details.join(" · ");
     main.append(title, details);
@@ -4028,6 +4088,7 @@ for (const selector of ["#gen-size", "#gen-units", "#gen-fit", "#gen-pivot"]) {
 }
 $("#gen-variants-generate").addEventListener("click", generateVariants);
 $("#gen-variants-save-all").addEventListener("click", saveAllVariants);
+$("#gen-variants-pack").addEventListener("click", exportVariantPack);
 $("#gen-variants").addEventListener("click", (e) => {
   const btn = e.target.closest("button");
   if (btn) {
@@ -4488,9 +4549,9 @@ async function buildLibraryPackAsset(asset, options = {}) {
     animationChoice = "auto",
     audit = false,
     repair = false,
+    withLod = false,
   } = options;
-  const preset =
-    enginePreset ||
+  const preset = enginePreset ||
     getEnginePresets().find((p) => p.id === engine) || {
       upAxis: "Y",
       scale: 1,
@@ -4502,16 +4563,15 @@ async function buildLibraryPackAsset(asset, options = {}) {
     pivot: asset.pivot ?? (isScene ? "ground" : "center"),
     meta: { name: asset.name, tags: asset.tags },
   };
-  const before = audit && !repair ? auditGameAsset(model, type, auditOptions) : null;
+  const before =
+    audit && !repair ? auditGameAsset(model, type, auditOptions) : null;
   const repairResult = repair
     ? repairGameAsset(model, type, auditOptions)
     : null;
   const readiness =
     audit || repairResult
       ? {
-          score: Math.round(
-            (repairResult?.report ?? before).readiness * 100,
-          ),
+          score: Math.round((repairResult?.report ?? before).readiness * 100),
           fail: (repairResult?.report ?? before).summary.fail,
           fixed: repairResult
             ? repairResult.fixed.map((record) => record.code)
@@ -4530,6 +4590,29 @@ async function buildLibraryPackAsset(asset, options = {}) {
   const glbBytes = new Uint8Array(
     await exportGLB(model, { ...preset, animations: selectedAnimations }),
   );
+  let lodLevels = null;
+  if (withLod) {
+    lodLevels = [];
+    for (const lod of generateLOD(model, 4)) {
+      const record = {
+        level: lod.level,
+        triangles: lod.triangles,
+        vertices: lod.vertices,
+        parts: lod.parts,
+        drawCalls: lod.drawCalls,
+      };
+      if (lod.level > 0) {
+        record.glbBytes = new Uint8Array(
+          await exportGLB(lod.mesh, {
+            ...preset,
+            animations: selectedAnimations,
+          }),
+        );
+      }
+      lodLevels.push(record);
+    }
+    lodLevels[0].glbBytes = glbBytes;
+  }
   let collision = null;
   let colliderBytes = null;
   const collisionShape =
@@ -4566,6 +4649,7 @@ async function buildLibraryPackAsset(asset, options = {}) {
       : null,
     stats: getAssetStats(model),
     glbBytes,
+    lodLevels,
     thumbnailBytes,
     animations,
     collision,
@@ -4589,16 +4673,18 @@ async function exportLibraryPack() {
   const animationChoice = $("#gen-animation")?.value || "auto";
   setGenStatus(t("gen.generating"), "info");
   try {
-    const packAssets = await Promise.all(
-      assets.map((asset) =>
-        buildLibraryPackAsset(asset, {
+    const packAssets = [];
+    for (let i = 0; i < assets.length; i++) {
+      packAssets.push(
+        await buildLibraryPackAsset(assets[i], {
           engine,
           enginePreset,
           collisionChoice,
           animationChoice,
+          withLod: $("#gen-export-lod")?.checked ?? false,
         }),
-      ),
-    );
+      );
+    }
     const pack = buildGamePackFiles({ assets: packAssets, engine });
     downloadBytesAsFile(
       pack,
@@ -4650,6 +4736,7 @@ async function exportGameReadyLibraryPack() {
           animationChoice,
           audit: true,
           repair,
+          withLod: $("#gen-export-lod")?.checked ?? false,
         }),
       );
     }
@@ -4684,7 +4771,10 @@ async function dataUrlToBytes(dataUrl) {
 }
 
 $("#gen-library-pack").addEventListener("click", exportLibraryPack);
-$("#gen-library-game-pack").addEventListener("click", exportGameReadyLibraryPack);
+$("#gen-library-game-pack").addEventListener(
+  "click",
+  exportGameReadyLibraryPack,
+);
 
 // --- Asset Library Backup and Restore ---
 /* A library is work, and it lives in browser storage that nobody can hand to a

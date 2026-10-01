@@ -516,10 +516,7 @@ test("riggable assets export a real skinned glTF skeleton", async () => {
       if (node.isBone) boneCount += 1;
       if (!node.isSkinnedMesh) return;
       skinnedCount += 1;
-      assert.ok(
-        node.geometry.attributes.skinIndex,
-        `${type} carries JOINTS_0`,
-      );
+      assert.ok(node.geometry.attributes.skinIndex, `${type} carries JOINTS_0`);
       assert.ok(
         node.geometry.attributes.skinWeight,
         `${type} carries WEIGHTS_0`,
@@ -555,10 +552,15 @@ test("riggable assets export a real skinned glTF skeleton", async () => {
     const json = JSON.parse(
       new TextDecoder().decode(glb.subarray(20, 20 + jsonLength)),
     );
-    assert.ok(Array.isArray(json.skins) && json.skins.length >= 1, `${type} exports skins`);
+    assert.ok(
+      Array.isArray(json.skins) && json.skins.length >= 1,
+      `${type} exports skins`,
+    );
     assert.ok(json.skins[0].joints.length > 4, `${type} exports joints`);
     assert.ok(
-      json.nodes.some((node) => node.mesh !== undefined && node.skin !== undefined),
+      json.nodes.some(
+        (node) => node.mesh !== undefined && node.skin !== undefined,
+      ),
       `${type} binds a mesh to the skin`,
     );
   }
@@ -1843,9 +1845,7 @@ test("auditGameAsset scores a rigged character as ready", () => {
 test("auditGameAsset honours the requested pivot", () => {
   const model = generateAsset("character", { size: 1.4, seed: 7 });
   const centered = auditGameAsset(model, "character", { pivot: "center" });
-  const centeredOrigin = centered.checks.find(
-    (check) => check.id === "origin",
-  );
+  const centeredOrigin = centered.checks.find((check) => check.id === "origin");
   assert.equal(centeredOrigin.status, "pass");
 
   const mistaken = auditGameAsset(model, "character", { pivot: "ground" });
@@ -1975,9 +1975,7 @@ test("repairGameAsset moves a centered model to its ground pivot", () => {
   assert.ok(Math.abs(box.min.y) < 1e-3, "model sits on y=0");
   const boneAfter = rootBone.getWorldPosition(new THREE.Vector3());
   assert.ok(
-    Math.abs(
-      boneAfter.y - boneBefore.y - (box.min.y - boxBefore.min.y),
-    ) < 1e-6,
+    Math.abs(boneAfter.y - boneBefore.y - (box.min.y - boxBefore.min.y)) < 1e-6,
     "meshes and the root bone move once together",
   );
 
