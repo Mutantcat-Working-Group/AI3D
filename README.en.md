@@ -229,7 +229,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 371 unit and integration tests
+npm test             # 372 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -370,6 +370,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   triggers), game packs also emit a design/<scene>.audit.json, the generator
   shows a pass/warn/fail badge, and the eight kits gained the chest, lever,
   gate and urn props their designs referenced.
+- **2.13 (done)** - engine scene blueprints: every scene with design metadata
+  also ships blueprints/<scene>.json, giving each prop's position, heading,
+  bounds and design role (loot container, locked prop) already converted into
+  the target engine's axis and units (Unity/Godot Y-up meters, Unreal Z-up
+  centimeters) so an editor script can place the level directly.
 
 ### 12. Documentation
 
