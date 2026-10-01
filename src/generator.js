@@ -333,6 +333,267 @@ const ANIMATION_PRESETS = {
   boat: ["bob"],
 };
 
+// Asset types whose exports carry a real glTF skeleton instead of transform
+// tracks over named part groups. The rig builds one bone per joint below and
+// re-parents every part mesh as a SkinnedMesh, so engines get deformable
+// characters with human-readable bone names.
+const RIGGABLE_ASSET_TYPES = new Set(["character", "monster", "dragon"]);
+
+/* Each rig joint is a bone in the export skeleton. `at` names the generated
+   mesh used as the joint anchor (its centre is the default joint position);
+   `from`/`offset` override that anchor with a world-space offset so elbows,
+   knees and wing roots land on the actual geometry. `part` names the mesh
+   bound to this joint, and `weightTo` starts a graded vertex influence along
+   the bound mesh so limbs bend at the joint instead of at a hard seam. */
+const RIG_JOINT_DEFS = {
+  character: [
+    { name: "root", parent: null, at: "root" },
+    { name: "hips", parent: "root", at: "legs" },
+    { name: "spine", parent: "hips", at: "body" },
+    { name: "chest", parent: "spine", at: "body", part: "body" },
+    { name: "neck", parent: "chest", at: "head", part: "head" },
+    {
+      name: "leftArm",
+      parent: "chest",
+      from: "body",
+      offset: [-0.45, 0.4, 0],
+      part: "left-arm",
+      weightFrom: "chest",
+      weightTo: "leftElbow",
+    },
+    {
+      name: "leftElbow",
+      parent: "leftArm",
+      from: "left-arm",
+      offset: [0, -0.15, 0],
+      weightTo: "leftHand",
+    },
+    {
+      name: "leftHand",
+      parent: "leftElbow",
+      from: "left-arm",
+      offset: [0, -0.3, 0],
+    },
+    {
+      name: "rightArm",
+      parent: "chest",
+      from: "body",
+      offset: [0.45, 0.4, 0],
+      part: "right-arm",
+      weightFrom: "chest",
+      weightTo: "rightElbow",
+    },
+    {
+      name: "rightElbow",
+      parent: "rightArm",
+      from: "right-arm",
+      offset: [0, -0.15, 0],
+      weightTo: "rightHand",
+    },
+    {
+      name: "rightHand",
+      parent: "rightElbow",
+      from: "right-arm",
+      offset: [0, -0.3, 0],
+    },
+    {
+      name: "leftLeg",
+      parent: "hips",
+      from: "left-leg",
+      offset: [0, 0.3, 0],
+      part: "left-leg",
+      weightFrom: "hips",
+      weightTo: "leftKnee",
+    },
+    {
+      name: "leftKnee",
+      parent: "leftLeg",
+      from: "left-leg",
+      offset: [0, 0.1, 0],
+      weightTo: "leftFoot",
+    },
+    {
+      name: "leftFoot",
+      parent: "leftKnee",
+      from: "left-leg",
+      offset: [0, -0.3, 0],
+    },
+    {
+      name: "rightLeg",
+      parent: "hips",
+      from: "right-leg",
+      offset: [0, 0.3, 0],
+      part: "right-leg",
+      weightFrom: "hips",
+      weightTo: "rightKnee",
+    },
+    {
+      name: "rightKnee",
+      parent: "rightLeg",
+      from: "right-leg",
+      offset: [0, 0.1, 0],
+      weightTo: "rightFoot",
+    },
+    {
+      name: "rightFoot",
+      parent: "rightKnee",
+      from: "right-leg",
+      offset: [0, -0.3, 0],
+    },
+  ],
+  monster: [
+    { name: "root", parent: null, at: "root" },
+    { name: "body", parent: "root", at: "body", part: "body" },
+    { name: "head", parent: "body", at: "head", part: "head" },
+    {
+      name: "leftArm",
+      parent: "body",
+      from: "body",
+      offset: [-0.95, 0.1, 0],
+      part: "left-arm",
+      weightFrom: "body",
+      weightTo: "leftElbow",
+    },
+    {
+      name: "leftElbow",
+      parent: "leftArm",
+      from: "left-arm",
+      offset: [0, -0.175, 0],
+      weightTo: "leftHand",
+    },
+    {
+      name: "leftHand",
+      parent: "leftElbow",
+      from: "left-arm",
+      offset: [0, -0.35, 0],
+    },
+    {
+      name: "rightArm",
+      parent: "body",
+      from: "body",
+      offset: [0.95, 0.1, 0],
+      part: "right-arm",
+      weightFrom: "body",
+      weightTo: "rightElbow",
+    },
+    {
+      name: "rightElbow",
+      parent: "rightArm",
+      from: "right-arm",
+      offset: [0, -0.175, 0],
+      weightTo: "rightHand",
+    },
+    {
+      name: "rightHand",
+      parent: "rightElbow",
+      from: "right-arm",
+      offset: [0, -0.35, 0],
+    },
+    {
+      name: "leftLeg",
+      parent: "body",
+      from: "left-leg",
+      offset: [0, 0.25, 0],
+      part: "left-leg",
+      weightFrom: "body",
+      weightTo: "leftKnee",
+    },
+    {
+      name: "leftKnee",
+      parent: "leftLeg",
+      from: "left-leg",
+      offset: [0, 0.06, 0],
+      weightTo: "leftFoot",
+    },
+    {
+      name: "leftFoot",
+      parent: "leftKnee",
+      from: "left-leg",
+      offset: [0, -0.25, 0],
+    },
+    {
+      name: "rightLeg",
+      parent: "body",
+      from: "right-leg",
+      offset: [0, 0.25, 0],
+      part: "right-leg",
+      weightFrom: "body",
+      weightTo: "rightKnee",
+    },
+    {
+      name: "rightKnee",
+      parent: "rightLeg",
+      from: "right-leg",
+      offset: [0, 0.06, 0],
+      weightTo: "rightFoot",
+    },
+    {
+      name: "rightFoot",
+      parent: "rightKnee",
+      from: "right-leg",
+      offset: [0, -0.25, 0],
+    },
+    { name: "tail", parent: "body", at: "tail", part: "tail" },
+  ],
+  dragon: [
+    { name: "root", parent: null, at: "root" },
+    { name: "body", parent: "root", at: "body", part: "body" },
+    { name: "belly", parent: "body", at: "belly", part: "belly" },
+    { name: "neck", parent: "body", at: "head", part: "head" },
+    {
+      name: "leftWing",
+      parent: "body",
+      from: "body",
+      offset: [-0.95, 0.3, 0],
+      part: "left-wing",
+      weightFrom: "body",
+      weightTo: "leftWingTip",
+    },
+    { name: "leftWingTip", parent: "leftWing", at: "left-wing" },
+    {
+      name: "rightWing",
+      parent: "body",
+      from: "body",
+      offset: [0.95, 0.3, 0],
+      part: "right-wing",
+      weightFrom: "body",
+      weightTo: "rightWingTip",
+    },
+    { name: "rightWingTip", parent: "rightWing", at: "right-wing" },
+    {
+      name: "leftLeg",
+      parent: "body",
+      from: "leg-0",
+      offset: [0, 0.2, 0],
+      part: "leg-0",
+      weightFrom: "body",
+      weightTo: "leftKnee",
+    },
+    {
+      name: "leftKnee",
+      parent: "leftLeg",
+      from: "leg-0",
+      offset: [0, 0.032, 0],
+    },
+    {
+      name: "rightLeg",
+      parent: "body",
+      from: "leg-1",
+      offset: [0, 0.2, 0],
+      part: "leg-1",
+      weightFrom: "body",
+      weightTo: "rightKnee",
+    },
+    {
+      name: "rightKnee",
+      parent: "rightLeg",
+      from: "leg-1",
+      offset: [0, 0.032, 0],
+    },
+    { name: "tail", parent: "body", at: "tail", part: "tail" },
+  ],
+};
+
 /**
  * Get category tags for an asset type.
  * @param {string} type - Asset type key
@@ -349,6 +610,242 @@ export function getAssetTags(type) {
  */
 export function getColliderShape(type) {
   return ASSET_COLLIDERS[type] || "mesh";
+}
+
+/**
+ * Resolve a rig joint's world anchor. `from`/`offset` place the joint at an
+ * explicit world-space offset from a generated part; otherwise the centre of
+ * the `at` mesh is used.
+ */
+function jointAnchorWorld(joint, object) {
+  const anchor = object.getObjectByName(joint.from || joint.at);
+  const world = new THREE.Vector3();
+  if (!anchor) return world;
+  anchor.updateWorldMatrix(true, false);
+  world.setFromMatrixPosition(anchor.matrixWorld);
+  if (joint.offset) {
+    const scale = object.scale.x || 1;
+    world.addScaledVector(new THREE.Vector3(...joint.offset), scale);
+  }
+  return world;
+}
+
+/**
+ * Convert a world-space joint position into a 0..1 fraction along a part
+ * mesh's local Y geometry. Limbs are modelled along their local Y axis, so
+ * this is the coordinate the graded skin weights key off of.
+ */
+function jointLocalYFraction(world, mesh, out = new THREE.Vector3()) {
+  if (!mesh?.isMesh) return 0.5;
+  mesh.updateWorldMatrix(true, false);
+  const inverse = mesh.matrixWorld.clone().invert();
+  out.copy(world).applyMatrix4(inverse);
+  const pos = mesh.geometry.attributes.position;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  if (!Number.isFinite(minY) || maxY - minY < 1e-9) return 0.5;
+  return Math.max(0, Math.min(1, (out.y - minY) / (maxY - minY)));
+}
+
+/**
+ * Build and bind a procedural glTF skeleton for riggable assets. Bone
+ * positions come from the generated geometry, part meshes become
+ * SkinnedMeshes with graded limb weights, and the exported model then carries
+ * a real skin with JOINTS_0/WEIGHTS_0 attributes.
+ * @param {THREE.Group} model - Generated model (already scaled and pivoted)
+ * @param {string} type - Asset type key
+ * @returns {THREE.Skeleton|null} Bound skeleton, or null when not riggable
+ */
+export function buildProceduralRig(model, type) {
+  const defs = RIG_JOINT_DEFS[type];
+  if (!defs || !model?.isObject3D) return null;
+
+  const skeletonGroup = new THREE.Group();
+  skeletonGroup.name = "skeleton";
+  model.add(skeletonGroup);
+
+  const bones = new Map();
+  for (const def of defs) {
+    const bone = new THREE.Bone();
+    bone.name = def.name;
+    bones.set(def.name, bone);
+  }
+
+  // Bone local positions are relative to the parent bone, so resolve world
+  // anchors first, then transform each into its parent's frame.
+  const jointWorld = new Map();
+  model.updateMatrixWorld(true);
+  for (const def of defs) {
+    const world = jointAnchorWorld(def, model);
+    jointWorld.set(def.name, world);
+  }
+  for (const def of defs) {
+    const bone = bones.get(def.name);
+    const parent = def.parent ? bones.get(def.parent) : null;
+    if (parent) {
+      parent.updateWorldMatrix(true, false);
+      bone.position
+        .copy(jointWorld.get(def.name))
+        .applyMatrix4(parent.matrixWorld.clone().invert());
+      parent.add(bone);
+    } else {
+      skeletonGroup.add(bone);
+    }
+  }
+
+  model.updateMatrixWorld(true);
+  const skeleton = new THREE.Skeleton(Array.from(bones.values()));
+  const bindByPart = new Map();
+  for (const def of defs) {
+    if (!def.part) continue;
+    bindByPart.set(def.part, def);
+  }
+
+  const meshes = [];
+  model.traverse((node) => {
+    if (!node.isMesh) return;
+    meshes.push(node);
+  });
+  for (const mesh of meshes) {
+    const def = bindByPart.get(mesh.name);
+    const joint = def ? bones.get(def.name) : null;
+    const skinned = new THREE.SkinnedMesh(
+      mesh.geometry.clone(),
+      mesh.material,
+    );
+    skinned.name = mesh.name;
+    skinned.position.copy(mesh.position);
+    skinned.rotation.copy(mesh.rotation);
+    skinned.scale.copy(mesh.scale);
+    skinned.userData = mesh.userData ? { ...mesh.userData } : {};
+    mesh.parent.add(skinned);
+    mesh.parent.remove(mesh);
+    mesh.geometry.dispose();
+    skinned.bind(skeleton, skinned.matrixWorld.clone());
+    // SkinnedMesh.computeBoundingBox resolves the skin immediately, so every
+    // mesh needs a valid default skin before any measurement runs. The orphan
+    // and chain passes below replace these weights where they apply.
+    const defaultPos = skinned.geometry.attributes.position;
+    const defaultIndex = new Uint16Array(defaultPos.count * 4);
+    const defaultWeight = new Float32Array(defaultPos.count * 4);
+    for (let i = 0; i < defaultPos.count; i++) {
+      defaultIndex[i * 4] = 0;
+      defaultWeight[i * 4] = 1;
+    }
+    skinned.geometry.setAttribute(
+      "skinIndex",
+      new THREE.BufferAttribute(defaultIndex, 4),
+    );
+    skinned.geometry.setAttribute(
+      "skinWeight",
+      new THREE.BufferAttribute(defaultWeight, 4),
+    );
+    if (!joint) {
+      // Bind orphan meshes (eyes, ornaments) to the nearest joint so the
+      // exported skin has no static stragglers.
+      const centre = new THREE.Box3()
+        .setFromObject(skinned)
+        .getCenter(new THREE.Vector3());
+      let nearest = null;
+      let nearestDistance = Infinity;
+      for (const bone of bones.values()) {
+        const distance = centre.distanceToSquared(
+          new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld),
+        );
+        if (distance < nearestDistance) {
+          nearest = bone;
+          nearestDistance = distance;
+        }
+      }
+      const geometry = skinned.geometry;
+      const pos = geometry.attributes.position;
+      const index = skeleton.bones.indexOf(nearest);
+      const skinIndex = new Uint16Array(pos.count * 4);
+      const skinWeight = new Float32Array(pos.count * 4);
+      for (let i = 0; i < pos.count; i++) {
+        skinIndex[i * 4] = index;
+        skinWeight[i * 4] = 1;
+      }
+      geometry.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4));
+      geometry.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4));
+    }
+  }
+
+  // Bind every skinned mesh, then grade weights for the limb chains that
+  // declared weightTo joints. Meshes without a bind keep their full-weight
+  // nearest-joint skin from the pass above.
+  for (const def of defs) {
+    if (!def.part) continue;
+    const skinned = model.getObjectByName(def.part);
+    if (!skinned?.isSkinnedMesh) continue;
+    const chain = [];
+    let cursor = def;
+    while (cursor && !chain.includes(cursor)) {
+      chain.push(cursor);
+      cursor = cursor.weightTo
+        ? defs.find((d) => d.name === cursor.weightTo)
+        : null;
+    }
+    if (chain.length < 2) continue;
+    const stops = chain
+      .map((d) => ({
+        def: d,
+        f: jointLocalYFraction(
+          jointWorld.get(d.name),
+          model.getObjectByName(def.part),
+        ),
+      }))
+      .sort((a, b) => a.f - b.f);
+    const geometry = skinned.geometry;
+    const pos = geometry.attributes.position;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const ySpan = maxY - minY;
+    const skinIndex = new Uint16Array(pos.count * 4);
+    const skinWeight = new Float32Array(pos.count * 4);
+    for (let i = 0; i < pos.count; i++) {
+      let fraction =
+        ySpan < 1e-9 ? 0.5 : (pos.getY(i) - minY) / ySpan;
+      fraction = Math.max(0, Math.min(1, fraction));
+      let index = 0;
+      while (
+        index < stops.length - 2 &&
+        fraction > stops[index + 1].f
+      ) {
+        index++;
+      }
+      const low = stops[index].f;
+      const high = stops[index + 1].f;
+      const t = high === low ? 1 : (fraction - low) / (high - low);
+      const boneA = bones.get(stops[index].def.name);
+      const boneB = bones.get(stops[index + 1].def.name);
+      const idxA = skeleton.bones.indexOf(boneA);
+      const idxB = skeleton.bones.indexOf(boneB);
+      skinIndex[i * 4] = idxA;
+      skinIndex[i * 4 + 1] = idxB;
+      skinWeight[i * 4] = 1 - t;
+      skinWeight[i * 4 + 1] = t;
+    }
+    geometry.setAttribute("skinIndex", new THREE.BufferAttribute(skinIndex, 4));
+    geometry.setAttribute("skinWeight", new THREE.BufferAttribute(skinWeight, 4));
+  }
+
+  model.userData.rig = {
+    type,
+    joints: defs.map((d) => d.name),
+    boneCount: bones.size,
+  };
+  return skeleton;
 }
 
 /**
@@ -426,6 +923,16 @@ function scaleTrack(nodeName, frames, base = new THREE.Vector3(1, 1, 1)) {
 export function buildAssetAnimations(model, type, size = 1) {
   const bob = 0.07 * size;
   const clips = [];
+  const skeletonGroup = model.getObjectByName("skeleton");
+  let skinnedAnchorName = null;
+  if (skeletonGroup) {
+    model.traverse((node) => {
+      if (!skinnedAnchorName && node.isSkinnedMesh) {
+        skinnedAnchorName = node.name;
+      }
+    });
+  }
+  const rigged = !!skeletonGroup && !!skinnedAnchorName;
   const addClip = (name, duration, tracksByNode) => {
     const tracks = [];
     for (const [nodeName, frames] of Object.entries(tracksByNode)) {
@@ -444,8 +951,132 @@ export function buildAssetAnimations(model, type, size = 1) {
     if (tracks.length)
       clips.push(new THREE.AnimationClip(name, duration, tracks));
   };
+  const addRiggedClip = (name, duration, tracksByBone) => {
+    const tracks = [];
+    for (const [boneName, frames] of Object.entries(tracksByBone)) {
+      const bone = skeletonGroup.getObjectByName(boneName);
+      if (!bone) continue;
+      const boundName = `${skinnedAnchorName}.bones[${boneName}]`;
+      if (frames.some((frame) => frame.rot)) {
+        tracks.push(quaternionTrack(boundName, frames, bone.rotation));
+      }
+      if (frames.some((frame) => frame.pos)) {
+        tracks.push(positionTrack(boundName, frames, bone.position));
+      }
+    }
+    if (tracks.length)
+      clips.push(new THREE.AnimationClip(name, duration, tracks));
+  };
 
-  if (type === "character" || type === "monster") {
+  if (rigged && (type === "character" || type === "monster")) {
+    const headBone = type === "character" ? "neck" : "head";
+    const bodyBone = type === "character" ? "hips" : "body";
+    addRiggedClip("idle", 2.4, {
+      [headBone]: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.6, pos: [0, bob, 0] },
+        { t: 1.2, pos: [0, 0, 0] },
+        { t: 1.8, pos: [0, -bob * 0.6, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+      leftArm: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.07] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.07] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+      rightArm: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, -0.07] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, 0.07] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+      [bodyBone]: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.6, pos: [0, bob * 0.4, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.16] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.16] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+    });
+
+    addRiggedClip("walk", 0.8, {
+      leftArm: [
+        { t: 0, rot: [0, 0, 0.35] },
+        { t: 0.4, rot: [0, 0, -0.35] },
+        { t: 0.8, rot: [0, 0, 0.35] },
+      ],
+      rightArm: [
+        { t: 0, rot: [0, 0, -0.35] },
+        { t: 0.4, rot: [0, 0, 0.35] },
+        { t: 0.8, rot: [0, 0, -0.35] },
+      ],
+      leftLeg: [
+        { t: 0, rot: [0.35, 0, 0] },
+        { t: 0.4, rot: [-0.35, 0, 0] },
+        { t: 0.8, rot: [0.35, 0, 0] },
+      ],
+      rightLeg: [
+        { t: 0, rot: [-0.35, 0, 0] },
+        { t: 0.4, rot: [0.35, 0, 0] },
+        { t: 0.8, rot: [-0.35, 0, 0] },
+      ],
+      [bodyBone]: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.4, pos: [0, bob, 0] },
+        { t: 0.8, pos: [0, 0, 0] },
+      ],
+      [headBone]: [
+        { t: 0, rot: [0, 0, 0.05] },
+        { t: 0.4, rot: [0, 0, -0.05] },
+        { t: 0.8, rot: [0, 0, 0.05] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.4, rot: [0, 0, -0.2] },
+        { t: 0.8, rot: [0, 0, 0] },
+      ],
+    });
+
+    addRiggedClip("attack", 1, {
+      leftArm: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.35, rot: [-0.7, 0, 0] },
+        { t: 0.65, rot: [0.9, 0, 0] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+      rightArm: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.35, rot: [-0.7, 0, 0] },
+        { t: 0.65, rot: [0.9, 0, 0] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+      [headBone]: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.35, rot: [0.12, 0, 0] },
+        { t: 0.65, rot: [-0.18, 0, 0] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+      [bodyBone]: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.35, pos: [0, 0, -0.05 * size] },
+        { t: 0.65, pos: [0, 0, 0.08 * size] },
+        { t: 1, pos: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.65, rot: [0, 0, -0.3] },
+        { t: 1, rot: [0, 0, 0] },
+      ],
+    });
+  } else if (type === "character" || type === "monster") {
     addClip("idle", 2.4, {
       head: [
         { t: 0, pos: [0, 0, 0] },
@@ -530,7 +1161,85 @@ export function buildAssetAnimations(model, type, size = 1) {
     });
   }
 
-  if (type === "dragon") {
+  if (rigged && type === "dragon") {
+    addRiggedClip("idle", 2.4, {
+      neck: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.6, pos: [0, bob, 0] },
+        { t: 2.4, pos: [0, 0, 0] },
+      ],
+      leftWing: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.08] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.08] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+      rightWing: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, -0.08] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, 0.08] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.6, rot: [0, 0, 0.18] },
+        { t: 1.2, rot: [0, 0, 0] },
+        { t: 1.8, rot: [0, 0, -0.18] },
+        { t: 2.4, rot: [0, 0, 0] },
+      ],
+    });
+
+    addRiggedClip("fly", 2, {
+      leftWing: [
+        { t: 0, rot: [0, 0, 0.55] },
+        { t: 1, rot: [0, 0, -0.55] },
+        { t: 2, rot: [0, 0, 0.55] },
+      ],
+      rightWing: [
+        { t: 0, rot: [0, 0, -0.55] },
+        { t: 1, rot: [0, 0, 0.55] },
+        { t: 2, rot: [0, 0, -0.55] },
+      ],
+      body: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 1, pos: [0, 0.05 * size, 0] },
+        { t: 2, pos: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 1, rot: [0, 0, -0.2] },
+        { t: 2, rot: [0, 0, 0] },
+      ],
+    });
+
+    addRiggedClip("attack", 1.2, {
+      neck: [
+        { t: 0, pos: [0, 0, 0] },
+        { t: 0.45, pos: [0, 0, -0.08 * size] },
+        { t: 0.8, pos: [0, 0, 0.14 * size] },
+        { t: 1.2, pos: [0, 0, 0] },
+      ],
+      leftWing: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.45, rot: [0, 0, 0.4] },
+        { t: 0.8, rot: [0, 0, -0.25] },
+        { t: 1.2, rot: [0, 0, 0] },
+      ],
+      rightWing: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.45, rot: [0, 0, -0.4] },
+        { t: 0.8, rot: [0, 0, 0.25] },
+        { t: 1.2, rot: [0, 0, 0] },
+      ],
+      tail: [
+        { t: 0, rot: [0, 0, 0] },
+        { t: 0.8, rot: [0, 0, -0.3] },
+        { t: 1.2, rot: [0, 0, 0] },
+      ],
+    });
+  } else if (type === "dragon") {
     addClip("idle", 2.4, {
       head: [
         { t: 0, pos: [0, 0, 0] },
@@ -1124,6 +1833,9 @@ export function generateAsset(
   }
   const scaledBox = new THREE.Box3().setFromObject(group);
   group.position.add(pivotOffset(scaledBox, pivot));
+  if (RIGGABLE_ASSET_TYPES.has(type)) {
+    buildProceduralRig(group, type);
+  }
   // Engine import reads these, and a reviewer can see the real span without
   // re-measuring the mesh.
   const finalSize = new THREE.Box3()
@@ -4414,6 +5126,29 @@ export function cloneModelDeep(object) {
       child.geometry = child.geometry.clone();
     }
   });
+  const clonedBones = new Map();
+  clone.traverse((child) => {
+    if (child.isBone) clonedBones.set(child.name, child);
+  });
+  const sourceMeshes = [];
+  object.traverse((child) => {
+    if (child.isSkinnedMesh) sourceMeshes.push(child);
+  });
+  const clonedMeshes = [];
+  clone.traverse((child) => {
+    if (child.isSkinnedMesh) clonedMeshes.push(child);
+  });
+  for (let i = 0; i < sourceMeshes.length; i++) {
+    const source = sourceMeshes[i];
+    const skinned = clonedMeshes[i];
+    if (!source?.skeleton || !skinned) continue;
+    const bones = source.skeleton.bones
+      .map((bone) => clonedBones.get(bone.name))
+      .filter(Boolean);
+    if (bones.length) {
+      skinned.bind(new THREE.Skeleton(bones), source.bindMatrix.clone());
+    }
+  }
   return clone;
 }
 

@@ -498,6 +498,69 @@ test("glTF export writes one portable JSON scene with embedded resources", async
   assert.match(gltf.buffers[0].uri, /^data:/);
 });
 
+test("riggable assets export a real skinned glTF skeleton", async () => {
+  for (const type of ["character", "monster", "dragon"]) {
+    const model = generateAsset(type, {
+      size: 1.2,
+      seed: 7,
+      segments: 10,
+    });
+    assert.equal(model.userData.rig?.type, type);
+
+    let boneCount = 0;
+    let skinnedCount = 0;
+    model.traverse((node) => {
+      if (node.isBone) boneCount += 1;
+      if (!node.isSkinnedMesh) return;
+      skinnedCount += 1;
+      assert.ok(
+        node.geometry.attributes.skinIndex,
+        `${type} carries JOINTS_0`,
+      );
+      assert.ok(
+        node.geometry.attributes.skinWeight,
+        `${type} carries WEIGHTS_0`,
+      );
+    });
+    assert.ok(boneCount > 4, `${type} builds a bone chain`);
+    assert.ok(skinnedCount >= 5, `${type} converts parts to skinned meshes`);
+
+    const clone = cloneModelDeep(model);
+    let cloneSkinned = 0;
+    clone.traverse((node) => {
+      if (node.isSkinnedMesh) {
+        cloneSkinned += 1;
+        assert.ok(node.skeleton, `${type} clone keeps its skeleton`);
+      }
+    });
+    assert.equal(cloneSkinned, skinnedCount);
+
+    for (const clip of model.animations || []) {
+      for (const track of clip.tracks) {
+        assert.match(
+          track.name,
+          /\.bones\[[^\]]+\]\.(quaternion|position)$/,
+          `${type} animates skeleton bones`,
+        );
+      }
+    }
+
+    const raw = await exportGLB(model, { upAxis: "Y", scale: 1 });
+    const glb = new Uint8Array(raw);
+    const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
+    const jsonLength = view.getUint32(12, true);
+    const json = JSON.parse(
+      new TextDecoder().decode(glb.subarray(20, 20 + jsonLength)),
+    );
+    assert.ok(Array.isArray(json.skins) && json.skins.length >= 1, `${type} exports skins`);
+    assert.ok(json.skins[0].joints.length > 4, `${type} exports joints`);
+    assert.ok(
+      json.nodes.some((node) => node.mesh !== undefined && node.skin !== undefined),
+      `${type} binds a mesh to the skin`,
+    );
+  }
+});
+
 test("custom color lands on every asset type", () => {
   for (const type of getAssetTypes()) {
     const model = generateAsset(type, {
