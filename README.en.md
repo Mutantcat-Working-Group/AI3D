@@ -229,7 +229,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 355 unit and integration tests
+npm test             # 367 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
