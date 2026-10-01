@@ -14,6 +14,7 @@ import {
   getAssetLayoutInfo,
   buildAnchoredModel,
   auditGameAsset,
+  repairGameAsset,
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
@@ -1786,4 +1787,138 @@ test("generateLOD keeps skin attributes on rigged levels", () => {
     });
     assert.ok(skinned >= 1, `LOD ${index + 1} keeps skinned meshes`);
   }
+});
+
+function breakMeshRepairTargets(model) {
+  model.traverse((child) => {
+    if (!child.isMesh) return;
+    child.geometry.deleteAttribute("uv");
+    child.material = new THREE.MeshBasicMaterial({
+      color: child.material?.color || 0x888888,
+    });
+  });
+}
+
+function findRepairCode(result, code) {
+  return result.fixed.find((record) => record.code === code);
+}
+
+test("repairGameAsset regenerates UVs and upgrades basic materials", () => {
+  const model = generateAsset("sword", { size: 1, seed: 7 });
+  breakMeshRepairTargets(model);
+  const before = auditGameAsset(model, "sword", { pivot: "center" });
+  const uvBefore = before.checks.find((check) => check.id === "uv");
+  const materialBefore = before.checks.find((check) => check.id === "material");
+  assert.equal(uvBefore.status, "fail");
+  assert.equal(materialBefore.status, "fail");
+
+  const result = repairGameAsset(model, "sword", { pivot: "center" });
+  const after = result.report;
+  const uvAfter = after.checks.find((check) => check.id === "uv");
+  const materialAfter = after.checks.find((check) => check.id === "material");
+  assert.ok(findRepairCode(result, "uv"), "uv repair is reported");
+  assert.ok(findRepairCode(result, "material"), "material repair is reported");
+  assert.equal(uvAfter.status, "pass");
+  assert.equal(materialAfter.status, "pass");
+  assert.ok(after.summary.fail === 0);
+});
+
+test("repairGameAsset leaves a healthy prop untouched", () => {
+  const model = generateAsset("rock", { size: 2, seed: 7 });
+  const beforeStats = getAssetStats(model);
+
+  const result = repairGameAsset(model, "rock", { pivot: "center" });
+  assert.equal(result.fixed.length, 0, "no repair is forced onto a ready prop");
+  assert.deepEqual(
+    getAssetStats(model),
+    beforeStats,
+    "budget and mesh data stay untouched",
+  );
+  let colliderCount = 0;
+  model.traverse((child) => {
+    if (child.name === "AI3D-Collider") colliderCount += 1;
+  });
+  assert.equal(colliderCount, 0, "no duplicate collider is attached");
+  assert.equal(result.report.summary.fail, 0);
+});
+
+test("repairGameAsset reports regenerate skips for missing game structure", () => {
+  const model = generateAsset("character", { size: 1.4, seed: 7 });
+  const skeleton = model.getObjectByName("skeleton");
+  skeleton.parent.remove(skeleton);
+
+  const result = repairGameAsset(model, "character", { pivot: "ground" });
+  assert.ok(
+    result.skipped.some((record) => record.detail === "rig"),
+    "a missing skeleton is reported as a regenerate skip",
+  );
+  assert.ok(
+    !result.fixed.some((record) => record.code === "rig"),
+    "structure is never faked by the repair pass",
+  );
+  const rigAfter = result.report.checks.find((check) => check.id === "rig");
+  assert.equal(rigAfter.status, "fail");
+});
+
+test("repairGameAsset moves a centered model to its ground pivot", () => {
+  const model = generateAsset("character", { size: 1.4, seed: 7 });
+  const before = auditGameAsset(model, "character", { pivot: "ground" });
+  const originBefore = before.checks.find((check) => check.id === "origin");
+  assert.equal(originBefore.status, "fail");
+  let rootBone;
+  model.traverse((child) => {
+    if (child.isBone && child.name === "root") rootBone = child;
+  });
+  assert.ok(rootBone, "rigged characters carry a root bone");
+  const boneBefore = rootBone.getWorldPosition(new THREE.Vector3());
+  const boxBefore = new THREE.Box3().setFromObject(model);
+
+  const result = repairGameAsset(model, "character", { pivot: "ground" });
+  assert.ok(findRepairCode(result, "origin"), "origin repair is reported");
+  const originAfter = result.report.checks.find(
+    (check) => check.id === "origin",
+  );
+  assert.equal(originAfter.status, "pass");
+  const box = new THREE.Box3().setFromObject(model);
+  assert.ok(Math.abs(box.min.y) < 1e-3, "model sits on y=0");
+  const boneAfter = rootBone.getWorldPosition(new THREE.Vector3());
+  assert.ok(
+    Math.abs(
+      boneAfter.y - boneBefore.y - (box.min.y - boxBefore.min.y),
+    ) < 1e-6,
+    "meshes and the root bone move once together",
+  );
+
+  const second = repairGameAsset(model, "character", { pivot: "ground" });
+  assert.ok(
+    !findRepairCode(second, "origin"),
+    "a second repair does not shift the root again",
+  );
+  const boxTwice = new THREE.Box3().setFromObject(model);
+  assert.ok(
+    Math.abs(boxTwice.min.y - box.min.y) < 1e-9,
+    "the pivot stays put after a repeated repair",
+  );
+});
+
+test("repairGameAsset reduces triangles when the budget fails", () => {
+  const model = generateAsset("sword", {
+    size: 0.12,
+    seed: 7,
+    segments: 32,
+  });
+  const beforeTriangles = countTriangles(model);
+  const before = auditGameAsset(model, "sword", { pivot: "center" });
+  const budgetBefore = before.checks.find((check) => check.id === "budget");
+  assert.equal(budgetBefore.status, "fail");
+
+  const result = repairGameAsset(model, "sword", { pivot: "center" });
+  assert.ok(findRepairCode(result, "budget"), "budget repair is reported");
+  const budgetAfter = result.report.checks.find(
+    (check) => check.id === "budget",
+  );
+  assert.ok(budgetAfter.status !== "fail");
+  assert.ok(countTriangles(model) < beforeTriangles);
+  const uvAfter = result.report.checks.find((check) => check.id === "uv");
+  assert.equal(uvAfter.status, "pass", "decimation keeps the UV mapping");
 });

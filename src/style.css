@@ -2462,6 +2462,14 @@ dialog .muted {
 .gen-audit-blocked {
   color: var(--error-ink);
 }
+.gen-audit-panel > button.quiet {
+  align-self: flex-start;
+}
+.gen-audit-notes {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
 .gen-audit-list {
   display: flex;
   flex-direction: column;

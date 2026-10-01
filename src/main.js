@@ -57,6 +57,7 @@ import {
   buildAnchoredModel,
   getAssetTags,
   auditGameAsset,
+  repairGameAsset,
   getColliderShape,
   computeCollider,
   buildColliderModel,
@@ -428,6 +429,8 @@ app.innerHTML = `${SPRITE}
     <div class="gen-audit-panel" id="gen-audit-panel" hidden>
       <div class="gen-settings-title">${T("gen.audit")}</div>
       <div id="gen-audit-summary" class="gen-audit-summary"></div>
+      <button id="gen-audit-repair" class="quiet">${T("gen.auditRepair")}</button>
+      <div id="gen-audit-notes" class="gen-audit-notes" aria-live="polite"></div>
       <div id="gen-audit-list" class="gen-audit-list"></div>
     </div>
     <div class="gen-optimize-panel" id="gen-optimize-panel" hidden>
@@ -3211,9 +3214,11 @@ const GEN_AUDIT_LABEL_KEYS = {
 function renderGenAuditReport(report) {
   const summary = $("#gen-audit-summary");
   const list = $("#gen-audit-list");
+  const notes = $("#gen-audit-notes");
   if (!summary || !list) return;
   summary.replaceChildren();
   list.replaceChildren();
+  if (notes) notes.replaceChildren();
 
   const percent = Math.round(report.readiness * 100);
   const header = document.createElement("div");
@@ -3293,6 +3298,69 @@ function runGenAudit() {
   });
   renderGenAuditReport(report);
   setGenAuditPanel(true);
+}
+
+const GEN_AUDIT_NOTE_KEYS = {
+  uv: "gen.auditRepaired.uv",
+  normal: "gen.auditRepaired.normal",
+  material: "gen.auditRepaired.material",
+  budget: "gen.auditRepaired.budget",
+  lod: "gen.auditRepaired.lod",
+  origin: "gen.auditRepaired.origin",
+  collider: "gen.auditRepaired.collider",
+};
+
+function renderGenAuditNotes(result) {
+  const notes = $("#gen-audit-notes");
+  if (!notes) return;
+  notes.replaceChildren();
+  if (result.fixed.length === 0 && result.skipped.length === 0) {
+    notes.textContent = t("gen.auditRepairNone");
+    return;
+  }
+  const parts = [];
+  for (const record of result.fixed) {
+    const key = GEN_AUDIT_NOTE_KEYS[record.code];
+    if (!key) continue;
+    parts.push(t(key, { count: String(record.count ?? 1) }));
+  }
+  for (const record of result.skipped) {
+    const label = GEN_AUDIT_LABEL_KEYS[record.detail];
+    parts.push(
+      t("gen.auditRepairSkip", {
+        check: label ? t(label) : record.detail,
+      }),
+    );
+  }
+  if (parts.length) notes.textContent = parts.join(" · ");
+}
+
+function repairGenModel() {
+  if (!genState.model || !genState.model.threeObject) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  const type = genState.model.kind === "scene" ? "scene" : genState.model.type;
+  const pivot =
+    genState.model.pivot ??
+    (genState.model.kind === "scene" ? "ground" : "center");
+  const result = repairGameAsset(genState.model.threeObject, type, {
+    pivot,
+    meta: { name: genState.model.name, tags: genState.model.tags },
+  });
+  genState.originalModel = cloneModelDeep(genState.model.threeObject);
+  genState.lods = [];
+  genState.activeLod = 0;
+  renderGenAuditNotes(result);
+  renderGenAuditReport(result.report);
+  setGenAuditPanel(true);
+  refreshGenOptimizePanel();
+  syncGenPreview();
+  const count = countTriangles(genState.model.threeObject);
+  setGenStatus(
+    `${t("gen.auditRepair")} (${count} ${t("gen.triangles")})`,
+    result.report.summary.fail === 0 ? "ok" : "warn",
+  );
 }
 
 function refreshGenOptimizePanel() {
@@ -3929,6 +3997,7 @@ $("#gen-prompt").addEventListener("input", renderPromptHint);
 $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
 $("#gen-audit").addEventListener("click", runGenAudit);
+$("#gen-audit-repair").addEventListener("click", repairGenModel);
 $("#gen-decimate").addEventListener("click", decimateGenModel);
 $("#gen-lod").addEventListener("click", buildGenLods);
 $("#gen-restore").addEventListener("click", restoreGenModel);

@@ -5215,10 +5215,19 @@ export function decimateMesh(mesh, threshold = 0.1) {
   if (kept.length) next.setIndex(kept);
   if (!normal) next.computeVertexNormals();
 
-  // A decimated level of a skinned mesh must keep its skin attributes or the
-  // imported LOD would stop deforming. Representative vertices keep the skin
-  // of the first original vertex in their cluster.
-  for (const name of ["skinIndex", "skinWeight", "joints0", "weights0"]) {
+  // Decimated geometry keeps the mapped attributes a game import needs. Skin
+  // data keeps the imported LOD deforming, and UVs (plus optional color/UV2)
+  // keep the material mapping intact when this mesh becomes the main model
+  // after a budget repair instead of a separate LOD level.
+  for (const name of [
+    "uv",
+    "uv1",
+    "color",
+    "skinIndex",
+    "skinWeight",
+    "joints0",
+    "weights0",
+  ]) {
     const source = geometry.attributes[name];
     if (!source) continue;
     const itemSize = source.itemSize || 1;
@@ -6793,6 +6802,268 @@ export function auditGameAsset(object, type, options = {}) {
     },
     readiness: Math.round(readiness * 100) / 100,
   };
+}
+
+/* The repair pass only touches things an editor can fix mechanically: UV and
+   normal data, material class, triangle budget, the LOD chain, the pivot and
+   the physics proxy. Missing parts, animation clips and a skeleton are output
+   of the generator itself, so the repair report says regenerate instead of
+   pretending geometry can conjure them. */
+const REPAIR_SKIP_PREFIX = "regenerate-asset";
+
+function repairBudgetFor(object) {
+  const stats = getAssetStats(object);
+  const longest =
+    stats.dimensions &&
+    Math.max(
+      stats.dimensions.width,
+      stats.dimensions.height,
+      stats.dimensions.depth,
+    );
+  let budget = AUDIT_BUDGETS[0]?.maxTriangles || 1800;
+  if (Number.isFinite(longest)) {
+    for (const entry of AUDIT_BUDGETS) {
+      if (longest <= entry.max) {
+        budget = entry.maxTriangles;
+        break;
+      }
+      budget = AUDIT_MAX_TRIANGLES;
+    }
+  }
+  return { budget, triangles: stats.triangles };
+}
+
+function ensureRepairNormals(mesh) {
+  const geometry = mesh.geometry;
+  if (!geometry?.attributes.position) return;
+  if (!geometry.attributes.normal) geometry.computeVertexNormals();
+}
+
+function ensureRepairUvs(mesh) {
+  const geometry = mesh.geometry;
+  if (!geometry?.attributes.position) return;
+  if (geometry.attributes.uv) return;
+  const position = geometry.attributes.position;
+  if (!geometry.attributes.normal) geometry.computeVertexNormals();
+  const normal = geometry.attributes.normal;
+  const count = position.count;
+  const uv = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    const nx = normal.getX(i);
+    const ny = normal.getY(i);
+    const nz = normal.getZ(i);
+    const x = position.getX(i);
+    const y = position.getY(i);
+    const z = position.getZ(i);
+    const abs = [Math.abs(nx), Math.abs(ny), Math.abs(nz)];
+    let u;
+    let v;
+    if (abs[0] >= abs[1] && abs[0] >= abs[2]) {
+      u = z;
+      v = y;
+    } else if (abs[1] >= abs[2]) {
+      u = x;
+      v = z;
+    } else {
+      u = x;
+      v = y;
+    }
+    uv[i * 2] = u;
+    uv[i * 2 + 1] = v;
+  }
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+}
+
+function ensureRepairMaterial(mesh) {
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (let i = 0; i < mats.length; i++) {
+    const mat = mats[i];
+    if (!mat || mat.isMeshStandardMaterial) continue;
+    const next = new THREE.MeshStandardMaterial({
+      color: mat.color || 0x888888,
+      roughness: mat.roughness ?? 0.85,
+      metalness: mat.metalness ?? 0,
+      transparent: !!mat.transparent,
+      opacity: mat.opacity ?? 1,
+      emissive: mat.emissive ?? 0x000000,
+    });
+    next.name = mat.name;
+    next.userData.repairedMaterial = true;
+    if (Array.isArray(mesh.material)) mesh.material[i] = next;
+    else mesh.material = next;
+  }
+}
+
+function collectRepairRecords(object, type, report, options = {}) {
+  const failed = new Set(
+    report.checks
+      .filter((check) => check.status === "fail")
+      .map((check) => check.id),
+  );
+  const records = [];
+
+  if (failed.has("uv") || failed.has("material")) {
+    let uvCount = 0;
+    let normalCount = 0;
+    let materialCount = 0;
+    object.traverse((child) => {
+      if (!child.isMesh) return;
+      if (!child.geometry?.attributes.uv) {
+        ensureRepairUvs(child);
+        uvCount += 1;
+      } else if (!child.geometry.attributes.normal) {
+        ensureRepairNormals(child);
+        normalCount += 1;
+      }
+      if (
+        failed.has("material") &&
+        child.material &&
+        !(
+          Array.isArray(child.material)
+            ? child.material.every((mat) => mat?.isMeshStandardMaterial)
+            : child.material.isMeshStandardMaterial
+        )
+      ) {
+        ensureRepairMaterial(child);
+        materialCount += 1;
+      }
+    });
+    if (uvCount) records.push({ code: "uv", count: uvCount });
+    if (normalCount) records.push({ code: "normal", count: normalCount });
+    if (materialCount)
+      records.push({ code: "material", count: materialCount });
+  }
+
+  if (failed.has("budget")) {
+    const { budget, triangles } = repairBudgetFor(object);
+    const target = Math.max(100, Math.floor(budget * 0.8));
+    if (triangles > target) {
+      const thresholds = [
+        0.01, 0.02, 0.04, 0.06, 0.1, 0.15, 0.25, 0.4, 0.6, 0.9, 1.4, 2.2,
+        3.2, 4.5,
+      ];
+      let current = triangles;
+      for (const threshold of thresholds) {
+        if (current <= target) break;
+        object.traverse((child) => {
+          if (child.isMesh) decimateMesh(child, threshold);
+        });
+        current = getAssetStats(object).triangles;
+      }
+      records.push({
+        code: "budget",
+        count: 1,
+        detail: `${triangles}->${current} / ${budget}`,
+      });
+    }
+  }
+
+  if (failed.has("lod") && type !== "scene") {
+    const levels = generateLOD(object, 4);
+    if (levels.length >= 2) {
+      object.userData.lods = levels;
+      records.push({ code: "lod", count: levels.length });
+    }
+  }
+
+  if (failed.has("origin")) {
+    const groundPivot =
+      options.pivot != null
+        ? options.pivot === "ground" || options.pivot === "bottom"
+        : AUDIT_GROUND_TYPES.has(type);
+    const pivot = options.pivot || (groundPivot ? "ground" : "center");
+    // Measure the anchor the pivot requests, then move the root by exactly the
+    // world-space correction needed to land it on the origin. The correction is
+    // re-derived from the box on every call, so a second repair of the same
+    // model is a no-op instead of shifting the root twice.
+    object.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+    const anchor =
+      pivot === "ground" || pivot === "bottom"
+        ? new THREE.Vector3(center.x, box.min.y, center.z)
+        : pivot === "top"
+          ? new THREE.Vector3(center.x, box.max.y, center.z)
+          : center;
+    const correction = anchor.clone().negate();
+    if (object.parent) {
+      object.parent.updateWorldMatrix(true, false);
+      correction.applyMatrix4(object.parent.matrixWorld.clone().invert());
+    }
+    object.position.copy(object.position).add(correction);
+    object.updateMatrixWorld(true);
+    records.push({ code: "origin", count: 1 });
+  }
+
+  if (failed.has("collision") && type !== "scene") {
+    const shape = getColliderShape(type);
+    if (shape && shape !== "mesh" && shape !== "none") {
+      const collider = computeCollider(object, shape);
+      if (collider?.shape !== "mesh" && collider?.shape !== "none") {
+        const group = buildColliderModel(collider);
+        if (group) {
+          object.add(group);
+          records.push({ code: "collider", count: 1, detail: collider.shape });
+        }
+      }
+    }
+  }
+
+  for (const check of report.checks) {
+    if (records.some((record) => record.code === check.id)) continue;
+    if (check.status === "fail" && check.id !== "mesh") {
+      records.push({ code: REPAIR_SKIP_PREFIX, count: 1, detail: check.id });
+    }
+  }
+  return records;
+}
+
+/**
+ * Apply mechanical game-readiness fixes to a model and report what changed.
+ * The audit decides what is broken; this pass only fixes UV/normal data,
+ * material class, poly budget, LOD chain, pivot and collision proxy. Missing
+ * parts, animation clips and a skeleton are generator output, so they are
+ * reported as "regenerate-asset" skips instead of fake fixes.
+ * @param {THREE.Object3D} object - Model to repair in place
+ * @param {string} type - Asset type key (or "scene")
+ * @param {object} [options] - Same pivot/partNames/meta as auditGameAsset
+ * @returns {object} { fixed, skipped, report, notes }
+ */
+export function repairGameAsset(object, type, options = {}) {
+  if (!object?.isObject3D) {
+    return {
+      fixed: [],
+      skipped: [{ code: REPAIR_SKIP_PREFIX, detail: "mesh" }],
+      report: auditGameAsset(object, type, options),
+      notes: [],
+    };
+  }
+  const report = auditGameAsset(object, type, options);
+  const records = collectRepairRecords(object, type, report, options);
+  const fixed = records.filter((record) => record.code !== REPAIR_SKIP_PREFIX);
+  const skipped = records.filter(
+    (record) => record.code === REPAIR_SKIP_PREFIX,
+  );
+  const reportAfter = auditGameAsset(object, type, {
+    ...options,
+    lodLevels:
+      Array.isArray(object.userData?.lods) && object.userData.lods.length > 1
+        ? object.userData.lods
+        : undefined,
+  });
+  const notes = [
+    ...fixed.map((record) =>
+      [
+        record.code,
+        ...(record.count != null ? [`${record.count}`] : []),
+        ...(record.detail != null ? [`${record.detail}`] : []),
+      ].join(":"),
+    ),
+    ...skipped.map((record) =>
+      ["skipped", record.detail].filter(Boolean).join(":"),
+    ),
+  ];
+  return { fixed, skipped, report: reportAfter, notes };
 }
 
 /* A convex hull only needs the extremes of a mesh, so a dense model is thinned
