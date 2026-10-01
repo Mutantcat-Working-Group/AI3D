@@ -24,7 +24,7 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-58 built-in game asset templates, each with sensible part names, tags and
+64 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                    |
@@ -32,7 +32,7 @@ collider presets:
 | Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                             |
 | Creatures | character, monster, dragon                                                                                                |
 | Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain                                                   |
-| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra |
+| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern |
 | Vehicles  | car, boat, plane, bike, wagon                                                                                             |
 | Sci-fi    | turret, drone, comm antenna                                                                                               |
 
@@ -320,6 +320,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
 - **2.4 (done)** - more game asset templates: gate, wagon, cannon, grave,
   ladder and candelabra, with type-specific tags, collider presets and default
   PBR textures.
+- **2.5 (done)** - common prop templates: anvil, bookshelf, cauldron, throne,
+  bench and lantern, covering the forging, furniture, cooking and lighting
+  props that show up most often in public white-model packs, with type-specific
+  tags, collider presets and default PBR textures.
 
 ### 12. Documentation
 

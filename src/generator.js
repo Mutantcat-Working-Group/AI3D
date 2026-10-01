@@ -43,6 +43,12 @@ const ASSET_TYPES = {
     name: "Candelabra",
     parts: ["base", "stem", "arms", "candles"],
   },
+  anvil: { name: "Anvil", parts: ["base", "body", "horn", "face"] },
+  bookshelf: { name: "Bookshelf", parts: ["frame", "shelves", "books"] },
+  cauldron: { name: "Cauldron", parts: ["pot", "legs", "rim", "handles"] },
+  throne: { name: "Throne", parts: ["seat", "back", "arms", "base"] },
+  bench: { name: "Bench", parts: ["seat", "legs", "backrest"] },
+  lantern: { name: "Lantern", parts: ["frame", "glass", "candle", "hook"] },
   fountain: {
     name: "Fountain",
     parts: ["basin", "water", "pillar", "bowl", "jet"],
@@ -111,6 +117,12 @@ const ASSET_TAGS = {
   grave: ["item", "decoration", "outdoor"],
   ladder: ["item", "tool", "structure", "outdoor"],
   candelabra: ["item", "light", "decoration", "indoor"],
+  anvil: ["item", "tool", "forge", "metal"],
+  bookshelf: ["item", "furniture", "indoor", "wood"],
+  cauldron: ["item", "container", "cooking", "metal"],
+  throne: ["item", "furniture", "decoration", "indoor"],
+  bench: ["item", "furniture", "outdoor", "wood"],
+  lantern: ["item", "light", "decoration", "indoor"],
   car: ["vehicle", "transport", "outdoor"],
   character: ["creature", "character", "animated"],
   cube: ["primitive", "basic", "indoor"],
@@ -294,6 +306,12 @@ const ASSET_COLLIDERS = {
   grave: "box",
   ladder: "box",
   candelabra: "cylinder",
+  anvil: "box",
+  bookshelf: "box",
+  cauldron: "cylinder",
+  throne: "box",
+  bench: "box",
+  lantern: "cylinder",
   fountain: "box",
   brazier: "cylinder",
   runestone: "box",
@@ -340,6 +358,7 @@ const ANIMATION_PRESETS = {
   campfire: ["flicker"],
   torch: ["flicker"],
   brazier: ["flicker"],
+  lantern: ["flicker"],
   flag: ["wave"],
   fountain: ["flow"],
   car: ["spin"],
@@ -1346,7 +1365,12 @@ export function buildAssetAnimations(model, type, size = 1) {
     });
   }
 
-  if (type === "campfire" || type === "torch" || type === "brazier") {
+  if (
+    type === "campfire" ||
+    type === "torch" ||
+    type === "brazier" ||
+    type === "lantern"
+  ) {
     addClip("flicker", 1.6, {
       flame: [
         { t: 0, pos: [0, 0, 0], scale: [1, 1, 1] },
@@ -1748,6 +1772,24 @@ export function generateAsset(
       break;
     case "candelabra":
       buildCandelabra(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "anvil":
+      buildAnvil(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bookshelf":
+      buildBookshelf(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "cauldron":
+      buildCauldron(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "throne":
+      buildThrone(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bench":
+      buildBench(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "lantern":
+      buildLantern(group, size, segments, matStyle, customColor, rng);
       break;
     case "bridge":
       buildBridge(group, size, segments, matStyle, customColor, rng);
@@ -4629,6 +4671,403 @@ function buildCandelabra(
   group.add(candles);
 }
 
+function buildAnvil(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const ironMat = createMaterial(customColor || 0x455a64, style);
+  const darkMat = createMaterial(0x37474f, style);
+
+  const baseGeo = new THREE.BoxGeometry(0.9 * size, 0.18 * size, 0.48 * size);
+  const base = new THREE.Mesh(baseGeo, darkMat);
+  base.position.y = -0.42 * size;
+  base.name = "base";
+  group.add(base);
+
+  const waistGeo = new THREE.BoxGeometry(0.58 * size, 0.2 * size, 0.34 * size);
+  const waist = new THREE.Mesh(waistGeo, ironMat);
+  waist.position.y = -0.23 * size;
+  waist.name = "waist";
+  group.add(waist);
+
+  const bodyGeo = new THREE.BoxGeometry(0.44 * size, 0.3 * size, 0.3 * size);
+  const body = new THREE.Mesh(bodyGeo, ironMat);
+  body.position.y = 0.02 * size;
+  body.name = "body";
+  group.add(body);
+
+  const faceGeo = new THREE.BoxGeometry(0.34 * size, 0.1 * size, 0.26 * size);
+  const face = new THREE.Mesh(faceGeo, ironMat);
+  face.position.y = 0.24 * size;
+  face.name = "face";
+  group.add(face);
+
+  const hornGeo = new THREE.ConeGeometry(0.1 * size, 0.56 * size, 8);
+  const horn = new THREE.Mesh(hornGeo, ironMat);
+  horn.rotation.z = -Math.PI / 2;
+  horn.position.set(0.52 * size, 0.08 * size, 0);
+  horn.name = "horn";
+  group.add(horn);
+}
+
+function buildBookshelf(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(customColor || 0x8d6e63, style);
+  const darkMat = createMaterial(0x5d4037, style);
+  const bookColors = [
+    0xc62828, 0x2e7d32, 0x1565c0, 0xf9a825, 0x6a1b9a, 0x00838f,
+  ];
+
+  const frame = new THREE.Group();
+  frame.name = "frame";
+  const sideGeo = new THREE.BoxGeometry(0.1 * size, 1.9 * size, 0.36 * size);
+  for (const side of [-1, 1]) {
+    const panel = new THREE.Mesh(sideGeo, woodMat);
+    panel.position.set(side * 0.55 * size, 0, 0);
+    panel.name = side < 0 ? "side-left" : "side-right";
+    frame.add(panel);
+  }
+  const railGeo = new THREE.BoxGeometry(1.2 * size, 0.12 * size, 0.36 * size);
+  for (const end of [-1, 1]) {
+    const rail = new THREE.Mesh(railGeo, woodMat);
+    rail.position.y = end * 0.95 * size;
+    rail.name = end < 0 ? "rail-bottom" : "rail-top";
+    frame.add(rail);
+  }
+  group.add(frame);
+
+  const shelves = new THREE.Group();
+  shelves.name = "shelves";
+  const shelfGeo = new THREE.BoxGeometry(1.08 * size, 0.08 * size, 0.34 * size);
+  for (let i = 0; i < 4; i++) {
+    const shelf = new THREE.Mesh(shelfGeo, darkMat);
+    shelf.position.y = (-0.65 + i * 0.44) * size;
+    shelf.name = `shelf-${i}`;
+    shelves.add(shelf);
+  }
+  group.add(shelves);
+
+  const books = new THREE.Group();
+  books.name = "books";
+  const heights = [0.34, 0.28, 0.4, 0.31];
+  for (let row = 0; row < 3; row++) {
+    const shelfY = -0.65 + row * 0.44;
+    for (let i = 0; i < 5; i++) {
+      const bookMat = createMaterial(
+        bookColors[(i + row * 2) % bookColors.length],
+        style,
+      );
+      const bookGeo = new THREE.BoxGeometry(
+        0.11 * size,
+        heights[i % heights.length] * size,
+        0.22 * size,
+      );
+      const book = new THREE.Mesh(bookGeo, bookMat);
+      book.position.set((-0.4 + i * 0.16) * size, (shelfY + 0.18) * size, 0);
+      if (i === 4 && rng() > 0.4) book.rotation.z = 0.12;
+      book.name = `book-${row}-${i}`;
+      books.add(book);
+    }
+  }
+  group.add(books);
+}
+
+function buildCauldron(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const ironMat = createMaterial(customColor || 0x37474f, style);
+  const rimMat = createMaterial(0x546e7a, style);
+  const brewMat = createMaterial(0x2e7d32, style);
+
+  const potGeo = new THREE.SphereGeometry(
+    0.42 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const pot = new THREE.Mesh(potGeo, ironMat);
+  pot.position.y = -0.05 * size;
+  pot.scale.set(1, 0.82, 1);
+  pot.name = "pot";
+  group.add(pot);
+
+  const rimGeo = new THREE.TorusGeometry(
+    0.42 * size,
+    0.055 * size,
+    8,
+    segments,
+  );
+  const rim = new THREE.Mesh(rimGeo, rimMat);
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.3 * size;
+  rim.name = "rim";
+  group.add(rim);
+
+  const brewGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.3 * size,
+    0.07 * size,
+    segments,
+  );
+  const brew = new THREE.Mesh(brewGeo, brewMat);
+  brew.position.y = 0.26 * size;
+  brew.name = "brew";
+  group.add(brew);
+
+  const legs = new THREE.Group();
+  legs.name = "legs";
+  const legGeo = new THREE.CylinderGeometry(
+    0.045 * size,
+    0.07 * size,
+    0.3 * size,
+    6,
+  );
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const leg = new THREE.Mesh(legGeo, ironMat);
+    leg.position.set(
+      Math.cos(angle) * 0.24 * size,
+      -0.52 * size,
+      Math.sin(angle) * 0.24 * size,
+    );
+    leg.rotation.z = Math.cos(angle) * 0.2;
+    leg.rotation.x = -Math.sin(angle) * 0.2;
+    leg.name = `leg-${i}`;
+    legs.add(leg);
+  }
+  group.add(legs);
+
+  const handles = new THREE.Group();
+  handles.name = "handles";
+  const handleGeo = new THREE.TorusGeometry(0.09 * size, 0.022 * size, 6, 10);
+  for (const side of [-1, 1]) {
+    const handle = new THREE.Mesh(handleGeo, rimMat);
+    handle.position.set(side * 0.42 * size, 0.24 * size, 0);
+    handle.rotation.z = Math.PI / 2;
+    handle.name = side < 0 ? "handle-left" : "handle-right";
+    handles.add(handle);
+  }
+  group.add(handles);
+}
+
+function buildThrone(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(customColor || 0x6d4c41, style);
+  const clothMat = createMaterial(0x8e24aa, style);
+  const goldMat = createMaterial(0xffb300, style);
+
+  const baseGeo = new THREE.BoxGeometry(1.05 * size, 0.14 * size, 0.72 * size);
+  const base = new THREE.Mesh(baseGeo, woodMat);
+  base.position.y = -0.55 * size;
+  base.name = "base";
+  group.add(base);
+
+  const seatGeo = new THREE.BoxGeometry(0.78 * size, 0.18 * size, 0.58 * size);
+  const seat = new THREE.Mesh(seatGeo, clothMat);
+  seat.position.y = -0.38 * size;
+  seat.name = "seat";
+  group.add(seat);
+
+  const backGeo = new THREE.BoxGeometry(0.9 * size, 0.92 * size, 0.12 * size);
+  const back = new THREE.Mesh(backGeo, woodMat);
+  back.position.set(0, 0.16 * size, -0.3 * size);
+  back.rotation.x = 0.08;
+  back.name = "back";
+  group.add(back);
+
+  const crestGeo = new THREE.BoxGeometry(0.96 * size, 0.14 * size, 0.16 * size);
+  const crest = new THREE.Mesh(crestGeo, goldMat);
+  crest.position.set(0, 0.68 * size, -0.28 * size);
+  crest.name = "crest";
+  group.add(crest);
+
+  const finialGeo = new THREE.SphereGeometry(0.07 * size, 8, 6);
+  const finial = new THREE.Mesh(finialGeo, goldMat);
+  finial.position.set(0, 0.78 * size, -0.26 * size);
+  finial.name = "finial";
+  group.add(finial);
+
+  const arms = new THREE.Group();
+  arms.name = "arms";
+  const armGeo = new THREE.BoxGeometry(0.16 * size, 0.34 * size, 0.5 * size);
+  for (const side of [-1, 1]) {
+    const arm = new THREE.Mesh(armGeo, woodMat);
+    arm.position.set(side * 0.5 * size, -0.18 * size, 0.03 * size);
+    arm.name = side < 0 ? "arm-left" : "arm-right";
+    arms.add(arm);
+  }
+  group.add(arms);
+}
+
+function buildBench(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(customColor || 0x8d6e63, style);
+  const darkMat = createMaterial(0x5d4037, style);
+
+  const seatGeo = new THREE.BoxGeometry(1.5 * size, 0.1 * size, 0.46 * size);
+  const seat = new THREE.Mesh(seatGeo, woodMat);
+  seat.position.y = 0.42 * size;
+  seat.name = "seat";
+  group.add(seat);
+
+  const legs = new THREE.Group();
+  legs.name = "legs";
+  const legGeo = new THREE.BoxGeometry(0.1 * size, 0.42 * size, 0.08 * size);
+  const legSpots = [
+    [-0.62, -0.19],
+    [0.62, -0.19],
+    [-0.62, 0.19],
+    [0.62, 0.19],
+  ];
+  for (let i = 0; i < legSpots.length; i++) {
+    const [x, z] = legSpots[i];
+    const leg = new THREE.Mesh(legGeo, darkMat);
+    leg.position.set(x * size, 0.21 * size, z * size);
+    leg.name = `leg-${i}`;
+    legs.add(leg);
+  }
+  const braceGeo = new THREE.BoxGeometry(0.07 * size, 0.4 * size, 0.07 * size);
+  const brace = new THREE.Mesh(braceGeo, darkMat);
+  brace.position.set(0, 0.2 * size, 0);
+  brace.rotation.y = Math.PI / 2;
+  brace.name = "brace";
+  legs.add(brace);
+  group.add(legs);
+
+  const backrest = new THREE.Group();
+  backrest.name = "backrest";
+  const topGeo = new THREE.BoxGeometry(1.42 * size, 0.1 * size, 0.07 * size);
+  const top = new THREE.Mesh(topGeo, woodMat);
+  top.position.set(0, 0.74 * size, -0.2 * size);
+  top.name = "top";
+  backrest.add(top);
+  const slatGeo = new THREE.BoxGeometry(1.4 * size, 0.07 * size, 0.06 * size);
+  for (let i = 0; i < 2; i++) {
+    const slat = new THREE.Mesh(slatGeo, woodMat);
+    slat.position.set(0, (0.6 + i * 0.14) * size, -0.2 * size);
+    slat.name = `slat-${i}`;
+    backrest.add(slat);
+  }
+  const supportGeo = new THREE.BoxGeometry(
+    0.1 * size,
+    0.42 * size,
+    0.07 * size,
+  );
+  for (const side of [-1, 1]) {
+    const support = new THREE.Mesh(supportGeo, darkMat);
+    support.position.set(side * 0.64 * size, 0.56 * size, -0.2 * size);
+    support.name = side < 0 ? "support-left" : "support-right";
+    backrest.add(support);
+  }
+  group.add(backrest);
+}
+
+function buildLantern(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const metalMat = createMaterial(customColor || 0x455a64, style);
+  const glassMat = createMaterial(0xffe082, style);
+  glassMat.transparent = true;
+  glassMat.opacity = 0.5;
+  const candleMat = createMaterial(0xfff8e1, style);
+  const flameMat = createMaterial(0xffb300, style);
+  flameMat.emissive = new THREE.Color(0xff6f00);
+  flameMat.emissiveIntensity = 1.6;
+
+  const frame = new THREE.Group();
+  frame.name = "frame";
+  const capGeo = new THREE.ConeGeometry(0.2 * size, 0.12 * size, segments);
+  const cap = new THREE.Mesh(capGeo, metalMat);
+  cap.position.y = 0.32 * size;
+  cap.name = "cap";
+  frame.add(cap);
+  const baseGeo = new THREE.CylinderGeometry(
+    0.2 * size,
+    0.22 * size,
+    0.08 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, metalMat);
+  base.position.y = -0.24 * size;
+  base.name = "base";
+  frame.add(base);
+  const postGeo = new THREE.BoxGeometry(0.035 * size, 0.6 * size, 0.035 * size);
+  const postSpots = [
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ];
+  for (let i = 0; i < postSpots.length; i++) {
+    const [sx, sz] = postSpots[i];
+    const post = new THREE.Mesh(postGeo, metalMat);
+    post.position.set(0.15 * sx * size, 0.02 * size, 0.15 * sz * size);
+    post.name = `post-${i}`;
+    frame.add(post);
+  }
+  group.add(frame);
+
+  const glassGeo = new THREE.BoxGeometry(0.28 * size, 0.46 * size, 0.28 * size);
+  const glass = new THREE.Mesh(glassGeo, glassMat);
+  glass.position.y = 0.02 * size;
+  glass.name = "glass";
+  group.add(glass);
+
+  const candleGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.06 * size,
+    0.16 * size,
+    8,
+  );
+  const candle = new THREE.Mesh(candleGeo, candleMat);
+  candle.position.y = 0.08 * size;
+  candle.name = "candle";
+  group.add(candle);
+
+  const flameGeo = new THREE.ConeGeometry(0.045 * size, 0.14 * size, 6);
+  const flame = new THREE.Mesh(flameGeo, flameMat);
+  flame.position.y = 0.22 * size;
+  flame.name = "flame";
+  group.add(flame);
+
+  const hookGeo = new THREE.TorusGeometry(0.06 * size, 0.015 * size, 6, 10);
+  const hook = new THREE.Mesh(hookGeo, metalMat);
+  hook.position.y = 0.42 * size;
+  hook.name = "hook";
+  group.add(hook);
+}
+
 function buildCrate(
   group,
   size,
@@ -6855,6 +7294,12 @@ const AUDIT_GROUND_TYPES = new Set([
   "cannon",
   "grave",
   "ladder",
+  "anvil",
+  "bookshelf",
+  "cauldron",
+  "throne",
+  "bench",
+  "lantern",
   "flag",
   "sign",
   "car",
@@ -6894,6 +7339,12 @@ const AUDIT_REQUIRED_PARTS = {
   grave: ["stone", "mound"],
   ladder: ["rails", "rungs"],
   candelabra: ["base", "stem"],
+  anvil: ["body", "base"],
+  bookshelf: ["frame", "shelves"],
+  cauldron: ["pot", "legs"],
+  throne: ["seat", "back"],
+  bench: ["seat", "legs"],
+  lantern: ["frame", "glass"],
   house: ["walls", "roof"],
   car: ["body", "wheels"],
   bike: ["frame", "wheels"],
@@ -6914,6 +7365,7 @@ const AUDIT_EXPECTED_ANIMATIONS = {
   campfire: ["flicker"],
   torch: ["flicker"],
   brazier: ["flicker"],
+  lantern: ["flicker"],
   flag: ["wave"],
   fountain: ["flow"],
   car: ["spin"],
