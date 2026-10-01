@@ -39,6 +39,7 @@ import {
   getAssetTextureInfo,
   isModularType,
 } from "../src/generator.js";
+import { createProceduralTextures } from "../src/procedural-textures.js";
 import { unzipSync } from "fflate";
 
 function sampleModel() {
@@ -368,6 +369,7 @@ test("generated assets carry a full procedural PBR texture set", () => {
     assert.ok(mat.normalMap, "materials have a normal map");
     assert.ok(mat.roughnessMap, "materials have a roughness map");
     assert.ok(mat.metalnessMap, "materials have a metalness map");
+    assert.ok(mat.aoMap, "materials have an ambient-occlusion map");
   }
 });
 
@@ -409,7 +411,7 @@ test("texture PNGs are deterministic per seed", () => {
   assert.deepEqual(a.textures.albedo, b.textures.albedo);
   assert.deepEqual(a.textures.normal, b.textures.normal);
   assert.notDeepEqual(a.textures.albedo, c.textures.albedo);
-  for (const name of ["albedo", "normal", "roughness", "metalness"]) {
+  for (const name of ["albedo", "normal", "roughness", "metalness", "ao"]) {
     const png = a.textures[name];
     assert.deepEqual(
       [...png.slice(0, 8)],
@@ -436,6 +438,23 @@ test("texture PNGs honour the requested resolution", () => {
   // 8-byte signature and 4-byte length + 4-byte "IHDR" type.
   assert.equal(view.getUint32(16, false), 512);
   assert.equal(view.getUint32(20, false), 512);
+});
+
+test("ambient-occlusion maps darken crevices and keep flat areas white", () => {
+  const set = createProceduralTextures("stone", {
+    size: 64,
+    seed: 5,
+    strength: 1,
+  });
+  const data = set.textures.ao.image.data;
+  let dark = 0;
+  let flat = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] < 245) dark += 1;
+    if (data[i] === 255) flat += 1;
+  }
+  assert.ok(dark > 0, "AO map shades concave detail");
+  assert.ok(flat > 0, "AO map leaves flat areas unshaded");
 });
 
 test("getAssetLayoutInfo reports named parts and attachment points", () => {
@@ -1664,7 +1683,7 @@ test("exportGamePack ships standalone PBR textures and manifest metadata", async
   const files = unzipSync(zip);
   const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
 
-  for (const name of ["albedo", "normal", "roughness", "metalness"]) {
+  for (const name of ["albedo", "normal", "roughness", "metalness", "ao"]) {
     const png = files[`textures/sword-tex/${name}.png`];
     assert.ok(png, `${name} texture is in the pack`);
     assert.deepEqual(
@@ -1683,6 +1702,7 @@ test("exportGamePack ships standalone PBR textures and manifest metadata", async
     "textures/sword-tex/normal.png",
     "textures/sword-tex/roughness.png",
     "textures/sword-tex/metalness.png",
+    "textures/sword-tex/ao.png",
   ]);
 });
 

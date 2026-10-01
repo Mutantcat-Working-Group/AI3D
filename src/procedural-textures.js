@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import { zlibSync } from "fflate";
 
-/* Procedural PBR texture sets for generated game assets. Each set is four
-   RGBA maps -- albedo, normal, roughness, metalness -- built from a small
-   deterministic noise model so the same asset seed always produces the same
-   material. Albedo maps are grayscale: a material's own color tints them, which
-   lets one texture serve many parts of an asset. */
+/* Procedural PBR texture sets for generated game assets. Each set is five
+   RGBA maps -- albedo, normal, roughness, metalness, ambient occlusion --
+   built from a small deterministic noise model so the same asset seed always
+   produces the same material. Albedo maps are grayscale: a material's own
+   color tints them, which lets one texture serve many parts of an asset. */
 
 export const TEXTURE_KINDS = [
   "wood",
@@ -282,6 +282,21 @@ function buildMap(size, kind, seed, strength, channel) {
         data[index + 1] = Math.round(((-dy / len) * 0.5 + 0.5) * 255);
         data[index + 2] = Math.round(((1 / len) * 0.5 + 0.5) * 255);
         data[index + 3] = 255;
+      } else if (channel === "ao") {
+        const h = samplePattern(kind, u, v, seed, strength).height;
+        const neighbors = [
+          samplePattern(kind, u - step, v, seed, strength).height,
+          samplePattern(kind, u + step, v, seed, strength).height,
+          samplePattern(kind, u, v - step, seed, strength).height,
+          samplePattern(kind, u, v + step, seed, strength).height,
+        ];
+        const peak = Math.max(...neighbors);
+        const occlusion = clamp01(1 - (peak - h) * strength * 1.6);
+        const value = Math.round(occlusion * 255);
+        data[index] = value;
+        data[index + 1] = value;
+        data[index + 2] = value;
+        data[index + 3] = 255;
       } else {
         const r = samplePattern(kind, u, v, seed, strength);
         let value = 0;
@@ -351,6 +366,7 @@ export function createProceduralTextures(
     mapStrength,
     "metalness",
   );
+  const ao = buildMap(mapSize, resolvedKind, mapSeed, mapStrength, "ao");
 
   const makeTexture = (data, name, srgb = false) => {
     const texture = new THREE.DataTexture(
@@ -378,6 +394,7 @@ export function createProceduralTextures(
       normal: makeTexture(normal, "normal"),
       roughness: makeTexture(roughness, "roughness"),
       metalness: makeTexture(metalness, "metalness"),
+      ao: makeTexture(ao, "ao"),
     },
     pngs: png
       ? {
@@ -385,6 +402,7 @@ export function createProceduralTextures(
           normal: encodePNG(mapSize, mapSize, normal),
           roughness: encodePNG(mapSize, mapSize, roughness),
           metalness: encodePNG(mapSize, mapSize, metalness),
+          ao: encodePNG(mapSize, mapSize, ao),
         }
       : null,
   };

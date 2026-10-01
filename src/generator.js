@@ -1958,8 +1958,9 @@ function createMaterial(color, style) {
 
 /**
  * Apply one procedural PBR texture set to every mesh in an object. Albedo is
- * grayscale so the per-part material color tints it; normal, roughness and
- * metalness maps then modulate the engine material.
+ * grayscale so the per-part material color tints it; normal, roughness,
+ * metalness and ambient-occlusion maps then modulate the engine material.
+ * AO samples the same UV set as albedo, so the mesh gets an explicit uv2 copy.
  */
 function applyProceduralTextureSet(
   object,
@@ -1978,6 +1979,9 @@ function applyProceduralTextureSet(
   });
   object.traverse((child) => {
     if (!child.isMesh) return;
+    if (child.geometry?.attributes?.uv && !child.geometry.attributes.uv2) {
+      child.geometry.setAttribute("uv2", child.geometry.attributes.uv);
+    }
     const mats = Array.isArray(child.material)
       ? child.material
       : [child.material];
@@ -1987,6 +1991,7 @@ function applyProceduralTextureSet(
       mat.normalMap = set.textures.normal;
       mat.roughnessMap = set.textures.roughness;
       mat.metalnessMap = set.textures.metalness;
+      mat.aoMap = set.textures.ao;
       mat.normalScale.set(1, 1);
       mat.needsUpdate = true;
     }
@@ -7796,6 +7801,7 @@ export function buildGamePackFiles({
         ),
         textures: asset.textures
           ? ["albedo", "normal", "roughness", "metalness"]
+              .concat("ao")
               .filter((name) => asset.textures[name])
               .map((name) => `textures/${slug}/${name}.png`)
           : null,

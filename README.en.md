@@ -76,7 +76,8 @@ each one, and save the ones you like to the asset library.
 - **Engine packs** - Unity, Godot and Unreal presets. Godot packs ship a
   `.tscn` that instances `LOD0.glb`; Unity and Unreal currently emit GLB,
   materials and import metadata rather than pretending to produce native
-  `.prefab` / `.meta` / `.uasset`. The pack carries meshes, materials,
+  `.prefab` / `.meta` / `.uasset`. The pack carries meshes, materials
+  (standalone albedo / normal / roughness / metalness / AO maps),
   colliders, animation info, a whole-pack triangle / vertex / part / draw-call
   budget and a manifest with engine-ready names; enabling "Include LOD levels"
   writes a per-asset 0-3 LOD chain into it.

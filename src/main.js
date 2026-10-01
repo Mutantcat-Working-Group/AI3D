@@ -3151,7 +3151,7 @@ function renderTextureStrip() {
     strip.innerHTML = "";
     return;
   }
-  strip.innerHTML = ["albedo", "normal", "roughness", "metalness"]
+  strip.innerHTML = ["albedo", "normal", "roughness", "metalness", "ao"]
     .filter((name) => info.textures[name])
     .map(
       (name) =>
