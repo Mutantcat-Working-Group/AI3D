@@ -339,7 +339,8 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   dungeon mechanisms, tombs, prisons and harvest fields; the coffin opens, the
   portcullis raises, the lever pulls, the mummy lurches, the beehive buzzes and
   the cobweb sways, and everything keeps type-specific tags, collider presets
-  and default PBR textures.
+  and default PBR textures; the new templates now ship inside the dungeon,
+  outpost, village and wilderness scene kits.
 
 ### 12. Documentation
 

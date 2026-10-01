@@ -682,17 +682,48 @@ test("game kits include battle, wilderness and town presets", () => {
   assert.ok(ids.includes("battle"));
   assert.ok(ids.includes("wilderness"));
   assert.ok(ids.includes("town"));
-  const themed = { battle: "monster", wilderness: "campfire", town: "house" };
+  const themed = {
+    battle: ["monster"],
+    wilderness: ["campfire", "beehive", "wheat_sheaf"],
+    town: ["house"],
+    dungeon: [
+      "stone_coffin",
+      "portcullis",
+      "cage",
+      "bone_pile",
+      "cobweb",
+      "lever",
+      "urn",
+      "mummy",
+    ],
+    outpost: ["portcullis", "cage"],
+    village: ["wheat_sheaf", "beehive"],
+  };
   for (const [id, expected] of Object.entries(themed)) {
     const scene = composeGameKit(id, { seed: 23 });
     const propNodes = scene.children.filter((child) =>
       child.name.startsWith(`${id}-`),
     );
     assert.equal(propNodes.length, 9, `${id} places every prop`);
-    assert.ok(
-      propNodes.some((node) => node.name.includes(expected)),
-      `${id} keeps themed props`,
-    );
+    for (const type of expected) {
+      assert.ok(
+        propNodes.some((node) => node.name.includes(type)),
+        `${id} keeps themed ${type}`,
+      );
+    }
+  }
+});
+
+test("game kit presets only reference supported asset types", () => {
+  const supported = new Set(getAssetTypes());
+  for (const kit of getGameKits()) {
+    const scene = composeGameKit(kit.id, { seed: 7 });
+    for (const prop of scene.userData.propList) {
+      assert.ok(
+        supported.has(prop.type),
+        `${kit.id} references supported type ${prop.type}`,
+      );
+    }
   }
 });
 
