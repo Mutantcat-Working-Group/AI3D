@@ -7563,6 +7563,65 @@ function buildSceneRecord(asset) {
   };
 }
 
+/* A pack-level readiness report should stay stable whether it was written by
+   the UI pipeline, a CLI run or an older record, so the packed shape is
+   normalised here and the summary derived from it. */
+function normaliseReadiness(readiness) {
+  if (!readiness || typeof readiness !== "object") return null;
+  const fail = Number(readiness.fail) || 0;
+  return {
+    score: Number.isFinite(readiness.score)
+      ? Math.max(0, Math.min(100, Math.round(readiness.score)))
+      : null,
+    fail,
+    fixed: Array.isArray(readiness.fixed)
+      ? readiness.fixed.map(String)
+      : [],
+    skipped: Array.isArray(readiness.skipped)
+      ? readiness.skipped.map(String)
+      : [],
+  };
+}
+
+/**
+ * Summarise per-asset game readiness into one portable report. Callers pass
+ * the pack records (or library records) so the same numbers appear in the
+ * manifest, in `game-ready.json` and in the UI status line.
+ * @param {object[]} records - Records that may carry a `readiness` block
+ * @returns {{count:number,ready:number,repaired:number,issues:number,notAudited:number,rows:object[]}}
+ */
+export function summariseGameReadiness(records = []) {
+  const rows = records.map((record) => {
+    const readiness = normaliseReadiness(record?.readiness);
+    const status = !readiness
+      ? "not-audited"
+      : readiness.fail > 0
+        ? "needs-attention"
+        : readiness.fixed.length > 0
+          ? "repaired"
+          : "ready";
+    return {
+      id: record?.id || record?.type || "asset",
+      name: record?.name || record?.type || "asset",
+      type: record?.type || null,
+      kind: record?.kind === "scene" ? "scene" : "asset",
+      status,
+      score: readiness?.score ?? null,
+      fail: readiness?.fail ?? null,
+      fixed: readiness?.fixed ?? [],
+      skipped: readiness?.skipped ?? [],
+    };
+  });
+  return {
+    count: rows.length,
+    ready: rows.filter((row) => row.status === "ready").length,
+    repaired: rows.filter((row) => row.status === "repaired").length,
+    issues: rows.filter((row) => row.status === "needs-attention").length,
+    notAudited: rows.filter((row) => row.status === "not-audited").length,
+    rows,
+  };
+}
+
 /**
  * Assemble a game engine import pack from already-converted files. The GLB
  * conversion is separate so tests and CLI pipelines can hand in bytes without
@@ -7611,6 +7670,7 @@ export function buildGamePackFiles({
       scene: isScene ? buildSceneRecord(asset) : null,
       stats,
       collision: colliderRecord(asset.collision),
+      readiness: normaliseReadiness(asset.readiness),
       lodLevels: asset.lodLevels
         ? asset.lodLevels.map((lod) => lodBudgetRecord(lod, slug))
         : null,
@@ -7639,6 +7699,10 @@ export function buildGamePackFiles({
     };
   });
 
+  const readinessSummary = records.some((record) => record.readiness)
+    ? summariseGameReadiness(records)
+    : null;
+
   const files = {};
   const encoder = new TextEncoder();
   files["manifest.json"] = encoder.encode(
@@ -7655,6 +7719,15 @@ export function buildGamePackFiles({
           units: preset.units,
         },
         count: records.length,
+        readiness: readinessSummary
+          ? {
+              count: readinessSummary.count,
+              ready: readinessSummary.ready,
+              repaired: readinessSummary.repaired,
+              issues: readinessSummary.issues,
+              notAudited: readinessSummary.notAudited,
+            }
+          : undefined,
         budget: records.reduce(
           (total, record) => ({
             triangles: total.triangles + record.stats.triangles,
@@ -7671,6 +7744,11 @@ export function buildGamePackFiles({
     ),
   );
   files["README.md"] = encoder.encode(engineReadme(preset, records));
+  if (readinessSummary) {
+    files["game-ready.json"] = encoder.encode(
+      JSON.stringify(readinessSummary, null, 2),
+    );
+  }
 
   for (let index = 0; index < assets.length; index++) {
     const asset = assets[index];

@@ -65,6 +65,7 @@ import {
   getEnginePresets,
   exportGamePack,
   buildGamePackFiles,
+  summariseGameReadiness,
   getAssetTextureInfo,
   unitToMetres,
 } from "./generator.js";
@@ -414,6 +415,8 @@ app.innerHTML = `${SPRITE}
       </select>
       <button id="gen-manifest-export" class="quiet" title="${T("gen.manifest")}">${T("gen.manifestExport")}</button>
       <button id="gen-library-pack" class="quiet" title="${T("gen.exportLibraryPack")}">${T("gen.exportLibraryPack")}</button>
+      <button id="gen-library-game-pack" class="quiet" title="${T("gen.gameReadyPack")}">${T("gen.gameReadyPack")}</button>
+      <label class="gen-check"><input type="checkbox" id="gen-library-repair" checked>${T("gen.gameReadyRepair")}</label>
       <button id="gen-library-export" class="quiet" title="${T("gen.libraryExport")}">${T("gen.libraryExport")}</button>
       <button id="gen-library-import" class="quiet" title="${T("gen.libraryImport")}">${T("gen.libraryImport")}</button>
       <input id="gen-library-file" type="file" accept="application/json,.json" hidden>
@@ -4477,6 +4480,100 @@ function exportManifest() {
 $("#gen-manifest-export").addEventListener("click", exportManifest);
 
 // --- Library Game Pack Export ---
+async function buildLibraryPackAsset(asset, options = {}) {
+  const {
+    engine = "unity",
+    enginePreset,
+    collisionChoice = "auto",
+    animationChoice = "auto",
+    audit = false,
+    repair = false,
+  } = options;
+  const preset =
+    enginePreset ||
+    getEnginePresets().find((p) => p.id === engine) || {
+      upAxis: "Y",
+      scale: 1,
+    };
+  const isScene = asset.kind === "scene";
+  const model = modelFromAssetRecord(asset);
+  const type = isScene ? "scene" : asset.type;
+  const auditOptions = {
+    pivot: asset.pivot ?? (isScene ? "ground" : "center"),
+    meta: { name: asset.name, tags: asset.tags },
+  };
+  const before = audit && !repair ? auditGameAsset(model, type, auditOptions) : null;
+  const repairResult = repair
+    ? repairGameAsset(model, type, auditOptions)
+    : null;
+  const readiness =
+    audit || repairResult
+      ? {
+          score: Math.round(
+            (repairResult?.report ?? before).readiness * 100,
+          ),
+          fail: (repairResult?.report ?? before).summary.fail,
+          fixed: repairResult
+            ? repairResult.fixed.map((record) => record.code)
+            : [],
+          skipped: repairResult
+            ? repairResult.skipped.map((record) => record.detail)
+            : [],
+        }
+      : null;
+  const selectedAnimations = selectAnimations(model, animationChoice);
+  const animations = selectedAnimations.map((clip) => ({
+    name: clip.name,
+    duration: Math.round(clip.duration * 100) / 100,
+    tracks: clip.tracks.length,
+  }));
+  const glbBytes = new Uint8Array(
+    await exportGLB(model, { ...preset, animations: selectedAnimations }),
+  );
+  let collision = null;
+  let colliderBytes = null;
+  const collisionShape =
+    collisionChoice === "none" || (isScene && collisionChoice === "auto")
+      ? null
+      : collisionChoice === "auto"
+        ? getColliderShape(asset.type)
+        : collisionChoice;
+  if (collisionShape) {
+    collision = computeCollider(model, collisionShape);
+    if (collision?.shape !== "mesh") {
+      const colliderModel = buildColliderModel(collision);
+      if (colliderModel) {
+        colliderBytes = new Uint8Array(await exportGLB(colliderModel, preset));
+      }
+    }
+  }
+  const thumbnailDataUrl = renderAssetThumbnail(model, 256, 192);
+  const thumbnailBytes = thumbnailDataUrl
+    ? await dataUrlToBytes(thumbnailDataUrl)
+    : null;
+  return {
+    ...asset,
+    kind: isScene ? "scene" : asset.kind || "asset",
+    scene: isScene
+      ? asset.scene || {
+          kit: asset.type,
+          seed: asset.seed ?? null,
+          groundColor: model.userData?.groundColor ?? null,
+          quality: asset.quality ?? model.userData?.theme?.quality ?? 1,
+          theme: model.userData?.theme || null,
+          props: model.userData?.propList || [],
+        }
+      : null,
+    stats: getAssetStats(model),
+    glbBytes,
+    thumbnailBytes,
+    animations,
+    collision,
+    colliderBytes,
+    readiness,
+  };
+}
+
 async function exportLibraryPack() {
   const assets = assetLibrary.assets;
   if (assets.length === 0) {
@@ -4493,75 +4590,84 @@ async function exportLibraryPack() {
   setGenStatus(t("gen.generating"), "info");
   try {
     const packAssets = await Promise.all(
-      assets.map(async (asset) => {
-        const isScene = asset.kind === "scene";
-        const model = modelFromAssetRecord(asset);
-        const selectedAnimations = selectAnimations(model, animationChoice);
-        const animations = selectedAnimations.map((clip) => ({
-          name: clip.name,
-          duration: Math.round(clip.duration * 100) / 100,
-          tracks: clip.tracks.length,
-        }));
-        const glbBytes = new Uint8Array(
-          await exportGLB(model, {
-            ...enginePreset,
-            animations: selectedAnimations,
-          }),
-        );
-        let collision = null;
-        let colliderBytes = null;
-        const collisionShape =
-          collisionChoice === "none" || (isScene && collisionChoice === "auto")
-            ? null
-            : collisionChoice === "auto"
-              ? getColliderShape(asset.type)
-              : collisionChoice;
-        if (collisionShape) {
-          collision = computeCollider(model, collisionShape);
-          if (collision?.shape !== "mesh") {
-            const colliderModel = buildColliderModel(collision);
-            if (colliderModel) {
-              colliderBytes = new Uint8Array(
-                await exportGLB(colliderModel, enginePreset),
-              );
-            }
-          }
-        }
-        const thumbnailDataUrl = renderAssetThumbnail(model, 256, 192);
-        const thumbnailBytes = thumbnailDataUrl
-          ? await dataUrlToBytes(thumbnailDataUrl)
-          : null;
-        return {
-          ...asset,
-          kind: isScene ? "scene" : asset.kind || "asset",
-          scene: isScene
-            ? asset.scene || {
-                kit: asset.type,
-                seed: asset.seed ?? null,
-                groundColor: model.userData?.groundColor ?? null,
-                quality: asset.quality ?? model.userData?.theme?.quality ?? 1,
-                theme: model.userData?.theme || null,
-                props: model.userData?.propList || [],
-              }
-            : null,
-          stats: getAssetStats(model),
-          glbBytes,
-          thumbnailBytes,
-          animations,
-          collision,
-          colliderBytes,
-        };
-      }),
+      assets.map((asset) =>
+        buildLibraryPackAsset(asset, {
+          engine,
+          enginePreset,
+          collisionChoice,
+          animationChoice,
+        }),
+      ),
     );
-    const pack = buildGamePackFiles({
-      assets: packAssets,
-      engine,
-    });
+    const pack = buildGamePackFiles({ assets: packAssets, engine });
     downloadBytesAsFile(
       pack,
       `ai3d-library-pack-${new Date().toISOString().slice(0, 10)}.zip`,
     );
     setGenStatus(t("gen.packReady"), "ok");
+  } catch (err) {
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+/* The game-ready pipeline is the library pack with a quality gate: every
+   asset is audited first, mechanically fixable issues are repaired when the
+   user asks, and the zip carries `game-ready.json` so a teammate or build
+   machine sees which assets shipped ready and which still need a hand. */
+async function exportGameReadyLibraryPack() {
+  const assets = assetLibrary.assets;
+  if (assets.length === 0) {
+    setGenStatus(t("gen.empty"), "warn");
+    return;
+  }
+  const engine = $("#gen-engine")?.value || "unity";
+  const enginePreset = getEnginePresets().find((p) => p.id === engine) || {
+    upAxis: "Y",
+    scale: 1,
+  };
+  const collisionChoice = $("#gen-collision")?.value || "auto";
+  const animationChoice = $("#gen-animation")?.value || "auto";
+  const repair = $("#gen-library-repair")?.checked ?? true;
+  setGenStatus(
+    t("gen.gameReadyRunning", { current: "0", total: String(assets.length) }),
+    "info",
+  );
+  try {
+    const packAssets = [];
+    for (let i = 0; i < assets.length; i++) {
+      setGenStatus(
+        t("gen.gameReadyRunning", {
+          current: String(i + 1),
+          total: String(assets.length),
+        }),
+        "info",
+      );
+      packAssets.push(
+        await buildLibraryPackAsset(assets[i], {
+          engine,
+          enginePreset,
+          collisionChoice,
+          animationChoice,
+          audit: true,
+          repair,
+        }),
+      );
+    }
+    const pack = buildGamePackFiles({ assets: packAssets, engine });
+    downloadBytesAsFile(
+      pack,
+      `ai3d-game-ready-${new Date().toISOString().slice(0, 10)}.zip`,
+    );
+    const summary = summariseGameReadiness(packAssets);
+    setGenStatus(
+      t("gen.gameReadyDone", {
+        ready: String(summary.ready + summary.repaired),
+        total: String(summary.count),
+        fixed: String(summary.repaired),
+        issues: String(summary.issues),
+      }),
+      summary.issues > 0 ? "warn" : "ok",
+    );
   } catch (err) {
     setGenStatus(t("gen.error"), "error");
   }
@@ -4578,6 +4684,7 @@ async function dataUrlToBytes(dataUrl) {
 }
 
 $("#gen-library-pack").addEventListener("click", exportLibraryPack);
+$("#gen-library-game-pack").addEventListener("click", exportGameReadyLibraryPack);
 
 // --- Asset Library Backup and Restore ---
 /* A library is work, and it lives in browser storage that nobody can hand to a

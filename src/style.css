@@ -2521,6 +2521,7 @@ dialog .muted {
 .gen-library-header {
   padding: 0 12px 8px;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 .gen-library-header input {

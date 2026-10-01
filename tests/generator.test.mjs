@@ -33,6 +33,7 @@ import {
   buildColliderModel,
   buildConvexHullGeometry,
   buildGamePackFiles,
+  summariseGameReadiness,
   exportGamePack,
   selectAnimations,
   getAssetTextureInfo,
@@ -1475,6 +1476,97 @@ test("game packs carry Unreal conventions and LOD files", () => {
   );
   assert.ok(files["models/rock-7/LOD0.glb"]);
   assert.ok(files["models/rock-7/LOD1.glb"]);
+});
+
+test("game packs carry a readiness summary and game-ready.json", () => {
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        readiness: { score: 45, fail: 2, fixed: ["uv"], skipped: ["rig"] },
+      }),
+      samplePackAsset({
+        id: "shield-2",
+        name: "Shield Two",
+        type: "shield",
+        readiness: { score: 88, fail: 0, fixed: [], skipped: [] },
+      }),
+      samplePackAsset({
+        id: "pickaxe-3",
+        name: "Pickaxe Three",
+        type: "pickaxe",
+        readiness: { score: 96, fail: 0, fixed: ["collider"], skipped: [] },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const gameReady = JSON.parse(
+    new TextDecoder().decode(files["game-ready.json"]),
+  );
+
+  assert.deepEqual(manifest.readiness, {
+    count: 3,
+    ready: 1,
+    repaired: 1,
+    issues: 1,
+    notAudited: 0,
+  });
+  assert.deepEqual(manifest.assets[0].readiness, {
+    score: 45,
+    fail: 2,
+    fixed: ["uv"],
+    skipped: ["rig"],
+  });
+  assert.equal(gameReady.count, 3);
+  assert.equal(gameReady.ready, 1);
+  assert.equal(gameReady.repaired, 1);
+  assert.equal(gameReady.issues, 1);
+  assert.equal(gameReady.notAudited, 0);
+  assert.deepEqual(
+    gameReady.rows.map((row) => row.status),
+    ["needs-attention", "ready", "repaired"],
+  );
+});
+
+test("summariseGameReadiness tallies ready, repaired and issue records", () => {
+  const summary = summariseGameReadiness([
+    {
+      id: "sword-a",
+      name: "Sword A",
+      type: "sword",
+      readiness: { score: 95, fail: 0, fixed: [], skipped: [] },
+    },
+    {
+      id: "shield-b",
+      name: "Shield B",
+      type: "shield",
+      readiness: { score: 70, fail: 0, fixed: ["uv"], skipped: [] },
+    },
+    {
+      id: "rock-c",
+      name: "Rock C",
+      type: "rock",
+      readiness: { score: 40, fail: 3, fixed: [], skipped: ["rig"] },
+    },
+    { id: "pickaxe-d", name: "Pickaxe D", type: "pickaxe" },
+  ]);
+
+  assert.deepEqual(
+    {
+      count: summary.count,
+      ready: summary.ready,
+      repaired: summary.repaired,
+      issues: summary.issues,
+      notAudited: summary.notAudited,
+    },
+    { count: 4, ready: 1, repaired: 1, issues: 1, notAudited: 1 },
+  );
+  assert.deepEqual(
+    summary.rows.map((row) => row.status),
+    ["ready", "repaired", "needs-attention", "not-audited"],
+  );
 });
 
 test("exportGamePack exports a real GLB at the preset scale", async () => {
