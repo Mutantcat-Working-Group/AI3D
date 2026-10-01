@@ -258,6 +258,27 @@ test("a description names the template, size, colour and style it will use", asy
   await expect(page.locator("#gen-status")).toHaveClass(/ok/);
 });
 
+test("the readiness audit lists every game check for the generated asset", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+  await page.locator("#gen-prompt").fill("low-poly character");
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+
+  await page.locator("#gen-audit").click();
+  const panel = page.locator("#gen-audit-panel");
+  await expect(panel).toBeVisible();
+  await expect(page.locator("#gen-audit-summary strong")).toHaveText(/\d+%/);
+  await expect(page.locator("#gen-audit-list .gen-audit-check")).toHaveCount(11);
+  await expect(page.locator("#gen-audit-list .gen-audit-check.pass")).toHaveCount(
+    11,
+  );
+  await expect(page.locator("#gen-audit-summary")).toContainText("11 Pass");
+});
+
 /* A size is a number and a unit, and the unit is what makes it a real scale:
  * 180 cm has to reach the generator as the same 1.8 m an engine imports. A
  * size written into the sentence moves both controls, and the hint echoes the

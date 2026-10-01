@@ -56,6 +56,7 @@ import {
   getAssetLayoutInfo,
   buildAnchoredModel,
   getAssetTags,
+  auditGameAsset,
   getColliderShape,
   computeCollider,
   buildColliderModel,
@@ -421,7 +422,13 @@ app.innerHTML = `${SPRITE}
       <button id="gen-batch-export" class="quiet">${t("gen.export")}</button>
       <button id="gen-import" class="primary-button">${T("gen.import")}</button>
       <button id="gen-optimize" class="quiet">${T("gen.optimize")}</button>
+      <button id="gen-audit" class="quiet">${T("gen.audit")}</button>
       <button id="gen-export" class="quiet">${T("gen.export")}</button>
+    </div>
+    <div class="gen-audit-panel" id="gen-audit-panel" hidden>
+      <div class="gen-settings-title">${T("gen.audit")}</div>
+      <div id="gen-audit-summary" class="gen-audit-summary"></div>
+      <div id="gen-audit-list" class="gen-audit-list"></div>
     </div>
     <div class="gen-optimize-panel" id="gen-optimize-panel" hidden>
       <div class="gen-settings-title">${T("gen.optimize")}</div>
@@ -2882,6 +2889,7 @@ async function generateAsset() {
     );
     setGenActions(true);
     setGenOptimizePanel(false);
+    setGenAuditPanel(false);
     updateGenScenePackButton();
     renderGenLayout();
     showGenPreview();
@@ -3023,6 +3031,7 @@ function loadVariant(index) {
   genState.activeLod = 0;
   setGenOptimizePanel(false);
   setGenExportPanel(false);
+  setGenAuditPanel(false);
   setGenActions(true);
   setGenStatus(t("gen.applied"), "ok");
   renderGenLayout();
@@ -3179,6 +3188,111 @@ function importGenModel() {
 
 function setGenOptimizePanel(show) {
   $("#gen-optimize-panel").hidden = !show;
+}
+
+function setGenAuditPanel(show) {
+  $("#gen-audit-panel").hidden = !show;
+}
+
+const GEN_AUDIT_LABEL_KEYS = {
+  parts: "gen.auditCheck.parts",
+  budget: "gen.auditCheck.budget",
+  collision: "gen.auditCheck.collider",
+  lod: "gen.auditCheck.lod",
+  animation: "gen.auditCheck.animation",
+  rig: "gen.auditCheck.rig",
+  material: "gen.auditCheck.material",
+  uv: "gen.auditCheck.uv",
+  dimensions: "gen.auditCheck.dimensions",
+  origin: "gen.auditCheck.origin",
+  mesh: "gen.auditCheck.mesh",
+};
+
+function renderGenAuditReport(report) {
+  const summary = $("#gen-audit-summary");
+  const list = $("#gen-audit-list");
+  if (!summary || !list) return;
+  summary.replaceChildren();
+  list.replaceChildren();
+
+  const percent = Math.round(report.readiness * 100);
+  const header = document.createElement("div");
+  header.className = "gen-audit-headline";
+  const label = document.createElement("span");
+  label.textContent = t("gen.auditReadiness");
+  const value = document.createElement("strong");
+  value.textContent = `${percent}%`;
+  header.append(label, value);
+  summary.append(header);
+
+  const counts = document.createElement("div");
+  counts.className = "gen-audit-counts";
+  const pass = document.createElement("span");
+  pass.className = "ok";
+  pass.textContent = `${report.summary.pass} ${t("gen.auditPass")}`;
+  const warn = document.createElement("span");
+  warn.className = "warn";
+  warn.textContent = `${report.summary.warn} ${t("gen.auditWarn")}`;
+  const fail = document.createElement("span");
+  fail.className = "error";
+  fail.textContent = `${report.summary.fail} ${t("gen.auditFail")}`;
+  counts.append(pass, warn, fail);
+  summary.append(counts);
+
+  const statusLine = report.summary.blocked
+    ? document.createElement("div")
+    : null;
+  if (statusLine) {
+    statusLine.className = "gen-audit-blocked";
+    statusLine.textContent = t("gen.auditBlocked");
+    summary.append(statusLine);
+  } else if (report.summary.ready) {
+    const readyLine = document.createElement("div");
+    readyLine.className = "gen-audit-ready";
+    readyLine.textContent = t("gen.auditReady");
+    summary.append(readyLine);
+  }
+
+  for (const check of report.checks) {
+    const row = document.createElement("div");
+    row.className = `gen-audit-check ${check.status}`;
+    const status = document.createElement("span");
+    status.className = "gen-audit-status";
+    status.textContent =
+      check.status === "pass"
+        ? t("gen.auditPass")
+        : check.status === "warn"
+          ? t("gen.auditWarn")
+          : t("gen.auditFail");
+    const main = document.createElement("div");
+    main.className = "gen-audit-check-main";
+    const title = document.createElement("strong");
+    title.textContent = t(
+      GEN_AUDIT_LABEL_KEYS[check.id] ?? check.id,
+    );
+    const details = document.createElement("small");
+    details.textContent = check.details.join(" · ");
+    main.append(title, details);
+    row.append(status, main);
+    list.append(row);
+  }
+}
+
+function runGenAudit() {
+  if (!genState.model || !genState.model.threeObject) {
+    setGenStatus(t("gen.noModel"), "warn");
+    return;
+  }
+  const type = genState.model.kind === "scene" ? "scene" : genState.model.type;
+  const pivot =
+    genState.model.pivot ??
+    (genState.model.kind === "scene" ? "ground" : "center");
+  const report = auditGameAsset(genState.model.threeObject, type, {
+    pivot,
+    meta: { name: genState.model.name, tags: genState.model.tags },
+  });
+  renderGenAuditReport(report);
+  setGenAuditPanel(true);
 }
 
 function refreshGenOptimizePanel() {
@@ -3708,6 +3822,7 @@ function composeGameKitScene(kitId) {
     selectedSceneProp = 0;
     setGenOptimizePanel(false);
     setGenExportPanel(false);
+    setGenAuditPanel(false);
     setGenActions(true);
     updateGenScenePackButton();
     renderGenLayout();
@@ -3787,6 +3902,7 @@ function composeModularSceneScene(presetId) {
     selectedSceneProp = 0;
     setGenOptimizePanel(false);
     setGenExportPanel(false);
+    setGenAuditPanel(false);
     setGenActions(true);
     updateGenScenePackButton();
     renderGenLayout();
@@ -3812,6 +3928,7 @@ $("#gen-generate").addEventListener("click", generateAsset);
 $("#gen-prompt").addEventListener("input", renderPromptHint);
 $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
+$("#gen-audit").addEventListener("click", runGenAudit);
 $("#gen-decimate").addEventListener("click", decimateGenModel);
 $("#gen-lod").addEventListener("click", buildGenLods);
 $("#gen-restore").addEventListener("click", restoreGenModel);
@@ -4190,6 +4307,7 @@ function loadAsset(id) {
   genState.lods = [];
   genState.activeLod = 0;
   setGenOptimizePanel(false);
+  setGenAuditPanel(false);
   setGenStatus(t("gen.applied"), "ok");
   setGenActions(true);
   updateGenScenePackButton();

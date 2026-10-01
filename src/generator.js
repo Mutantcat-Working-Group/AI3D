@@ -5163,20 +5163,26 @@ export function decimateMesh(mesh, threshold = 0.1) {
 
   const step = Math.max(Number(threshold) || 0.1, 1e-6);
   const positions = geometry.attributes.position;
+  const normal = geometry.attributes.normal;
   const cellMap = new Map();
   const representatives = [];
+  const representativeNormals = [];
   const cellOf = new Int32Array(positions.count);
 
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const y = positions.getY(i);
     const z = positions.getZ(i);
+    const nx = normal ? normal.getX(i) : 0;
+    const ny = normal ? normal.getY(i) : 0;
+    const nz = normal ? normal.getZ(i) : 0;
     const key = `${Math.round(x / step)},${Math.round(y / step)},${Math.round(z / step)}`;
     let representative = cellMap.get(key);
     if (representative === undefined) {
       representative = representatives.length / 3;
       cellMap.set(key, representative);
       representatives.push(x, y, z);
+      representativeNormals.push(nx, ny, nz);
     }
     cellOf[i] = representative;
   }
@@ -5200,8 +5206,32 @@ export function decimateMesh(mesh, threshold = 0.1) {
     "position",
     new THREE.Float32BufferAttribute(representatives, 3),
   );
+  if (normal) {
+    next.setAttribute(
+      "normal",
+      new THREE.Float32BufferAttribute(representativeNormals, 3),
+    );
+  }
   if (kept.length) next.setIndex(kept);
-  next.computeVertexNormals();
+  if (!normal) next.computeVertexNormals();
+
+  // A decimated level of a skinned mesh must keep its skin attributes or the
+  // imported LOD would stop deforming. Representative vertices keep the skin
+  // of the first original vertex in their cluster.
+  for (const name of ["skinIndex", "skinWeight", "joints0", "weights0"]) {
+    const source = geometry.attributes[name];
+    if (!source) continue;
+    const itemSize = source.itemSize || 1;
+    const data = new Float32Array((representatives.length / 3) * itemSize);
+    for (let i = 0; i < cellOf.length; i++) {
+      const out = cellOf[i] * itemSize;
+      for (let k = 0; k < itemSize; k++) {
+        data[out + k] = source.array[i * itemSize + k];
+      }
+    }
+    next.setAttribute(name, new THREE.BufferAttribute(data, itemSize));
+  }
+
   mesh.geometry = next;
   return mesh;
 }
@@ -6211,6 +6241,557 @@ function roundVecToExtent(vec) {
     width: rounded.x,
     height: rounded.y,
     depth: rounded.z,
+  };
+}
+
+/* The audit budget is graduated by the model's longest dimension, because a
+   sword and a town gate cannot share a poly budget. The numbers are a soft
+   line: a desktop scene can often spend more, and a mobile prop should spend
+   less. */
+const AUDIT_BUDGETS = [
+  { max: 0.12, maxTriangles: 700 },
+  { max: 0.35, maxTriangles: 1800 },
+  { max: 0.7, maxTriangles: 4200 },
+  { max: 2, maxTriangles: 15000 },
+  { max: 8, maxTriangles: 60000 },
+];
+const AUDIT_MAX_TRIANGLES = 120000;
+
+/* Most props ride centered on their origin, while playable and architectural
+   pieces want to sit on the floor at y=0. The list is intentionally type
+   driven, so an imported sword does not get penalised for a centered origin. */
+const AUDIT_GROUND_TYPES = new Set([
+  "character",
+  "monster",
+  "dragon",
+  "tree",
+  "house",
+  "tower",
+  "tent",
+  "statue",
+  "well",
+  "fountain",
+  "bridge",
+  "fence",
+  "flag",
+  "sign",
+  "car",
+  "bike",
+  "plane",
+  "boat",
+  "wall",
+  "wall_window",
+  "wall_door",
+  "wall_corner",
+  "floor",
+  "stairs",
+  "arch",
+  "tree_stump",
+  "mushroom",
+  "campfire",
+]);
+
+const AUDIT_REQUIRED_PARTS = {
+  character: ["head", "body"],
+  monster: ["head", "body"],
+  dragon: ["head", "body"],
+  sword: ["blade", "handle"],
+  axe: ["head", "handle"],
+  hammer: ["head", "handle"],
+  spear: ["head", "shaft"],
+  bow: ["riser"],
+  shield: ["body"],
+  chest: ["body", "lid"],
+  crate: ["body"],
+  barrel: ["body"],
+  potion: ["body"],
+  key: ["shaft"],
+  house: ["walls", "roof"],
+  car: ["body", "wheels"],
+  bike: ["frame", "wheels"],
+  plane: ["fuselage", "wings"],
+  boat: ["hull"],
+  drone: ["body", "rotors"],
+  turret: ["base", "body"],
+  tower: ["shaft"],
+};
+
+/* Every rigged asset is expected to ship the clips a game character needs.
+   Static props and modular kit pieces intentionally stay out of this table. */
+const AUDIT_EXPECTED_ANIMATIONS = {
+  character: ["idle", "walk", "attack"],
+  monster: ["idle", "walk", "attack"],
+  dragon: ["idle", "fly", "attack"],
+  chest: ["open"],
+  campfire: ["flicker"],
+  torch: ["flicker"],
+  brazier: ["flicker"],
+  flag: ["wave"],
+  fountain: ["flow"],
+  car: ["spin"],
+  bike: ["spin"],
+  plane: ["spin"],
+  drone: ["spin"],
+  turret: ["sweep"],
+  antenna: ["sway"],
+  crystal: ["pulse"],
+  runestone: ["pulse"],
+  tree: ["sway"],
+  boat: ["bob"],
+};
+
+const clampScore = (value) => Math.max(0, Math.min(1, value));
+
+function auditScoreFromStatus(score) {
+  if (score >= 0.6) return "pass";
+  if (score >= 0.3) return "warn";
+  return "fail";
+}
+
+/**
+ * Game-readiness audit for a generated asset. Reports how close a model is to
+ * something a Unity/Godot/Unreal import can use directly: named geometry,
+ * poly and draw-call budgets, collision proxy, LOD chain, animation clips,
+ * skinning, PBR material coverage and origin placement.
+ * @param {THREE.Object3D} object - Generated or imported model
+ * @param {string} type - Asset type key (or "scene" for composed scenes)
+ * @param {object} [options] - Audit options
+ * @param {string} [options.pivot] - "center" or "ground"
+ * @param {Array} [options.lodLevels] - Precomputed LOD level descriptors
+ * @param {string[]} [options.partNames] - Expected part names when a type is
+ *   not in ASSET_TYPES (used by composed scenes)
+ * @param {object} [options.meta] - Extra record metadata (name, tags)
+ * @returns {object} Audit report
+ */
+export function auditGameAsset(object, type, options = {}) {
+  const checks = [];
+  if (!object?.isObject3D) {
+    return {
+      overview: { type: "" },
+      stats: { triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+      checks: [
+        {
+          id: "mesh",
+          label: "mesh",
+          category: "mesh",
+          score: 0,
+          status: "fail",
+          details: ["no object"],
+        },
+      ],
+      summary: { pass: 0, warn: 0, fail: 1, blocked: true },
+      readiness: 0,
+    };
+  }
+
+  const stats = getAssetStats(object);
+  const def = ASSET_TYPES[type];
+  const layout = def ? getAssetLayoutInfo(object, type) : null;
+  const declaredParts = options.partNames || (def ? def.parts : []);
+  const foundParts = layout?.parts.map((p) => p.name) || [];
+  const missingParts = declaredParts.filter(
+    (name) => !object.getObjectByName(name),
+  );
+  const required =
+    AUDIT_REQUIRED_PARTS[type] ||
+    (type === "scene"
+      ? []
+      : declaredParts.filter((name) =>
+          name === "body" ||
+          name === "head" ||
+          name === "base" ||
+          name === "handle" ||
+          name === "grip" ||
+          name === "frame" ||
+          name === "wheels" ||
+          name === "hull" ||
+          name === "roof" ||
+          name === "walls",
+        ));
+  const missingRequired = required.filter((name) => !foundParts.includes(name));
+
+  const partScore = declaredParts.length
+    ? clampScore(
+        (declaredParts.length - missingParts.length) / declaredParts.length,
+      )
+    : 1;
+  const partSeverity = missingRequired.length
+    ? Math.max(0, partScore - 0.2)
+    : partScore;
+  checks.push({
+    id: "parts",
+    label: "parts",
+    category: "parts",
+    score: partSeverity,
+    status: auditScoreFromStatus(partSeverity),
+    details: [
+      `${foundParts.length}/${declaredParts.length || 0} named parts`,
+      `${layout?.attachments?.length || 0} attachment points`,
+      ...(missingParts.length ? [`missing: ${missingParts.join(", ")}`] : []),
+      ...(missingRequired.length
+        ? [`essential: ${missingRequired.join(", ")}`]
+        : []),
+    ],
+  });
+
+  const longest =
+    stats.dimensions &&
+    Math.max(
+      stats.dimensions.width,
+      stats.dimensions.height,
+      stats.dimensions.depth,
+    );
+  let budget = AUDIT_BUDGETS[0]?.maxTriangles || 1800;
+  if (Number.isFinite(longest)) {
+    for (const entry of AUDIT_BUDGETS) {
+      if (longest <= entry.max) {
+        budget = entry.maxTriangles;
+        break;
+      }
+      budget = AUDIT_MAX_TRIANGLES;
+    }
+  }
+  const ratio = stats.triangles / budget;
+  const budgetScore = ratio <= 1 ? 1 : ratio <= 3 ? 1 - (ratio - 1) / 3 : 0;
+  checks.push({
+    id: "budget",
+    label: "budget",
+    category: "budget",
+    score: clampScore(budgetScore),
+    status: auditScoreFromStatus(budgetScore),
+    details: [
+      `${stats.triangles} triangles / ${budget} budget`,
+      `${stats.drawCalls} draw calls`,
+      `longest dimension ${Math.round((longest || 0) * 100) / 100} m`,
+    ],
+  });
+
+  const recommendedCollider = getColliderShape(type);
+  const collider = computeCollider(object, "auto");
+  let collisionScore;
+  if (recommendedCollider === "none" || recommendedCollider === "mesh") {
+    collisionScore = collider ? 1 : 0.6;
+  } else {
+    collisionScore =
+      collider &&
+      (recommendedCollider === "box"
+        ? collider.shape === "box"
+        : collider.shape === recommendedCollider)
+        ? 1
+        : collider
+          ? 0.55
+          : 0;
+  }
+  collisionScore = clampScore(collisionScore);
+  checks.push({
+    id: "collision",
+    label: "collider",
+    category: "collision",
+    score: collisionScore,
+    status: auditScoreFromStatus(collisionScore),
+    details: [
+      `recommended ${recommendedCollider}`,
+      collider
+        ? `computed ${collider.shape}${collider.size ? ` ${collider.size.map((v) => Math.round(v * 100) / 100).join("x")}` : ""}`
+        : "none",
+      recommendedCollider === "convex"
+        ? "convex hull physics is heavier than primitives"
+        : "",
+    ].filter(Boolean),
+  });
+
+  const riggable = RIGGABLE_ASSET_TYPES.has(type);
+  let lodLevels = options.lodLevels;
+  let generatedLods = null;
+  if (lodLevels === undefined) {
+    generatedLods = generateLOD(object, 4);
+    lodLevels = generatedLods;
+  }
+  const lodCount = Array.isArray(lodLevels) ? lodLevels.length : 0;
+  const lodTriangleCounts = lodLevels
+    ? lodLevels
+        .map((level) =>
+          level?.stats ? level.stats.triangles : level?.triangles,
+        )
+        .filter((value) => typeof value === "number")
+    : [];
+  const lastReduction =
+    lodTriangleCounts.length >= 2
+      ? 1 - lodTriangleCounts[lodTriangleCounts.length - 1] / lodTriangleCounts[0]
+      : 0;
+  const meaningfulDrop = lodTriangleCounts.length >= 2 && lastReduction >= 0.15;
+  const skinKept =
+    lodTriangleCounts.length >= 2 &&
+    (generatedLods || lodLevels)
+      .slice(1)
+      .every((level) => {
+        let hasSkin = true;
+        level.mesh?.traverse((child) => {
+          if (child.isSkinnedMesh) {
+            hasSkin =
+              hasSkin &&
+              !!child.geometry?.attributes?.skinIndex &&
+              !!child.geometry?.attributes?.skinWeight;
+          }
+        });
+        return hasSkin;
+      });
+  const lodScore = riggable
+    ? lodTriangleCounts.length >= 2 && meaningfulDrop && skinKept
+      ? 1
+      : lodTriangleCounts.length >= 2 && meaningfulDrop
+        ? 0.45
+        : lodTriangleCounts.length >= 2
+          ? 0.3
+          : 0.25
+    : lodTriangleCounts.length >= 2 && meaningfulDrop
+        ? 1
+        : lodTriangleCounts.length >= 2
+          ? 0.6
+          : 0.3;
+  checks.push({
+    id: "lod",
+    label: "lod",
+    category: "lod",
+    score: lodScore,
+    status: auditScoreFromStatus(lodScore),
+    details: [
+      `${lodTriangleCounts.length} levels`,
+      lodTriangleCounts.length
+        ? lodTriangleCounts.map((v, i) => `LOD${i} ${v}`).join(", ")
+        : "none",
+      ...(riggable && !skinKept ? ["skinned LOD keeps skin attributes"] : []),
+      ...(lodTriangleCounts.length >= 2 && !meaningfulDrop
+        ? ["end LOD reduction under 15%"]
+        : []),
+    ],
+  });
+
+  const expectedClips = AUDIT_EXPECTED_ANIMATIONS[type];
+  const availableClips = (object.animations || []).map((clip) => clip.name);
+  const matchedClips = expectedClips
+    ? expectedClips.filter((name) => availableClips.includes(name))
+    : [];
+  let animationScore;
+  if (!expectedClips) {
+    animationScore = 1;
+  } else if (riggable) {
+    const requirement = Math.min(2, expectedClips.length);
+    animationScore = matchedClips.length >= requirement ? 1 : 0.35;
+  } else {
+    animationScore = matchedClips.length >= 1 ? 1 : 0.4;
+  }
+  animationScore = clampScore(animationScore);
+  checks.push({
+    id: "animation",
+    label: "animation",
+    category: "animation",
+    score: animationScore,
+    status: auditScoreFromStatus(animationScore),
+    details: [
+      `${matchedClips.length}/${expectedClips?.length || 0} expected clips`,
+      expectedClips ? `expected ${expectedClips.join(", ")}` : "static asset",
+      availableClips.length ? `found ${availableClips.join(", ")}` : "",
+    ].filter(Boolean),
+  });
+
+  const skeletonGroup = object.getObjectByName("skeleton");
+  const skinned = [];
+  const skinCounts = [];
+  object.traverse((child) => {
+    if (child.isSkinnedMesh) {
+      skinned.push(child);
+      skinCounts.push({
+        name: child.name,
+        joints: !!child.geometry?.attributes?.skinIndex,
+        weights: !!child.geometry?.attributes?.skinWeight,
+        bound: !!child.skeleton,
+      });
+    }
+  });
+  let boneCount = 0;
+  skeletonGroup?.traverse((child) => {
+    if (child.isBone) boneCount += 1;
+  });
+  const allSkinned =
+    (skinCounts.length > 0 &&
+      skinCounts.every((entry) => entry.joints && entry.weights && entry.bound)) ||
+    skinned.length === 0;
+  const rigScore = riggable
+    ? skeletonGroup && boneCount >= 3 && allSkinned
+      ? 1
+      : skeletonGroup
+        ? 0.5
+        : 0
+    : 1;
+  checks.push({
+    id: "rig",
+    label: "rig",
+    category: "rig",
+    score: rigScore,
+    status: auditScoreFromStatus(rigScore),
+    details: [
+      `${skinCounts.length} skinned meshes`,
+      `${boneCount} bones`,
+      ...(riggable && !allSkinned
+        ? ["some skinned meshes miss joints/weights"]
+        : []),
+      ...(riggable && !skeletonGroup ? ["no skeleton group"] : []),
+    ],
+  });
+
+  const meshes = [];
+  object.traverse((child) => {
+    if (child.isMesh) meshes.push(child);
+  });
+  const materials = new Set();
+  meshes.forEach((mesh) => {
+    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    list.forEach((mat) => {
+      if (mat?.isMaterial) materials.add(mat);
+    });
+  });
+  const materialsList = Array.from(materials);
+  const pbrMaterials = materialsList.filter(
+    (mat) =>
+      typeof mat.roughness === "number" &&
+      typeof mat.metalness === "number" &&
+      mat.isMeshStandardMaterial,
+  ).length;
+  const mappedMaterials = materialsList.filter(
+    (mat) => mat.map || mat.roughnessMap || mat.metalnessMap || mat.normalMap,
+  ).length;
+  const uvMeshes = meshes.filter(
+    (mesh) => !!mesh.geometry?.attributes?.uv,
+  ).length;
+  const uvCoverage = meshes.length ? uvMeshes / meshes.length : 0;
+  const pbrCoverage = materialsList.length
+    ? pbrMaterials / materialsList.length
+    : 0;
+  const mapCoverage = materialsList.length
+    ? mappedMaterials / materialsList.length
+    : 0;
+  const materialScore = clampScore(
+    0.45 * uvCoverage + 0.35 * pbrCoverage + 0.2 * mapCoverage + 0.2,
+  );
+  checks.push({
+    id: "material",
+    label: "material",
+    category: "material",
+    score: materialScore,
+    status: auditScoreFromStatus(materialScore),
+    details: [
+      `${materialsList.length} materials`,
+      `${uvMeshes}/${meshes.length} meshes with UVs`,
+      `${pbrMaterials}/${materialsList.length} PBR materials`,
+      `${mappedMaterials}/${materialsList.length} mapped materials`,
+    ],
+  });
+
+  checks.push({
+    id: "uv",
+    label: "uv",
+    category: "uv",
+    score: clampScore(uvCoverage),
+    status: auditScoreFromStatus(uvCoverage),
+    details: [`${uvMeshes}/${meshes.length} meshes with UVs`],
+  });
+
+  const dims = stats.dimensions || {};
+  const dimValues = [dims.width, dims.height, dims.depth].filter((value) =>
+    Number.isFinite(value),
+  );
+  const dimMax = dimValues.length ? Math.max(...dimValues) : 0;
+  const degenerate = dimValues.some((value) => value < 1e-4);
+  const dimScore =
+    dimMax >= 0.01 && dimMax <= 60 && !degenerate
+      ? 1
+      : dimMax > 0
+        ? 0.6
+        : 0;
+  checks.push({
+    id: "dimensions",
+    label: "dimensions",
+    category: "dimensions",
+    score: clampScore(dimScore),
+    status: auditScoreFromStatus(dimScore),
+    details: [
+      `w ${dims.width || 0} m, h ${dims.height || 0} m, d ${dims.depth || 0} m`,
+      dimMax < 0.01 || dimMax > 60
+        ? "dimensions look outside game scale"
+        : "",
+    ].filter(Boolean),
+  });
+
+  const box = new THREE.Box3().setFromObject(object);
+  const boxMin = box.min.y;
+  const boxCenterY = (box.min.y + box.max.y) / 2;
+  const groundPivot =
+    options.pivot != null
+      ? options.pivot === "ground" || options.pivot === "bottom"
+      : AUDIT_GROUND_TYPES.has(type);
+  const toleranceRaw = Math.max(0.01, dimMax * 0.02);
+  const originMismatch = groundPivot ? Math.abs(boxMin) : Math.abs(boxCenterY);
+  const originScore =
+    originMismatch <= toleranceRaw
+      ? 1
+      : originMismatch <= toleranceRaw * 2
+        ? 0.45
+        : 0.1;
+  checks.push({
+    id: "origin",
+    label: "origin",
+    category: "origin",
+    score: clampScore(originScore),
+    status: auditScoreFromStatus(originScore),
+    details: [
+      groundPivot
+        ? `ground asset, bottom at y=${Math.round(boxMin * 1000) / 1000}`
+        : `centered asset, center at y=${Math.round(boxCenterY * 1000) / 1000}`,
+      `allowed ${Math.round(toleranceRaw * 1000) / 1000} m`,
+    ],
+  });
+
+  checks.push({
+    id: "mesh",
+    label: "mesh",
+    category: "mesh",
+    score: meshes.length ? 1 : 0,
+    status: meshes.length ? "pass" : "fail",
+    details: [
+      `${meshes.length} renderable meshes`,
+      `${stats.triangles} triangles`,
+      `${stats.vertices} vertices`,
+    ],
+  });
+
+  const tally = { pass: 0, warn: 0, fail: 0 };
+  checks.forEach((check) => {
+    tally[check.status] = (tally[check.status] || 0) + 1;
+  });
+  const readiness = checks.length
+    ? checks.reduce((sum, check) => sum + check.score, 0) / checks.length
+    : 1;
+
+  return {
+    overview: {
+      type,
+      name:
+        options.meta?.name ||
+        (def ? def.name : type === "scene" ? "Composed scene" : type),
+      tags: options.meta?.tags || getAssetTags(type),
+      pivot: options.pivot || (groundPivot ? "ground" : "center"),
+    },
+    stats,
+    checks,
+    summary: {
+      pass: tally.pass,
+      warn: tally.warn,
+      fail: tally.fail,
+      blocked: tally.fail > 0,
+      ready: tally.fail === 0 && tally.warn === 0,
+    },
+    readiness: Math.round(readiness * 100) / 100,
   };
 }
 

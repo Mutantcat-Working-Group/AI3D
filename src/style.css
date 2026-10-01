@@ -2407,6 +2407,107 @@ dialog .muted {
   color: var(--accent-1);
   font-weight: 600;
 }
+.gen-audit-panel {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line-1);
+  padding-top: 10px;
+}
+.gen-audit-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 6px;
+  background: var(--bg-1);
+}
+.gen-audit-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.gen-audit-headline strong {
+  font-size: 18px;
+  color: var(--accent-1);
+}
+.gen-audit-counts {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.gen-audit-counts .ok {
+  color: var(--ok-ink);
+}
+.gen-audit-counts .warn {
+  color: var(--warn-ink);
+}
+.gen-audit-counts .error {
+  color: var(--error-ink);
+}
+.gen-audit-ready,
+.gen-audit-blocked {
+  font-size: 11px;
+  font-weight: 600;
+}
+.gen-audit-ready {
+  color: var(--ok-ink);
+}
+.gen-audit-blocked {
+  color: var(--error-ink);
+}
+.gen-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gen-audit-check {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 6px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+}
+.gen-audit-check .gen-audit-status {
+  font-size: 10px;
+  line-height: 16px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-align: center;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+.gen-audit-check.pass .gen-audit-status {
+  color: var(--ok-ink);
+}
+.gen-audit-check.warn .gen-audit-status {
+  color: var(--warn-ink);
+}
+.gen-audit-check.fail .gen-audit-status {
+  color: var(--error-ink);
+}
+.gen-audit-check-main strong {
+  display: block;
+  font-size: 11px;
+  color: var(--text-1);
+}
+.gen-audit-check-main small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
 /* ---------------- Asset Library ---------------- */
 
 .gen-library-header {

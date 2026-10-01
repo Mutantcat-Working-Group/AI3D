@@ -13,6 +13,7 @@ import {
   getAssetStats,
   getAssetLayoutInfo,
   buildAnchoredModel,
+  auditGameAsset,
   generateVariantSet,
   exportAssetManifest,
   composeGameKit,
@@ -1695,4 +1696,94 @@ test("selectAnimations keeps, strips or narrows generated clips", () => {
     ["fly"],
   );
   assert.deepEqual(selectAnimations(model, "none"), []);
+});
+
+test("auditGameAsset reports game readiness for a prop", () => {
+  const model = generateAsset("sword", { size: 1, seed: 7 });
+  const report = auditGameAsset(model, "sword", { pivot: "center" });
+  const ids = report.checks.map((check) => check.id);
+  for (const id of [
+    "parts",
+    "budget",
+    "collision",
+    "lod",
+    "animation",
+    "rig",
+    "material",
+    "uv",
+    "dimensions",
+    "origin",
+    "mesh",
+  ]) {
+    assert.ok(ids.includes(id), `${id} is audited`);
+  }
+  assert.ok(report.readiness >= 0 && report.readiness <= 1);
+  assert.equal(typeof report.summary.blocked, "boolean");
+  assert.equal(typeof report.summary.ready, "boolean");
+  for (const check of report.checks) {
+    assert.ok(
+      ["pass", "warn", "fail"].includes(check.status),
+      `${check.id} has a real status`,
+    );
+  }
+});
+
+test("auditGameAsset scores a rigged character as ready", () => {
+  const model = generateAsset("character", {
+    size: 1.4,
+    seed: 7,
+    pivot: "ground",
+  });
+  const report = auditGameAsset(model, "character", { pivot: "ground" });
+  const byId = new Map(report.checks.map((check) => [check.id, check]));
+  assert.equal(byId.get("rig").status, "pass");
+  assert.equal(byId.get("origin").status, "pass");
+  const animation = byId.get("animation");
+  assert.equal(animation.status, "pass");
+  assert.ok(animation.details.join(" ").includes("idle"));
+  assert.ok(animation.details.join(" ").includes("walk"));
+  assert.ok(animation.details.join(" ").includes("attack"));
+  assert.equal(report.summary.blocked, false);
+  assert.equal(report.readiness, 1);
+});
+
+test("auditGameAsset honours the requested pivot", () => {
+  const model = generateAsset("character", { size: 1.4, seed: 7 });
+  const centered = auditGameAsset(model, "character", { pivot: "center" });
+  const centeredOrigin = centered.checks.find(
+    (check) => check.id === "origin",
+  );
+  assert.equal(centeredOrigin.status, "pass");
+
+  const mistaken = auditGameAsset(model, "character", { pivot: "ground" });
+  const mistakenOrigin = mistaken.checks.find((check) => check.id === "origin");
+  assert.equal(mistakenOrigin.status, "fail");
+});
+
+test("auditGameAsset blocks when there is no object", () => {
+  const report = auditGameAsset(null, "sword");
+  assert.equal(report.summary.blocked, true);
+  assert.equal(report.summary.fail, 1);
+  assert.equal(report.readiness, 0);
+});
+
+test("generateLOD keeps skin attributes on rigged levels", () => {
+  const model = generateAsset("character", { size: 1.4, seed: 7 });
+  const levels = generateLOD(model, 4);
+  for (const [index, level] of levels.slice(1).entries()) {
+    let skinned = 0;
+    level.mesh.traverse((node) => {
+      if (!node.isSkinnedMesh) return;
+      skinned += 1;
+      assert.ok(
+        node.geometry.attributes.skinIndex,
+        `LOD ${index + 1} keeps JOINTS_0`,
+      );
+      assert.ok(
+        node.geometry.attributes.skinWeight,
+        `LOD ${index + 1} keeps WEIGHTS_0`,
+      );
+    });
+    assert.ok(skinned >= 1, `LOD ${index + 1} keeps skinned meshes`);
+  }
 });
