@@ -14,6 +14,7 @@ import {
   getAssetLayoutInfo,
   buildAnchoredModel,
   getGameplayInfo,
+  getSpawnInfo,
   auditGameAsset,
   repairGameAsset,
   generateVariantSet,
@@ -1344,6 +1345,78 @@ test("gameplay metadata describes how engines should treat every prop", () => {
   });
 });
 
+test("spawn metadata equips creatures for engine AI and spawning", () => {
+  const cases = {
+    character: {
+      faction: "friendly",
+      ai: "none",
+      health: 100,
+      moveSpeed: 3.2,
+      aggroRange: 0,
+      attackDamage: 0,
+    },
+    monster: {
+      faction: "hostile",
+      ai: "melee-chase",
+      health: 80,
+      moveSpeed: 3.5,
+      aggroRange: 12,
+      attackDamage: 10,
+    },
+    dragon: {
+      faction: "hostile",
+      ai: "fly-breathe",
+      health: 500,
+      moveSpeed: 6,
+      aggroRange: 24,
+      attackDamage: 40,
+    },
+    skeleton: {
+      faction: "hostile",
+      ai: "melee-chase",
+      health: 45,
+      moveSpeed: 2.8,
+      aggroRange: 10,
+      attackDamage: 6,
+    },
+    mummy: {
+      faction: "hostile",
+      ai: "melee-chase",
+      health: 90,
+      moveSpeed: 1.6,
+      aggroRange: 8,
+      attackDamage: 12,
+    },
+    turret: {
+      faction: "defensive",
+      ai: "turret-sweep",
+      health: 120,
+      moveSpeed: 0,
+      aggroRange: 20,
+      attackDamage: 8,
+    },
+  };
+  for (const [type, expected] of Object.entries(cases)) {
+    assert.deepEqual(
+      getAssetTypeInfo(type).spawn,
+      expected,
+      `${type} carries its spawn preset`,
+    );
+  }
+  for (const type of getAssetTypes()) {
+    const spawn = getSpawnInfo(type);
+    if (!spawn) continue;
+    assert.ok(spawn.faction, `${type} has a faction`);
+    assert.ok(spawn.ai, `${type} has an AI hint`);
+    assert.ok(spawn.health > 0, `${type} has health`);
+    assert.ok(spawn.moveSpeed >= 0, `${type} has a move speed`);
+    assert.ok(spawn.aggroRange >= 0, `${type} has an aggro range`);
+    assert.ok(spawn.attackDamage >= 0, `${type} has attack damage`);
+  }
+  assert.equal(getSpawnInfo("chest"), null);
+  assert.equal(getSpawnInfo("not_a_type"), null);
+});
+
 test("computeCollider fits primitives to the generated bounds", () => {
   const box = computeCollider(
     generateAsset("crate", { size: 2, seed: 1 }),
@@ -1475,6 +1548,36 @@ test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   assert.deepEqual(manifest.assets[0].gameplay, {
     interaction: "attack",
     role: "weapon",
+  });
+  assert.equal(manifest.assets[0].spawn, null);
+});
+
+test("game packs carry spawn and AI metadata for creatures", () => {
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        id: "dungeon-monster-1",
+        name: "Dungeon Monster",
+        type: "monster",
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.deepEqual(manifest.assets[0].spawn, {
+    faction: "hostile",
+    ai: "melee-chase",
+    health: 80,
+    moveSpeed: 3.5,
+    aggroRange: 12,
+    attackDamage: 10,
+  });
+  assert.deepEqual(manifest.assets[0].gameplay, {
+    interaction: "enemy",
+    role: "enemy",
   });
 });
 

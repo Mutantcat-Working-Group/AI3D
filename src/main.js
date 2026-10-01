@@ -57,6 +57,7 @@ import {
   buildAnchoredModel,
   getAssetTags,
   getGameplayInfo,
+  getSpawnInfo,
   auditGameAsset,
   repairGameAsset,
   getColliderShape,
@@ -2764,6 +2765,20 @@ const gameplayRoleLabels = {
   path: "gameplay.role.path",
 };
 
+const spawnFactionLabels = {
+  friendly: "spawn.faction.friendly",
+  hostile: "spawn.faction.hostile",
+  neutral: "spawn.faction.neutral",
+  defensive: "spawn.faction.defensive",
+};
+
+const spawnAiLabels = {
+  none: "spawn.ai.none",
+  "melee-chase": "spawn.ai.meleeChase",
+  "fly-breathe": "spawn.ai.flyBreathe",
+  "turret-sweep": "spawn.ai.turretSweep",
+};
+
 function renderGenLayout() {
   const wrap = $("#gen-layout");
   if (!wrap) return;
@@ -2796,6 +2811,21 @@ function renderGenLayout() {
   } · ${t(gameplayRoleLabels[gameplay.role]) || gameplay.role}`;
   tag.title = `${gameplay.interaction} / ${gameplay.role}`;
   wrap.append(tag);
+  const spawn = getSpawnInfo(genState.model.type);
+  if (spawn) {
+    const spawnTag = document.createElement("span");
+    spawnTag.className = "gen-layout-tag gen-layout-spawn";
+    spawnTag.textContent = `${t("gen.spawn")}: ${
+      t(spawnFactionLabels[spawn.faction]) || spawn.faction
+    } · ${t(spawnAiLabels[spawn.ai]) || spawn.ai}`;
+    spawnTag.title = t("spawn.stats", {
+      health: spawn.health,
+      speed: spawn.moveSpeed,
+      aggro: spawn.aggroRange,
+      damage: spawn.attackDamage,
+    });
+    wrap.append(spawnTag);
+  }
   wrap.hidden = false;
 }
 

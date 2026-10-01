@@ -10572,6 +10572,92 @@ const GAMEPLAY_TAG_DEFAULTS = [
 ];
 
 /**
+ * Spawn metadata tells an engine how a creature enters a scene: which side it
+ * belongs to, which AI drives it, and the combat numbers gate and balance
+ * systems need. Props and structures get no spawn entry.
+ */
+const SPAWN_PRESETS = {
+  character: {
+    faction: "friendly",
+    ai: "none",
+    health: 100,
+    moveSpeed: 3.2,
+    aggroRange: 0,
+    attackDamage: 0,
+  },
+  monster: {
+    faction: "hostile",
+    ai: "melee-chase",
+    health: 80,
+    moveSpeed: 3.5,
+    aggroRange: 12,
+    attackDamage: 10,
+  },
+  dragon: {
+    faction: "hostile",
+    ai: "fly-breathe",
+    health: 500,
+    moveSpeed: 6,
+    aggroRange: 24,
+    attackDamage: 40,
+  },
+  skeleton: {
+    faction: "hostile",
+    ai: "melee-chase",
+    health: 45,
+    moveSpeed: 2.8,
+    aggroRange: 10,
+    attackDamage: 6,
+  },
+  mummy: {
+    faction: "hostile",
+    ai: "melee-chase",
+    health: 90,
+    moveSpeed: 1.6,
+    aggroRange: 8,
+    attackDamage: 12,
+  },
+  turret: {
+    faction: "defensive",
+    ai: "turret-sweep",
+    health: 120,
+    moveSpeed: 0,
+    aggroRange: 20,
+    attackDamage: 8,
+  },
+};
+
+const SPAWN_TAG_FALLBACKS = [
+  [
+    "enemy",
+    {
+      faction: "hostile",
+      ai: "melee-chase",
+      health: 60,
+      moveSpeed: 3,
+      aggroRange: 10,
+      attackDamage: 8,
+    },
+  ],
+];
+
+/**
+ * Get the engine-facing spawn metadata for an asset type, or null for props
+ * that are not spawned as creatures.
+ * @param {string} type - Asset type id
+ * @returns {null | { faction: string, ai: string, health: number, moveSpeed: number, aggroRange: number, attackDamage: number }}
+ */
+export function getSpawnInfo(type) {
+  const explicit = SPAWN_PRESETS[type];
+  if (explicit) return { ...explicit };
+  const tags = ASSET_TAGS[type] || [];
+  for (const [tag, fallback] of SPAWN_TAG_FALLBACKS) {
+    if (tags.includes(tag)) return { ...fallback };
+  }
+  return null;
+}
+
+/**
  * Get the engine-facing gameplay metadata for an asset type.
  * @param {string} type - Asset type id
  * @returns {{ interaction: string, role: string }} Interaction and role hints
@@ -10596,6 +10682,7 @@ export function getAssetTypeInfo(type) {
     collider: getColliderShape(type),
     animations: ANIMATION_PRESETS[type] || [],
     gameplay: getGameplayInfo(type),
+    spawn: getSpawnInfo(type),
   };
 }
 
@@ -10880,6 +10967,7 @@ export function buildGamePackFiles({
       type: asset.type,
       animations: Array.isArray(asset.animations) ? asset.animations : [],
       gameplay: isScene ? null : getGameplayInfo(asset.type),
+      spawn: isScene ? null : getSpawnInfo(asset.type),
       clipFiles: (asset.animationFiles || []).map((clip) => ({
         name: clip.name,
         duration: clip.duration,

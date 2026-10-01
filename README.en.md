@@ -75,6 +75,11 @@ each one, and save the ones you like to the asset library.
   switch, monsters fight as enemies, torches light, coins collect, beehives
   and wheat sheaves harvest, mounts ride); the generator shows the current
   asset's interaction and role summary so gameplay prefabs need no guessing.
+- **Spawn and AI metadata** - spawnable assets (character, monster, dragon,
+  skeleton, mummy, turret) carry a `spawn` field in export manifests and game
+  pack manifests with faction, AI behaviour, health, move speed, aggro range
+  and attack damage; the generator shows the current asset's spawn summary so
+  spawning, navigation and balance tuning need no guessing.
 - **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
   fit axis (largest dimension / height / width / depth), and the origin can be
   centred, planted on the ground, or pinned to the base or the top, so a
@@ -352,6 +357,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   light, coins collect, monsters are enemies, mounts ride), written into
   export manifests and game pack manifests, with a matching summary in the
   generator.
+- **2.10 (done)** - spawn and AI metadata: character, monster, dragon,
+  skeleton, mummy and turret carry faction, AI behaviour, health, move speed,
+  aggro range and attack damage, written into export manifests and game pack
+  manifests, with a matching summary in the generator.
 
 ### 12. Documentation
 
