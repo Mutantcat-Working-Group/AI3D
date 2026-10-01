@@ -9,6 +9,7 @@ import { CATALOGUES } from "../src/i18n/index.js";
 const KEY_SUFFIXES = {
   tree_stump: "treeStump",
   barrel_variants: "barrelVariants",
+  armor_stand: "armorStand",
   wall_window: "wallWindow",
   wall_door: "wallDoor",
   wall_corner: "wallCorner",

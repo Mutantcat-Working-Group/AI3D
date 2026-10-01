@@ -1157,6 +1157,12 @@ test("new game asset types build their declared parts", () => {
     "throne",
     "bench",
     "lantern",
+    "table",
+    "chair",
+    "bed",
+    "chandelier",
+    "armor_stand",
+    "skeleton",
   ];
   newTypes.forEach((type) => {
     const model = generateAsset(type, { seed: 42 });
