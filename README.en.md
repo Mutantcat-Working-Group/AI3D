@@ -24,16 +24,16 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-52 built-in game asset templates, each with sensible part names, tags and
+58 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Weapons   | sword, axe, bow, hammer, spear, shield                                                                                    |
+| Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                             |
 | Creatures | character, monster, dragon                                                                                                |
-| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, fountain                                                         |
-| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap |
-| Vehicles  | car, boat, plane, bike                                                                                                    |
+| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain                                                   |
+| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra |
+| Vehicles  | car, boat, plane, bike, wagon                                                                                             |
 | Sci-fi    | turret, drone, comm antenna                                                                                               |
 
 Beyond the quick templates you can describe an asset in natural language and
@@ -314,6 +314,9 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
 - **2.3** - named part hierarchy and attachment points: export manifests carry
   part bounds and recommended attachment coordinates, and the generator shows a
   layout summary for the current asset.
+- **2.4 (done)** - more game asset templates: gate, wagon, cannon, grave,
+  ladder and candelabra, with type-specific tags, collider presets and default
+  PBR textures.
 
 ### 12. Documentation
 

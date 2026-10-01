@@ -34,6 +34,15 @@ const ASSET_TYPES = {
   torch: { name: "Torch", parts: ["handle", "cup", "flame"] },
   fence: { name: "Fence", parts: ["posts", "rails"] },
   bridge: { name: "Bridge", parts: ["deck", "rails", "legs"] },
+  gate: { name: "Gate", parts: ["posts", "crossbar", "lattice", "handle"] },
+  wagon: { name: "Wagon", parts: ["bed", "wheels", "tongue", "cargo"] },
+  cannon: { name: "Cannon", parts: ["barrel", "carriage", "wheels", "rammer"] },
+  grave: { name: "Grave", parts: ["mound", "stone", "cross", "flowers"] },
+  ladder: { name: "Ladder", parts: ["rails", "rungs", "tips"] },
+  candelabra: {
+    name: "Candelabra",
+    parts: ["base", "stem", "arms", "candles"],
+  },
   fountain: {
     name: "Fountain",
     parts: ["basin", "water", "pillar", "bowl", "jet"],
@@ -96,6 +105,12 @@ const ASSET_TAGS = {
   fountain: ["building", "decoration", "outdoor"],
   bridge: ["building", "structure", "outdoor"],
   fence: ["building", "structure", "outdoor"],
+  gate: ["building", "structure", "defense", "outdoor"],
+  wagon: ["vehicle", "transport", "outdoor", "wood"],
+  cannon: ["weapon", "siege", "defense", "metal"],
+  grave: ["item", "decoration", "outdoor"],
+  ladder: ["item", "tool", "structure", "outdoor"],
+  candelabra: ["item", "light", "decoration", "indoor"],
   car: ["vehicle", "transport", "outdoor"],
   character: ["creature", "character", "animated"],
   cube: ["primitive", "basic", "indoor"],
@@ -273,6 +288,12 @@ const ASSET_COLLIDERS = {
   torch: "cylinder",
   fence: "box",
   bridge: "box",
+  gate: "box",
+  wagon: "box",
+  cannon: "box",
+  grave: "box",
+  ladder: "box",
+  candelabra: "cylinder",
   fountain: "box",
   brazier: "cylinder",
   runestone: "box",
@@ -1709,6 +1730,24 @@ export function generateAsset(
       break;
     case "fence":
       buildFence(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "gate":
+      buildGate(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "wagon":
+      buildWagon(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "cannon":
+      buildCannon(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "grave":
+      buildGrave(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "ladder":
+      buildLadder(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "candelabra":
+      buildCandelabra(group, size, segments, matStyle, customColor, rng);
       break;
     case "bridge":
       buildBridge(group, size, segments, matStyle, customColor, rng);
@@ -4171,6 +4210,425 @@ function buildBarrel(
   group.add(hoopGroup);
 }
 
+function buildGate(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(customColor || 0x795548, style);
+  const metalMat = createMaterial(0x546e7a, style);
+
+  const posts = new THREE.Group();
+  posts.name = "posts";
+  const postGeo = new THREE.BoxGeometry(0.18 * size, 2.2 * size, 0.18 * size);
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(postGeo, woodMat);
+    post.position.set(side * 1.12 * size, 0, 0);
+    post.name = side < 0 ? "post-left" : "post-right";
+    posts.add(post);
+  }
+  group.add(posts);
+
+  const crossbarGeo = new THREE.BoxGeometry(
+    2.5 * size,
+    0.2 * size,
+    0.14 * size,
+  );
+  const crossbar = new THREE.Mesh(crossbarGeo, woodMat);
+  crossbar.position.y = 2.02 * size;
+  crossbar.name = "crossbar";
+  group.add(crossbar);
+
+  const lattice = new THREE.Group();
+  lattice.name = "lattice";
+  const plankGeo = new THREE.BoxGeometry(0.08 * size, 0.92 * size, 0.08 * size);
+  for (let i = 0; i < 4; i++) {
+    const x = (-0.8 + i * 0.53 + rng() * 0.08) * size;
+    const plank = new THREE.Mesh(plankGeo, woodMat);
+    plank.position.set(x, 1.25 * size, 0);
+    plank.rotation.z = (rng() - 0.5) * 0.06;
+    plank.name = `plank-${i}`;
+    lattice.add(plank);
+  }
+  const railGeo = new THREE.BoxGeometry(1.9 * size, 0.1 * size, 0.08 * size);
+  const rail = new THREE.Mesh(railGeo, woodMat);
+  rail.position.y = 1.72 * size;
+  rail.name = "rail";
+  lattice.add(rail);
+  group.add(lattice);
+
+  const handleGeo = new THREE.TorusGeometry(0.09 * size, 0.025 * size, 8, 12);
+  const handle = new THREE.Mesh(handleGeo, metalMat);
+  handle.position.set(0.72 * size, 1.12 * size, 0.11 * size);
+  handle.name = "handle";
+  group.add(handle);
+}
+
+function buildWagon(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const woodMat = createMaterial(customColor || 0x8d6e63, style);
+  const wheelMat = createMaterial(0x4e342e, style);
+  const cargoMat = createMaterial(0xa1887f, style);
+
+  const bedGeo = new THREE.BoxGeometry(1.9 * size, 0.16 * size, 1.1 * size);
+  const bed = new THREE.Mesh(bedGeo, woodMat);
+  bed.name = "bed";
+  group.add(bed);
+
+  const sideGeo = new THREE.BoxGeometry(1.9 * size, 0.34 * size, 0.07 * size);
+  for (const side of [-1, 1]) {
+    const wall = new THREE.Mesh(sideGeo, woodMat);
+    wall.position.set(0, 0.25 * size, side * 0.55 * size);
+    wall.name = side < 0 ? "side-back" : "side-front";
+    group.add(wall);
+  }
+
+  const wheels = new THREE.Group();
+  wheels.name = "wheels";
+  const wheelGeo = new THREE.CylinderGeometry(
+    0.42 * size,
+    0.42 * size,
+    0.09 * size,
+    10,
+  );
+  for (let i = 0; i < 4; i++) {
+    const x = (i % 2 === 0 ? -0.72 : 0.72) * size;
+    const z = (i < 2 ? -1 : 1) * 0.58 * size;
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(x, -0.42 * size, z);
+    wheel.name = `wheel-${i}`;
+    wheels.add(wheel);
+  }
+  group.add(wheels);
+
+  const tongueGeo = new THREE.BoxGeometry(
+    1.15 * size,
+    0.09 * size,
+    0.14 * size,
+  );
+  const tongue = new THREE.Mesh(tongueGeo, woodMat);
+  tongue.position.set(1.12 * size, -0.24 * size, 0);
+  tongue.name = "tongue";
+  group.add(tongue);
+
+  const cargo = new THREE.Group();
+  cargo.name = "cargo";
+  const crateGeo = new THREE.BoxGeometry(0.72 * size, 0.62 * size, 0.72 * size);
+  const crate = new THREE.Mesh(crateGeo, cargoMat);
+  crate.position.y = 0.55 * size;
+  crate.name = "crate";
+  cargo.add(crate);
+  if (rng() > 0.5) {
+    const sackGeo = new THREE.SphereGeometry(
+      0.2 * size,
+      Math.max(8, segments),
+      Math.max(6, segments >> 1),
+    );
+    const sack = new THREE.Mesh(sackGeo, cargoMat);
+    sack.position.set(0.35 * size, 0.45 * size, 0);
+    sack.scale.set(1, 0.8, 1);
+    sack.name = "sack";
+    cargo.add(sack);
+  }
+  group.add(cargo);
+}
+
+function buildCannon(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const barrelMat = createMaterial(customColor || 0x6d4c41, style);
+  const ironMat = createMaterial(0x37474f, style);
+  const woodMat = createMaterial(0x6d4c2f, style);
+
+  const barrelGeo = new THREE.CylinderGeometry(
+    0.13 * size,
+    0.19 * size,
+    1.7 * size,
+    segments,
+  );
+  const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+  barrel.rotation.z = Math.PI / 2;
+  barrel.position.y = 0.26 * size;
+  barrel.name = "barrel";
+  group.add(barrel);
+
+  const muzzleGeo = new THREE.TorusGeometry(
+    0.15 * size,
+    0.06 * size,
+    8,
+    segments,
+  );
+  const muzzle = new THREE.Mesh(muzzleGeo, ironMat);
+  muzzle.rotation.y = Math.PI / 2;
+  muzzle.position.set(-0.98 * size, 0.26 * size, 0);
+  muzzle.name = "muzzle";
+  group.add(muzzle);
+
+  const carriage = new THREE.Group();
+  carriage.name = "carriage";
+  const sideGeo = new THREE.BoxGeometry(0.08 * size, 0.5 * size, 1.15 * size);
+  for (const side of [-1, 1]) {
+    const sideWall = new THREE.Mesh(sideGeo, woodMat);
+    sideWall.position.set(0, -0.12 * size, side * 0.42 * size);
+    sideWall.name = side < 0 ? "wall-left" : "wall-right";
+    carriage.add(sideWall);
+  }
+  const axleGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.06 * size,
+    1.2 * size,
+    8,
+  );
+  const axle = new THREE.Mesh(axleGeo, ironMat);
+  axle.rotation.x = Math.PI / 2;
+  axle.position.y = -0.34 * size;
+  axle.name = "axle";
+  carriage.add(axle);
+  group.add(carriage);
+
+  const wheels = new THREE.Group();
+  wheels.name = "wheels";
+  const wheelGeo = new THREE.CylinderGeometry(
+    0.48 * size,
+    0.48 * size,
+    0.12 * size,
+    10,
+  );
+  for (const side of [-1, 1]) {
+    const wheel = new THREE.Mesh(wheelGeo, woodMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(0, -0.48 * size, side * 0.55 * size);
+    wheel.name = side < 0 ? "wheel-left" : "wheel-right";
+    wheels.add(wheel);
+  }
+  group.add(wheels);
+
+  const rammerGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.05 * size,
+    1.6 * size,
+    8,
+  );
+  const rammer = new THREE.Mesh(rammerGeo, woodMat);
+  rammer.position.set(0.55 * size, -0.38 * size, 0);
+  rammer.rotation.z = 0.25;
+  rammer.name = "rammer";
+  group.add(rammer);
+}
+
+function buildGrave(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const earthMat = createMaterial(0x6d4c41, style);
+  const stoneMat = createMaterial(customColor || 0x9e9e9e, style);
+  const woodMat = createMaterial(0x795548, style);
+  const flowerMat = createMaterial(0xff8a65, style);
+
+  const moundGeo = new THREE.SphereGeometry(
+    0.7 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const mound = new THREE.Mesh(moundGeo, earthMat);
+  mound.position.y = -0.13 * size;
+  mound.scale.set(1.25, 0.3, 0.85);
+  mound.name = "mound";
+  group.add(mound);
+
+  const stoneGeo = new THREE.BoxGeometry(0.62 * size, 0.86 * size, 0.14 * size);
+  const stone = new THREE.Mesh(stoneGeo, stoneMat);
+  stone.position.set(-0.22 * size, 0.3 * size, 0);
+  stone.rotation.z = 0.06;
+  stone.name = "stone";
+  group.add(stone);
+
+  const cross = new THREE.Group();
+  cross.name = "cross";
+  const armGeo = new THREE.BoxGeometry(0.34 * size, 0.08 * size, 0.06 * size);
+  const arm = new THREE.Mesh(armGeo, woodMat);
+  arm.position.y = 0.75 * size;
+  arm.name = "arm";
+  cross.add(arm);
+  const postGeo = new THREE.BoxGeometry(0.1 * size, 0.5 * size, 0.06 * size);
+  const post = new THREE.Mesh(postGeo, woodMat);
+  post.position.y = 0.38 * size;
+  post.name = "post";
+  cross.add(post);
+  cross.position.set(0.3 * size, 0.03 * size, 0);
+  group.add(cross);
+
+  const flowers = new THREE.Group();
+  flowers.name = "flowers";
+  const bloomGeo = new THREE.SphereGeometry(0.07 * size, 8, 6);
+  for (let i = 0; i < 3; i++) {
+    const bloom = new THREE.Mesh(bloomGeo, flowerMat);
+    const angle = -0.9 + i * 0.9;
+    bloom.position.set(
+      Math.cos(angle) * 0.42 * size,
+      -0.02 * size,
+      Math.sin(angle) * 0.42 * size,
+    );
+    bloom.name = `bloom-${i}`;
+    flowers.add(bloom);
+  }
+  group.add(flowers);
+}
+
+function buildLadder(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const railMat = createMaterial(customColor || 0xa1887f, style);
+  const rungMat = createMaterial(0x795548, style);
+  const tipMat = createMaterial(0x37474f, style);
+
+  const rails = new THREE.Group();
+  rails.name = "rails";
+  const railGeo = new THREE.BoxGeometry(0.09 * size, 2.35 * size, 0.07 * size);
+  for (const side of [-1, 1]) {
+    const rail = new THREE.Mesh(railGeo, railMat);
+    rail.position.set(side * 0.36 * size, 0, 0);
+    rail.rotation.z = side * 0.08;
+    rail.name = side < 0 ? "rail-left" : "rail-right";
+    rails.add(rail);
+  }
+  group.add(rails);
+
+  const rungs = new THREE.Group();
+  rungs.name = "rungs";
+  const rungGeo = new THREE.BoxGeometry(0.66 * size, 0.07 * size, 0.07 * size);
+  for (let i = 0; i < 6; i++) {
+    const rung = new THREE.Mesh(rungGeo, rungMat);
+    rung.position.y = (-1.0 + i * 0.42) * size;
+    rung.name = `rung-${i}`;
+    rungs.add(rung);
+  }
+  group.add(rungs);
+
+  const tips = new THREE.Group();
+  tips.name = "tips";
+  const tipGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.06 * size,
+    0.08 * size,
+    8,
+  );
+  for (const side of [-1, 1]) {
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.set(side * 0.36 * size, -1.2 * size, 0);
+    tip.name = side < 0 ? "tip-left" : "tip-right";
+    tips.add(tip);
+  }
+  group.add(tips);
+}
+
+function buildCandelabra(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const metalMat = createMaterial(customColor || 0xb08d57, style);
+  const candleMat = createMaterial(0xfff8e1, style);
+  const flameMat = createMaterial(0xffb300, style);
+  flameMat.emissive = new THREE.Color(0xff6f00);
+  flameMat.emissiveIntensity = 1.5;
+
+  const baseGeo = new THREE.CylinderGeometry(
+    0.34 * size,
+    0.42 * size,
+    0.16 * size,
+    segments,
+  );
+  const base = new THREE.Mesh(baseGeo, metalMat);
+  base.position.y = -0.62 * size;
+  base.name = "base";
+  group.add(base);
+
+  const stemGeo = new THREE.CylinderGeometry(
+    0.07 * size,
+    0.12 * size,
+    1.05 * size,
+    segments,
+  );
+  const stem = new THREE.Mesh(stemGeo, metalMat);
+  stem.position.y = -0.05 * size;
+  stem.name = "stem";
+  group.add(stem);
+
+  const arms = new THREE.Group();
+  arms.name = "arms";
+  const armGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.055 * size,
+    0.42 * size,
+    8,
+  );
+  const angles = [-0.7, 0.7];
+  for (let i = 0; i < 2; i++) {
+    const arm = new THREE.Mesh(armGeo, metalMat);
+    arm.position.set(Math.sin(angles[i]) * 0.16 * size, 0.12 * size, 0);
+    arm.rotation.z = Math.PI / 2 + angles[i];
+    arm.name = `arm-${i}`;
+    arms.add(arm);
+  }
+  group.add(arms);
+
+  const candles = new THREE.Group();
+  candles.name = "candles";
+  const candleGeo = new THREE.CylinderGeometry(
+    0.06 * size,
+    0.06 * size,
+    0.3 * size,
+    8,
+  );
+  const candlePositions = [
+    [0, 0.42 * size],
+    [0.6 * size, 0.34 * size],
+    [-0.6 * size, 0.34 * size],
+  ];
+  for (let i = 0; i < 3; i++) {
+    const [x, y] = candlePositions[i];
+    const candle = new THREE.Mesh(candleGeo, candleMat);
+    candle.position.set(x, y, 0);
+    candle.name = `candle-${i}`;
+    candles.add(candle);
+
+    const flameGeo = new THREE.ConeGeometry(0.045 * size, 0.13 * size, 6);
+    const flame = new THREE.Mesh(flameGeo, flameMat);
+    flame.position.set(x, y + 0.21 * size, 0);
+    flame.name = `flame-${i}`;
+    candles.add(flame);
+  }
+  group.add(candles);
+}
+
 function buildCrate(
   group,
   size,
@@ -6392,6 +6850,11 @@ const AUDIT_GROUND_TYPES = new Set([
   "fountain",
   "bridge",
   "fence",
+  "gate",
+  "wagon",
+  "cannon",
+  "grave",
+  "ladder",
   "flag",
   "sign",
   "car",
@@ -6425,6 +6888,12 @@ const AUDIT_REQUIRED_PARTS = {
   barrel: ["body"],
   potion: ["body"],
   key: ["shaft"],
+  gate: ["posts", "crossbar"],
+  wagon: ["bed", "wheels"],
+  cannon: ["barrel", "carriage"],
+  grave: ["stone", "mound"],
+  ladder: ["rails", "rungs"],
+  candelabra: ["base", "stem"],
   house: ["walls", "roof"],
   car: ["body", "wheels"],
   bike: ["frame", "wheels"],
