@@ -56,6 +56,7 @@ import {
   getAssetLayoutInfo,
   buildAnchoredModel,
   getAssetTags,
+  getGameplayInfo,
   auditGameAsset,
   repairGameAsset,
   getColliderShape,
@@ -2714,6 +2715,55 @@ function setGenStatus(message, type = "") {
   status.className = `gen-status ${type}`;
 }
 
+/* Gameplay hints are engine-facing values from the generator, so the panel
+   shows them through the same localised catalogue as the rest of the UI.
+   Maps hold i18n keys so a locale switch picks up fresh translations. */
+const gameplayInteractionLabels = {
+  none: "gameplay.interaction.none",
+  open: "gameplay.interaction.open",
+  raise: "gameplay.interaction.raise",
+  pull: "gameplay.interaction.pull",
+  attack: "gameplay.interaction.attack",
+  talk: "gameplay.interaction.talk",
+  enemy: "gameplay.interaction.enemy",
+  light: "gameplay.interaction.light",
+  collect: "gameplay.interaction.collect",
+  mine: "gameplay.interaction.mine",
+  harvest: "gameplay.interaction.harvest",
+  eat: "gameplay.interaction.eat",
+  seat: "gameplay.interaction.seat",
+  sleep: "gameplay.interaction.sleep",
+  use: "gameplay.interaction.use",
+  ride: "gameplay.interaction.ride",
+  climb: "gameplay.interaction.climb",
+  activate: "gameplay.interaction.activate",
+  damage: "gameplay.interaction.damage",
+  cross: "gameplay.interaction.cross",
+};
+
+const gameplayRoleLabels = {
+  prop: "gameplay.role.prop",
+  npc: "gameplay.role.npc",
+  enemy: "gameplay.role.enemy",
+  container: "gameplay.role.container",
+  door: "gameplay.role.door",
+  switch: "gameplay.role.switch",
+  hazard: "gameplay.role.hazard",
+  sentry: "gameplay.role.sentry",
+  weapon: "gameplay.role.weapon",
+  light: "gameplay.role.light",
+  collectible: "gameplay.role.collectible",
+  mount: "gameplay.role.mount",
+  furniture: "gameplay.role.furniture",
+  resource: "gameplay.role.resource",
+  consumable: "gameplay.role.consumable",
+  tool: "gameplay.role.tool",
+  structure: "gameplay.role.structure",
+  terrain: "gameplay.role.terrain",
+  decoration: "gameplay.role.decoration",
+  path: "gameplay.role.path",
+};
+
 function renderGenLayout() {
   const wrap = $("#gen-layout");
   if (!wrap) return;
@@ -2738,6 +2788,14 @@ function renderGenLayout() {
     tag.title = part.name;
     wrap.append(tag);
   }
+  const gameplay = getGameplayInfo(genState.model.type);
+  const tag = document.createElement("span");
+  tag.className = "gen-layout-tag gen-layout-gameplay";
+  tag.textContent = `${t("gen.gameplay")}: ${
+    t(gameplayInteractionLabels[gameplay.interaction]) || gameplay.interaction
+  } · ${t(gameplayRoleLabels[gameplay.role]) || gameplay.role}`;
+  tag.title = `${gameplay.interaction} / ${gameplay.role}`;
+  wrap.append(tag);
   wrap.hidden = false;
 }
 

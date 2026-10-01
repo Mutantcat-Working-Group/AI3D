@@ -69,6 +69,12 @@ each one, and save the ones you like to the asset library.
   the current asset; enabling "Include named anchor nodes" writes empty
   `anchor_<role>` nodes (with `ai3d` user data) into GLB/glTF exports so an
   engine can find sockets by name after import.
+- **Gameplay metadata** - every asset carries a `gameplay` field in export
+  manifests and game pack manifests that says how an engine should treat it
+  (chest opens as a container, portcullis raises as a door, lever pulls as a
+  switch, monsters fight as enemies, torches light, coins collect, beehives
+  and wheat sheaves harvest, mounts ride); the generator shows the current
+  asset's interaction and role summary so gameplay prefabs need no guessing.
 - **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
   fit axis (largest dimension / height / width / depth), and the origin can be
   centred, planted on the ground, or pinned to the base or the top, so a
@@ -310,14 +316,14 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   scene with named props intact.
 - **2.0 (done)** - animation playback: rigged animation you can play and step
   through frame by frame.
-- **2.1** - built-in chat and modeling knowledge: talk to AI3D inside the app,
-  backed by a cited knowledge pack of public white-model and professional
-  modeling references, callable as an MCP tool.
-- **2.2** - knowledge pack maintenance: record source, license and refresh
-  date, support offline search and later incremental updates.
-- **2.3** - named part hierarchy and attachment points: export manifests carry
-  part bounds and recommended attachment coordinates, and the generator shows a
-  layout summary for the current asset.
+- **2.1 (done)** - built-in chat and modeling knowledge: talk to AI3D inside
+  the app, backed by a cited knowledge pack of public white-model and
+  professional modeling references, callable as an MCP tool.
+- **2.2 (done)** - knowledge pack maintenance: record source, license and
+  refresh date, support offline search and later incremental updates.
+- **2.3 (done)** - named part hierarchy and attachment points: export
+  manifests carry part bounds and recommended attachment coordinates, and the
+  generator shows a layout summary for the current asset.
 - **2.4 (done)** - more game asset templates: gate, wagon, cannon, grave,
   ladder and candelabra, with type-specific tags, collider presets and default
   PBR textures.
@@ -341,6 +347,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   the cobweb sways, and everything keeps type-specific tags, collider presets
   and default PBR textures; the new templates now ship inside the dungeon,
   outpost, village and wilderness scene kits.
+- **2.9 (done)** - gameplay metadata: every asset carries engine-readable
+  interaction and role descriptions (chests open, portcullises raise, torches
+  light, coins collect, monsters are enemies, mounts ride), written into
+  export manifests and game pack manifests, with a matching summary in the
+  generator.
 
 ### 12. Documentation
 

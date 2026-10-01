@@ -13,6 +13,7 @@ import {
   getAssetStats,
   getAssetLayoutInfo,
   buildAnchoredModel,
+  getGameplayInfo,
   auditGameAsset,
   repairGameAsset,
   generateVariantSet,
@@ -965,6 +966,7 @@ test("exportGamePack exports composed scenes with props and theme", async () => 
   assert.equal(manifest.assets[0].scene.spacing, 1);
   assert.equal(manifest.assets[0].scene.groundPadding, 0.6);
   assert.equal(manifest.assets[0].scene.propScale, 1);
+  assert.equal(manifest.assets[0].gameplay, null);
   assert.ok(manifest.assets[0].scene.props[0].rotationY >= 0);
   assert.ok(manifest.assets[0].scene.props[0].bounds.width > 0);
   assert.equal(manifest.assets[0].collision, null);
@@ -1311,6 +1313,37 @@ test("collider presets recommend a physics shape for every asset type", () => {
   }
 });
 
+test("gameplay metadata describes how engines should treat every prop", () => {
+  const cases = {
+    chest: { interaction: "open", role: "container" },
+    lever: { interaction: "pull", role: "switch" },
+    portcullis: { interaction: "raise", role: "door" },
+    monster: { interaction: "enemy", role: "enemy" },
+    torch: { interaction: "light", role: "light" },
+    coin_pile: { interaction: "collect", role: "collectible" },
+    beehive: { interaction: "harvest", role: "resource" },
+    sword: { interaction: "attack", role: "weapon" },
+    minecart: { interaction: "ride", role: "mount" },
+    bed: { interaction: "sleep", role: "furniture" },
+  };
+  for (const [type, expected] of Object.entries(cases)) {
+    assert.deepEqual(
+      getAssetTypeInfo(type).gameplay,
+      expected,
+      `${type} carries its gameplay preset`,
+    );
+  }
+  for (const type of getAssetTypes()) {
+    const gameplay = getGameplayInfo(type);
+    assert.ok(gameplay.interaction, `${type} has an interaction hint`);
+    assert.ok(gameplay.role, `${type} has a role hint`);
+  }
+  assert.deepEqual(getGameplayInfo("not_a_type"), {
+    interaction: "none",
+    role: "prop",
+  });
+});
+
 test("computeCollider fits primitives to the generated bounds", () => {
   const box = computeCollider(
     generateAsset("crate", { size: 2, seed: 1 }),
@@ -1439,6 +1472,10 @@ test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   assert.equal(manifest.assets[0].name, "Sword Test");
   assert.equal(manifest.assets[0].stats.triangles, 120);
   assert.equal(manifest.assets[0].files.model, "models/sword-test-1/LOD0.glb");
+  assert.deepEqual(manifest.assets[0].gameplay, {
+    interaction: "attack",
+    role: "weapon",
+  });
 });
 
 test("Godot packs include an instanceable tscn wrapper for each model", () => {

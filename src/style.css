@@ -2308,6 +2308,12 @@ dialog .muted {
   color: var(--text-2);
   white-space: nowrap;
 }
+.gen-layout-gameplay {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-1));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-1));
+  color: var(--accent);
+  font-weight: 600;
+}
 .gen-actions {
   padding: 0 12px 10px;
   display: flex;

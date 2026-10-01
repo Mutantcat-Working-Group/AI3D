@@ -10479,6 +10479,114 @@ export function renderAssetThumbnail(model, width = 120, height = 90) {
 }
 
 /**
+ * Gameplay metadata tells an engine what a prop is for: how a player can
+ * interact with it and what role AI, nav and spawning systems should treat it
+ * as. Explicit entries win for types with distinctive behaviour; everything
+ * else gets a stable default from its category tags.
+ */
+const GAMEPLAY_PRESETS = {
+  character: { interaction: "talk", role: "npc" },
+  monster: { interaction: "enemy", role: "enemy" },
+  dragon: { interaction: "enemy", role: "enemy" },
+  skeleton: { interaction: "enemy", role: "enemy" },
+  mummy: { interaction: "enemy", role: "enemy" },
+  sword: { interaction: "attack", role: "weapon" },
+  axe: { interaction: "attack", role: "weapon" },
+  hammer: { interaction: "attack", role: "weapon" },
+  spear: { interaction: "attack", role: "weapon" },
+  bow: { interaction: "attack", role: "weapon" },
+  shield: { interaction: "use", role: "weapon" },
+  cannon: { interaction: "attack", role: "weapon" },
+  turret: { interaction: "attack", role: "sentry" },
+  chest: { interaction: "open", role: "container" },
+  stone_coffin: { interaction: "open", role: "container" },
+  crate: { interaction: "open", role: "container" },
+  barrel: { interaction: "open", role: "container" },
+  barrel_variants: { interaction: "open", role: "container" },
+  urn: { interaction: "open", role: "container" },
+  cage: { interaction: "open", role: "container" },
+  gate: { interaction: "open", role: "door" },
+  wall_door: { interaction: "open", role: "door" },
+  portcullis: { interaction: "raise", role: "door" },
+  lever: { interaction: "pull", role: "switch" },
+  runestone: { interaction: "activate", role: "switch" },
+  trap: { interaction: "damage", role: "hazard" },
+  torch: { interaction: "light", role: "light" },
+  brazier: { interaction: "light", role: "light" },
+  lantern: { interaction: "light", role: "light" },
+  candelabra: { interaction: "light", role: "light" },
+  chandelier: { interaction: "light", role: "light" },
+  campfire: { interaction: "light", role: "light" },
+  coin_pile: { interaction: "collect", role: "collectible" },
+  gem: { interaction: "collect", role: "collectible" },
+  key: { interaction: "collect", role: "collectible" },
+  potion: { interaction: "use", role: "consumable" },
+  bread: { interaction: "eat", role: "consumable" },
+  pie: { interaction: "eat", role: "consumable" },
+  meat_leg: { interaction: "eat", role: "consumable" },
+  beehive: { interaction: "harvest", role: "resource" },
+  wheat_sheaf: { interaction: "harvest", role: "resource" },
+  hay_bale: { interaction: "harvest", role: "resource" },
+  berry_bush: { interaction: "harvest", role: "resource" },
+  crystal: { interaction: "mine", role: "resource" },
+  mushroom: { interaction: "collect", role: "resource" },
+  table: { interaction: "use", role: "furniture" },
+  bookshelf: { interaction: "use", role: "furniture" },
+  armor_stand: { interaction: "use", role: "furniture" },
+  chair: { interaction: "seat", role: "furniture" },
+  throne: { interaction: "seat", role: "furniture" },
+  bench: { interaction: "seat", role: "furniture" },
+  bed: { interaction: "sleep", role: "furniture" },
+  bucket: { interaction: "use", role: "tool" },
+  rope_coil: { interaction: "use", role: "tool" },
+  anvil: { interaction: "use", role: "tool" },
+  cauldron: { interaction: "use", role: "tool" },
+  drone: { interaction: "use", role: "tool" },
+  minecart: { interaction: "ride", role: "mount" },
+  wagon: { interaction: "ride", role: "mount" },
+  car: { interaction: "ride", role: "mount" },
+  bike: { interaction: "ride", role: "mount" },
+  boat: { interaction: "ride", role: "mount" },
+  plane: { interaction: "ride", role: "mount" },
+  ladder: { interaction: "climb", role: "path" },
+  bridge: { interaction: "cross", role: "path" },
+  stairs: { interaction: "none", role: "path" },
+  well: { interaction: "use", role: "structure" },
+  fountain: { interaction: "use", role: "structure" },
+  windmill: { interaction: "activate", role: "structure" },
+};
+
+const GAMEPLAY_TAG_DEFAULTS = [
+  ["enemy", { interaction: "enemy", role: "enemy" }],
+  ["weapon", { interaction: "attack", role: "weapon" }],
+  ["light", { interaction: "light", role: "light" }],
+  ["collectible", { interaction: "collect", role: "collectible" }],
+  ["container", { interaction: "open", role: "container" }],
+  ["vehicle", { interaction: "ride", role: "mount" }],
+  ["furniture", { interaction: "use", role: "furniture" }],
+  ["food", { interaction: "collect", role: "consumable" }],
+  ["tool", { interaction: "use", role: "tool" }],
+  ["structure", { interaction: "none", role: "structure" }],
+  ["terrain", { interaction: "none", role: "terrain" }],
+  ["decoration", { interaction: "none", role: "decoration" }],
+];
+
+/**
+ * Get the engine-facing gameplay metadata for an asset type.
+ * @param {string} type - Asset type id
+ * @returns {{ interaction: string, role: string }} Interaction and role hints
+ */
+export function getGameplayInfo(type) {
+  const explicit = GAMEPLAY_PRESETS[type];
+  if (explicit) return { ...explicit };
+  const tags = ASSET_TAGS[type] || [];
+  for (const [tag, fallback] of GAMEPLAY_TAG_DEFAULTS) {
+    if (tags.includes(tag)) return { ...fallback };
+  }
+  return { interaction: "none", role: "prop" };
+}
+
+/**
  * Get asset type information.
  */
 export function getAssetTypeInfo(type) {
@@ -10487,6 +10595,7 @@ export function getAssetTypeInfo(type) {
     ...info,
     collider: getColliderShape(type),
     animations: ANIMATION_PRESETS[type] || [],
+    gameplay: getGameplayInfo(type),
   };
 }
 
@@ -10770,6 +10879,7 @@ export function buildGamePackFiles({
       kind: isScene ? "scene" : asset.kind || "asset",
       type: asset.type,
       animations: Array.isArray(asset.animations) ? asset.animations : [],
+      gameplay: isScene ? null : getGameplayInfo(asset.type),
       clipFiles: (asset.animationFiles || []).map((clip) => ({
         name: clip.name,
         duration: clip.duration,
