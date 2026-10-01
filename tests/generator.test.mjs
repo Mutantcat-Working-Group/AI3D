@@ -1163,6 +1163,16 @@ test("new game asset types build their declared parts", () => {
     "chandelier",
     "armor_stand",
     "skeleton",
+    "bread",
+    "pie",
+    "meat_leg",
+    "hay_bale",
+    "rope_coil",
+    "bucket",
+    "windmill",
+    "coin_pile",
+    "minecart",
+    "berry_bush",
   ];
   newTypes.forEach((type) => {
     const model = generateAsset(type, { seed: 42 });

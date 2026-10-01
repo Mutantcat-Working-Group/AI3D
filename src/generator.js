@@ -61,6 +61,19 @@ const ASSET_TYPES = {
     parts: ["base", "pole", "body", "arms", "helmet"],
   },
   skeleton: { name: "Skeleton", parts: ["skull", "ribcage", "arms", "legs"] },
+  bread: { name: "Bread", parts: ["loaf", "score", "board"] },
+  pie: { name: "Pie", parts: ["dish", "filling", "lattice"] },
+  meat_leg: { name: "Meat Leg", parts: ["meat", "bone", "wrap"] },
+  hay_bale: { name: "Hay Bale", parts: ["bale", "bands", "straw"] },
+  rope_coil: { name: "Rope Coil", parts: ["coil", "loops", "tail"] },
+  bucket: { name: "Bucket", parts: ["body", "handle", "rivets"] },
+  windmill: {
+    name: "Windmill",
+    parts: ["tower", "cap", "sails", "door"],
+  },
+  coin_pile: { name: "Coin Pile", parts: ["mound", "coins", "glints"] },
+  minecart: { name: "Minecart", parts: ["bed", "wheels", "axles", "tongue"] },
+  berry_bush: { name: "Berry Bush", parts: ["crown", "berries", "leaves"] },
   fountain: {
     name: "Fountain",
     parts: ["basin", "water", "pillar", "bowl", "jet"],
@@ -141,6 +154,16 @@ const ASSET_TAGS = {
   chandelier: ["item", "light", "decoration", "indoor", "metal"],
   armor_stand: ["item", "decoration", "armor", "indoor", "metal"],
   skeleton: ["creature", "enemy", "undead", "decoration"],
+  bread: ["item", "food", "provision", "indoor"],
+  pie: ["item", "food", "provision", "indoor"],
+  meat_leg: ["item", "food", "provision", "outdoor"],
+  hay_bale: ["item", "terrain", "village", "outdoor"],
+  rope_coil: ["item", "tool", "adventure", "outdoor"],
+  bucket: ["item", "tool", "container", "outdoor"],
+  windmill: ["building", "structure", "village", "outdoor"],
+  coin_pile: ["item", "treasure", "collectible", "indoor"],
+  minecart: ["vehicle", "transport", "mine", "metal"],
+  berry_bush: ["nature", "vegetation", "collectible", "outdoor"],
   car: ["vehicle", "transport", "outdoor"],
   character: ["creature", "character", "animated"],
   cube: ["primitive", "basic", "indoor"],
@@ -336,6 +359,16 @@ const ASSET_COLLIDERS = {
   chandelier: "cylinder",
   armor_stand: "capsule",
   skeleton: "capsule",
+  bread: "box",
+  pie: "cylinder",
+  meat_leg: "capsule",
+  hay_bale: "box",
+  rope_coil: "cylinder",
+  bucket: "cylinder",
+  windmill: "cylinder",
+  coin_pile: "box",
+  minecart: "box",
+  berry_bush: "capsule",
   fountain: "box",
   brazier: "cylinder",
   runestone: "box",
@@ -384,6 +417,7 @@ const ANIMATION_PRESETS = {
   brazier: ["flicker"],
   lantern: ["flicker"],
   chandelier: ["sway"],
+  minecart: ["spin"],
   flag: ["wave"],
   fountain: ["flow"],
   car: ["spin"],
@@ -1424,6 +1458,15 @@ export function buildAssetAnimations(model, type, size = 1) {
     });
   }
 
+  if (type === "minecart") {
+    addClip("spin", 1, {
+      "wheel-0": spinOnce,
+      "wheel-1": spinOnce,
+      "wheel-2": spinOnce,
+      "wheel-3": spinOnce,
+    });
+  }
+
   if (type === "flag") {
     const wave = [
       { t: 0, rot: [0, 0, 0] },
@@ -1849,6 +1892,36 @@ export function generateAsset(
       break;
     case "skeleton":
       buildSkeleton(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bread":
+      buildBread(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "pie":
+      buildPie(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "meat_leg":
+      buildMeatLeg(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "hay_bale":
+      buildHayBale(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "rope_coil":
+      buildRopeCoil(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bucket":
+      buildBucket(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "windmill":
+      buildWindmill(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "coin_pile":
+      buildCoinPile(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "minecart":
+      buildMinecart(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "berry_bush":
+      buildBerryBush(group, size, segments, matStyle, customColor, rng);
       break;
     case "bridge":
       buildBridge(group, size, segments, matStyle, customColor, rng);
@@ -5561,6 +5634,627 @@ function buildSkeleton(
   group.add(legs);
 }
 
+function buildBread(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const crustMat = createMaterial(customColor || 0xc68a4e, style);
+  const boardMat = createMaterial(0x795548, style);
+  const scoreMat = createMaterial(0x8d5a2b, style);
+
+  const loafGeo = new THREE.CylinderGeometry(
+    0.32 * size,
+    0.4 * size,
+    0.62 * size,
+    segments,
+  );
+  const loaf = new THREE.Mesh(loafGeo, crustMat);
+  loaf.position.y = 0.34 * size;
+  loaf.name = "loaf";
+  group.add(loaf);
+
+  const domeGeo = new THREE.SphereGeometry(
+    0.33 * size,
+    segments,
+    Math.max(6, segments >> 1),
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI * 0.5,
+  );
+  const dome = new THREE.Mesh(domeGeo, crustMat);
+  dome.position.y = 0.6 * size;
+  dome.scale.set(1.05, 0.85, 1);
+  dome.name = "dome";
+  group.add(dome);
+
+  const scores = new THREE.Group();
+  scores.name = "score";
+  const scoreGeo = new THREE.BoxGeometry(
+    0.34 * size,
+    0.04 * size,
+    0.025 * size,
+  );
+  for (let i = 0; i < 3; i++) {
+    const cut = new THREE.Mesh(scoreGeo, scoreMat);
+    cut.position.set(0, (0.54 + i * 0.08) * size, (0.12 - i * 0.12) * size);
+    cut.rotation.x = -0.5 + i * 0.42;
+    cut.name = `cut-${i}`;
+    scores.add(cut);
+  }
+  group.add(scores);
+
+  const boardGeo = new THREE.BoxGeometry(1.0 * size, 0.05 * size, 0.75 * size);
+  const board = new THREE.Mesh(boardGeo, boardMat);
+  board.position.y = 0.025 * size;
+  board.name = "board";
+  group.add(board);
+}
+
+function buildPie(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const crustMat = createMaterial(customColor || 0xc68432, style);
+  const dishMat = createMaterial(0x90a4ae, style);
+  const fillingMat = createMaterial(0x8d3b1f, style);
+  const goldMat = createMaterial(0xd7a03c, style);
+
+  const dishGeo = new THREE.CylinderGeometry(
+    0.42 * size,
+    0.34 * size,
+    0.13 * size,
+    segments,
+  );
+  const dish = new THREE.Mesh(dishGeo, dishMat);
+  dish.position.y = 0.065 * size;
+  dish.name = "dish";
+  group.add(dish);
+
+  const fillingGeo = new THREE.CylinderGeometry(
+    0.34 * size,
+    0.38 * size,
+    0.14 * size,
+    segments,
+  );
+  const filling = new THREE.Mesh(fillingGeo, fillingMat);
+  filling.position.y = 0.16 * size;
+  filling.name = "filling";
+  group.add(filling);
+
+  const crustGeo = new THREE.SphereGeometry(
+    0.36 * size,
+    segments,
+    Math.max(6, segments >> 1),
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI * 0.6,
+  );
+  const crust = new THREE.Mesh(crustGeo, goldMat);
+  crust.position.y = 0.2 * size;
+  crust.scale.set(1, 0.72, 1);
+  crust.name = "crust";
+  group.add(crust);
+
+  const lattice = new THREE.Group();
+  lattice.name = "lattice";
+  const bandGeo = new THREE.BoxGeometry(0.6 * size, 0.025 * size, 0.06 * size);
+  for (let i = 0; i < 3; i++) {
+    const band = new THREE.Mesh(bandGeo, crustMat);
+    const offset = (-0.18 + i * 0.18) * size;
+    band.rotation.y = (i === 1 ? Math.PI / 3 : -Math.PI / 6) + rng() * 0.04;
+    band.position.set(offset, 0.34 * size, 0);
+    band.name = `band-${i}`;
+    lattice.add(band);
+  }
+  const crossGeo = new THREE.BoxGeometry(
+    0.025 * size,
+    0.03 * size,
+    0.55 * size,
+  );
+  const cross = new THREE.Mesh(crossGeo, crustMat);
+  cross.position.y = 0.34 * size;
+  cross.name = "cross";
+  lattice.add(cross);
+  group.add(lattice);
+}
+
+function buildMeatLeg(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const meatMat = createMaterial(customColor || 0xc94f2d, style);
+  const boneMat = createMaterial(0xe8e2d5, style);
+  const wrapMat = createMaterial(0x4e342e, style);
+
+  const boneGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.045 * size,
+    0.55 * size,
+    8,
+  );
+  const bone = new THREE.Mesh(boneGeo, boneMat);
+  bone.position.y = 0.72 * size;
+  bone.rotation.z = -0.15;
+  bone.name = "bone";
+  group.add(bone);
+
+  const knobGeo = new THREE.SphereGeometry(0.06 * size, 8, 6);
+  const knob = new THREE.Mesh(knobGeo, boneMat);
+  knob.position.set(0.05 * size, 1.0 * size, 0);
+  knob.name = "knob";
+  group.add(knob);
+
+  const meatGeo = new THREE.CapsuleGeometry(0.18 * size, 0.4 * size, 8, 10);
+  const meat = new THREE.Mesh(meatGeo, meatMat);
+  meat.position.y = 0.24 * size;
+  meat.scale.set(1.15, 1.05, 0.9);
+  meat.rotation.z = -0.1;
+  meat.name = "meat";
+  group.add(meat);
+
+  const wrapGeo = new THREE.TorusGeometry(0.17 * size, 0.025 * size, 6, 12);
+  const wrap = new THREE.Mesh(wrapGeo, wrapMat);
+  wrap.position.y = 0.38 * size;
+  wrap.rotation.x = Math.PI / 2;
+  wrap.name = "wrap";
+  group.add(wrap);
+}
+
+function buildHayBale(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const strawMat = createMaterial(customColor || 0xc8a44d, style);
+  const bandMat = createMaterial(0x6d4c41, style);
+
+  const baleGeo = new THREE.CylinderGeometry(
+    0.38 * size,
+    0.38 * size,
+    0.78 * size,
+    segments,
+  );
+  const bale = new THREE.Mesh(baleGeo, strawMat);
+  bale.position.y = 0.38 * size;
+  bale.rotation.z = Math.PI / 2;
+  bale.name = "bale";
+  group.add(bale);
+
+  const bands = new THREE.Group();
+  bands.name = "bands";
+  const bandGeo = new THREE.TorusGeometry(
+    0.39 * size,
+    0.025 * size,
+    8,
+    segments,
+  );
+  for (const offset of [-0.27, 0, 0.27]) {
+    const band = new THREE.Mesh(bandGeo, bandMat);
+    band.position.set(offset * size, 0.38 * size, 0);
+    band.name = `band-${offset}`;
+    bands.add(band);
+  }
+  group.add(bands);
+
+  const straw = new THREE.Group();
+  straw.name = "straw";
+  const stalkGeo = new THREE.CylinderGeometry(
+    0.012 * size,
+    0.018 * size,
+    0.18 * size,
+    4,
+  );
+  for (let i = 0; i < 10; i++) {
+    const stalk = new THREE.Mesh(stalkGeo, strawMat);
+    const angle = rng() * Math.PI * 2;
+    const r = 0.3 + rng() * 0.16;
+    stalk.position.set(
+      Math.cos(angle) * r * size,
+      (0.42 + rng() * 0.4) * size,
+      Math.sin(angle) * r * size,
+    );
+    stalk.rotation.z = (rng() - 0.5) * 1.1;
+    stalk.rotation.x = (rng() - 0.5) * 1.1;
+    stalk.name = `stalk-${i}`;
+    straw.add(stalk);
+  }
+  group.add(straw);
+}
+
+function buildRopeCoil(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const ropeMat = createMaterial(customColor || 0xb58a57, style);
+
+  const coil = new THREE.Group();
+  coil.name = "coil";
+  const ringGeo = new THREE.TorusGeometry(
+    0.22 * size,
+    0.045 * size,
+    8,
+    segments,
+  );
+  for (let layer = 0; layer < 3; layer++) {
+    const ring = new THREE.Mesh(ringGeo, ropeMat);
+    ring.position.y = (0.055 + layer * 0.055) * size;
+    ring.rotation.x = Math.PI / 2;
+    ring.name = `ring-${layer}`;
+    coil.add(ring);
+  }
+  group.add(coil);
+
+  const loops = new THREE.Group();
+  loops.name = "loops";
+  const loopGeo = new THREE.TorusGeometry(0.12 * size, 0.035 * size, 8, 12);
+  for (let i = 0; i < 2; i++) {
+    const loop = new THREE.Mesh(loopGeo, ropeMat);
+    loop.position.set((i === 0 ? -0.22 : 0.3) * size, 0.2 * size, 0.1 * size);
+    loop.rotation.x = Math.PI / 2 + (i === 0 ? 0.3 : -0.25);
+    loop.name = `loop-${i}`;
+    loops.add(loop);
+  }
+  group.add(loops);
+
+  const tailGeo = new THREE.CylinderGeometry(
+    0.035 * size,
+    0.04 * size,
+    0.44 * size,
+    6,
+  );
+  const tail = new THREE.Mesh(tailGeo, ropeMat);
+  tail.position.set(0.34 * size, 0.08 * size, 0.18 * size);
+  tail.rotation.z = 0.8;
+  tail.name = "tail";
+  group.add(tail);
+}
+
+function buildBucket(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const metalMat = createMaterial(customColor || 0x90a4ae, style);
+  const darkMat = createMaterial(0x546e7a, style);
+
+  const bodyGeo = new THREE.CylinderGeometry(
+    0.3 * size,
+    0.24 * size,
+    0.5 * size,
+    segments,
+  );
+  const body = new THREE.Mesh(bodyGeo, metalMat);
+  body.position.y = 0.25 * size;
+  body.name = "body";
+  group.add(body);
+
+  const handleGeo = new THREE.TorusGeometry(0.19 * size, 0.028 * size, 6, 14);
+  const handle = new THREE.Mesh(handleGeo, darkMat);
+  handle.position.y = 0.52 * size;
+  handle.rotation.z = Math.PI / 2;
+  handle.name = "handle";
+  group.add(handle);
+
+  const rivets = new THREE.Group();
+  rivets.name = "rivets";
+  const rivetGeo = new THREE.SphereGeometry(0.035 * size, 6, 4);
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const rivet = new THREE.Mesh(rivetGeo, darkMat);
+    rivet.position.set(
+      Math.cos(angle) * 0.28 * size,
+      0.26 * size,
+      Math.sin(angle) * 0.28 * size,
+    );
+    rivet.name = `rivet-${i}`;
+    rivets.add(rivet);
+  }
+  group.add(rivets);
+}
+
+function buildWindmill(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stoneMat = createMaterial(customColor || 0xbdbdbd, style);
+  const woodMat = createMaterial(0x795548, style);
+  const roofMat = createMaterial(0x455a64, style);
+  const sailMat = createMaterial(0xe0d7c3, style);
+
+  const towerBase = new THREE.CylinderGeometry(
+    0.46 * size,
+    0.62 * size,
+    0.9 * size,
+    segments,
+  );
+  const tower = new THREE.Mesh(towerBase, stoneMat);
+  tower.position.y = 0.45 * size;
+  tower.name = "tower";
+  group.add(tower);
+
+  const capGeo = new THREE.ConeGeometry(0.5 * size, 0.34 * size, segments);
+  const cap = new THREE.Mesh(capGeo, roofMat);
+  cap.position.y = 1.02 * size;
+  cap.name = "cap";
+  group.add(cap);
+
+  const sails = new THREE.Group();
+  sails.name = "sails";
+  sails.position.y = 0.98 * size;
+  const frameGeo = new THREE.BoxGeometry(0.08 * size, 1.7 * size, 0.08 * size);
+  const frame = new THREE.Mesh(frameGeo, woodMat);
+  frame.name = "frame";
+  sails.add(frame);
+  const crossGeo = new THREE.BoxGeometry(1.7 * size, 0.08 * size, 0.08 * size);
+  const cross = new THREE.Mesh(crossGeo, woodMat);
+  cross.name = "cross";
+  sails.add(cross);
+  const sailGeo = new THREE.BoxGeometry(0.74 * size, 0.68 * size, 0.04 * size);
+  for (let i = 0; i < 4; i++) {
+    const angle = (i * Math.PI) / 2;
+    const sail = new THREE.Mesh(sailGeo, sailMat);
+    sail.position.set(
+      Math.cos(angle) * 0.62 * size,
+      Math.sin(angle) * 0.44 * size,
+      0,
+    );
+    sail.rotation.z = angle;
+    sail.name = `sail-${i}`;
+    sails.add(sail);
+  }
+  group.add(sails);
+
+  const doorGeo = new THREE.BoxGeometry(0.3 * size, 0.42 * size, 0.06 * size);
+  const door = new THREE.Mesh(doorGeo, woodMat);
+  door.position.z = 0.5 * size;
+  door.name = "door";
+  group.add(door);
+}
+
+function buildCoinPile(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const coinMat = createMaterial(customColor || 0xdaa520, style);
+  coinMat.metalness = 0.8;
+  const glintMat = createMaterial(0xfff59d, style);
+  glintMat.emissive = new THREE.Color(0xffd54f);
+  glintMat.emissiveIntensity = 0.45;
+
+  const moundGeo = new THREE.SphereGeometry(
+    0.34 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const mound = new THREE.Mesh(moundGeo, coinMat);
+  mound.position.y = 0.2 * size;
+  mound.scale.set(1.45, 0.52, 1.35);
+  mound.name = "mound";
+  group.add(mound);
+
+  const coins = new THREE.Group();
+  coins.name = "coins";
+  const coinGeo = new THREE.CylinderGeometry(
+    0.12 * size,
+    0.12 * size,
+    0.018 * size,
+    12,
+  );
+  for (let i = 0; i < 16; i++) {
+    const coin = new THREE.Mesh(coinGeo, coinMat);
+    const angle = rng() * Math.PI * 2;
+    const radius = 0.2 + rng() * 0.34;
+    coin.position.set(
+      Math.cos(angle) * radius * size,
+      (0.08 + rng() * 0.34) * size,
+      Math.sin(angle) * radius * size,
+    );
+    coin.rotation.z = (rng() - 0.5) * 0.2;
+    coin.rotation.x = (rng() - 0.5) * 0.2;
+    coin.name = `coin-${i}`;
+    coins.add(coin);
+  }
+  group.add(coins);
+
+  const glints = new THREE.Group();
+  glints.name = "glints";
+  const glintGeo = new THREE.SphereGeometry(0.022 * size, 6, 4);
+  for (let i = 0; i < 5; i++) {
+    const glint = new THREE.Mesh(glintGeo, glintMat);
+    glint.position.set(
+      (rng() - 0.5) * 0.7 * size,
+      (0.34 + rng() * 0.16) * size,
+      (rng() - 0.5) * 0.6 * size,
+    );
+    glint.name = `glint-${i}`;
+    glints.add(glint);
+  }
+  group.add(glints);
+}
+
+function buildMinecart(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const metalMat = createMaterial(customColor || 0x607d8b, style);
+  const ironMat = createMaterial(0x455a64, style);
+  const woodMat = createMaterial(0x5d4037, style);
+
+  const bedGeo = new THREE.BoxGeometry(1.1 * size, 0.18 * size, 0.72 * size);
+  const bed = new THREE.Mesh(bedGeo, metalMat);
+  bed.position.y = 0.46 * size;
+  bed.name = "bed";
+  group.add(bed);
+
+  const sideGeo = new THREE.BoxGeometry(1.12 * size, 0.4 * size, 0.16 * size);
+  for (const side of [-1, 1]) {
+    const wall = new THREE.Mesh(sideGeo, ironMat);
+    wall.position.set(0, 0.55 * size, side * 0.36 * size);
+    wall.rotation.x = side * -0.18;
+    wall.name = side < 0 ? "side-back" : "side-front";
+    group.add(wall);
+  }
+
+  const axles = new THREE.Group();
+  axles.name = "axles";
+  const axleGeo = new THREE.CylinderGeometry(
+    0.045 * size,
+    0.045 * size,
+    0.7 * size,
+    8,
+  );
+  for (const z of [-0.36, 0.36]) {
+    const axle = new THREE.Mesh(axleGeo, ironMat);
+    axle.rotation.x = Math.PI / 2;
+    axle.position.set(0, 0.25 * size, z * size);
+    axle.name = z < 0 ? "axle-rear" : "axle-front";
+    axles.add(axle);
+  }
+  group.add(axles);
+
+  const wheels = new THREE.Group();
+  wheels.name = "wheels";
+  const wheelGeo = new THREE.CylinderGeometry(
+    0.25 * size,
+    0.25 * size,
+    0.1 * size,
+    10,
+  );
+  for (let i = 0; i < 4; i++) {
+    const z = (i % 2 === 0 ? -0.36 : 0.36) * size;
+    const x = (i < 2 ? -0.58 : 0.58) * size;
+    const wheel = new THREE.Mesh(wheelGeo, metalMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(x, 0.25 * size, z);
+    wheel.name = `wheel-${i}`;
+    wheels.add(wheel);
+  }
+  group.add(wheels);
+
+  const tongueGeo = new THREE.BoxGeometry(0.5 * size, 0.06 * size, 0.1 * size);
+  const tongue = new THREE.Mesh(tongueGeo, woodMat);
+  tongue.position.set(0.55 * size, 0.5 * size, 0);
+  tongue.name = "tongue";
+  group.add(tongue);
+}
+
+function buildBerryBush(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const leafMat = createMaterial(customColor || 0x2e7d32, style);
+  const berryMat = createMaterial(0xc62828, style);
+  const stemMat = createMaterial(0x4e342e, style);
+
+  const stems = new THREE.Group();
+  stems.name = "stems";
+  const stemGeo = new THREE.CylinderGeometry(
+    0.025 * size,
+    0.04 * size,
+    0.42 * size,
+    6,
+  );
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2;
+    const stem = new THREE.Mesh(stemGeo, stemMat);
+    stem.position.set(
+      Math.cos(angle) * 0.16 * size,
+      (0.18 + rng() * 0.12) * size,
+      Math.sin(angle) * 0.16 * size,
+    );
+    stem.rotation.z = Math.cos(angle) * 0.4;
+    stem.rotation.x = -Math.sin(angle) * 0.4;
+    stem.name = `stem-${i}`;
+    stems.add(stem);
+  }
+  group.add(stems);
+
+  const crownGeo = new THREE.SphereGeometry(
+    0.4 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  const crown = new THREE.Mesh(crownGeo, leafMat);
+  crown.position.y = 0.38 * size;
+  crown.scale.set(1.15, 0.7, 1.05);
+  crown.name = "crown";
+  group.add(crown);
+
+  const berries = new THREE.Group();
+  berries.name = "berries";
+  const berryGeo = new THREE.SphereGeometry(0.065 * size, 8, 6);
+  for (let i = 0; i < 12; i++) {
+    const berry = new THREE.Mesh(berryGeo, berryMat);
+    const angle = rng() * Math.PI * 2;
+    const radius = 0.18 + rng() * 0.28;
+    berry.position.set(
+      Math.cos(angle) * radius * size,
+      (0.32 + rng() * 0.28) * size,
+      Math.sin(angle) * radius * size,
+    );
+    berry.name = `berry-${i}`;
+    berries.add(berry);
+  }
+  group.add(berries);
+
+  const leaves = new THREE.Group();
+  leaves.name = "leaves";
+  const leafGeo = new THREE.SphereGeometry(0.09 * size, 6, 4);
+  for (let i = 0; i < 8; i++) {
+    const leaf = new THREE.Mesh(leafGeo, leafMat);
+    const angle = (i / 8) * Math.PI * 2;
+    leaf.position.set(
+      Math.cos(angle) * 0.36 * size,
+      (0.42 + rng() * 0.22) * size,
+      Math.sin(angle) * 0.36 * size,
+    );
+    leaf.scale.set(1.4, 0.55, 1);
+    leaf.name = `leaf-${i}`;
+    leaves.add(leaf);
+  }
+  group.add(leaves);
+}
+
 function buildCrate(
   group,
   size,
@@ -7798,6 +8492,16 @@ const AUDIT_GROUND_TYPES = new Set([
   "bed",
   "armor_stand",
   "skeleton",
+  "bread",
+  "pie",
+  "meat_leg",
+  "hay_bale",
+  "rope_coil",
+  "bucket",
+  "windmill",
+  "coin_pile",
+  "minecart",
+  "berry_bush",
   "flag",
   "sign",
   "car",
@@ -7849,6 +8553,16 @@ const AUDIT_REQUIRED_PARTS = {
   chandelier: ["core", "arms"],
   armor_stand: ["base", "body"],
   skeleton: ["skull", "legs"],
+  bread: ["loaf", "board"],
+  pie: ["dish", "filling"],
+  meat_leg: ["meat", "bone"],
+  hay_bale: ["bale", "bands"],
+  rope_coil: ["coil", "loops"],
+  bucket: ["body", "handle"],
+  windmill: ["tower", "sails"],
+  coin_pile: ["mound", "coins"],
+  minecart: ["bed", "wheels"],
+  berry_bush: ["crown", "berries"],
   house: ["walls", "roof"],
   car: ["body", "wheels"],
   bike: ["frame", "wheels"],
@@ -7871,6 +8585,7 @@ const AUDIT_EXPECTED_ANIMATIONS = {
   brazier: ["flicker"],
   lantern: ["flicker"],
   chandelier: ["sway"],
+  minecart: ["spin"],
   flag: ["wave"],
   fountain: ["flow"],
   car: ["spin"],

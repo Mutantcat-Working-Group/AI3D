@@ -24,7 +24,7 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-70 built-in game asset templates, each with sensible part names, tags and
+80 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                    |
@@ -32,9 +32,10 @@ collider presets:
 | Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                             |
 | Creatures | character, monster, dragon, skeleton                                                                                      |
 | Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain                                                   |
-| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand |
-| Vehicles  | car, boat, plane, bike, wagon                                                                                             |
+| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand, bread, pie, meat leg, hay bale, rope coil, bucket, coin pile, berry bush |
+| Vehicles  | car, boat, plane, bike, wagon, minecart                                                                                   |
 | Sci-fi    | turret, drone, comm antenna                                                                                               |
+| Village   | windmill                                                                                                                   |
 
 Beyond the quick templates you can describe an asset in natural language and
 choose a style (low-poly / realistic / stylized), then tune color, roughness,
@@ -327,6 +328,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
 - **2.6 (done)** - furniture and combat prop templates: table, chair, bed,
   chandelier, armor stand and skeleton, covering the interior props and dungeon
   enemies game packs reach for most, with type-specific tags, collider presets
+  and default PBR textures.
+- **2.7 (done)** - adventure supply and village templates: bread, pie, meat
+  leg, hay bale, rope coil, bucket, windmill, coin pile, minecart and berry
+  bush, covering food, supplies, village and mine scenes; the minecart ships a
+  wheel spin clip, and everything keeps type-specific tags, collider presets
   and default PBR textures.
 
 ### 12. Documentation
