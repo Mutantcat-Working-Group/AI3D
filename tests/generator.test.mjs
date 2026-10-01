@@ -36,6 +36,7 @@ import {
   buildColliderModel,
   buildConvexHullGeometry,
   buildGamePackFiles,
+  buildSceneBlueprint,
   summariseGameReadiness,
   exportGamePack,
   selectAnimations,
@@ -1756,6 +1757,9 @@ test("scene packs ship design metadata and a per-scene design.json", () => {
   const audit = JSON.parse(
     new TextDecoder().decode(files["design/dungeon-1.audit.json"]),
   );
+  const blueprint = JSON.parse(
+    new TextDecoder().decode(files["blueprints/dungeon-1.json"]),
+  );
 
   assert.equal(manifest.assets[0].kind, "scene");
   assert.equal(manifest.assets[0].gameplay, null);
@@ -1765,11 +1769,88 @@ test("scene packs ship design metadata and a per-scene design.json", () => {
     manifest.assets[0].files.designAudit,
     "design/dungeon-1.audit.json",
   );
+  assert.equal(manifest.assets[0].files.blueprint, "blueprints/dungeon-1.json");
   assert.deepEqual(written, design);
   assert.deepEqual(manifest.assets[0].scene.design, design);
   assert.deepEqual(manifest.assets[0].scene.designAudit, audit);
   assert.equal(typeof audit.readiness, "number");
   assert.ok(Array.isArray(audit.checks) && audit.checks.length > 0);
+  assert.equal(blueprint.schema, "ai3d-scene-blueprint");
+  assert.equal(blueprint.engine.id, "unity");
+  assert.deepEqual(blueprint.spawnPoints, design.spawnPoints);
+});
+
+test("scene blueprints carry engine-space transforms and design roles", () => {
+  const record = {
+    id: "dungeon-2",
+    name: "Dungeon",
+    kind: "scene",
+    type: "dungeon",
+    scene: {
+      kit: "dungeon",
+      seed: 9,
+      groundColor: 0x6b625a,
+      theme: { style: "lowpoly" },
+      props: [
+        {
+          name: "dungeon-chest-1",
+          type: "chest",
+          size: 1,
+          x: 1,
+          y: 0.5,
+          z: -2,
+          rotationY: Math.PI / 2,
+          bounds: { width: 1, height: 0.8, depth: 0.6 },
+          collision: { shape: "box" },
+        },
+        {
+          name: "dungeon-portcullis-2",
+          type: "portcullis",
+          size: 0.9,
+          x: -1.5,
+          y: 0,
+          z: 0.25,
+        },
+      ],
+      design: {
+        spawnPoints: { playerStart: 1, enemySpawn: 2 },
+        objectives: [
+          { id: "open", title: "Open the gate", summary: "Pull the lever." },
+        ],
+        lootTables: [{ container: "chest", items: ["key", "gem"] }],
+        locks: [{ prop: "portcullis", state: "locked", opensWith: "key" }],
+        directives: ["Lock the portcullis until the key is found."],
+      },
+      designAudit: { readiness: 1, checks: [] },
+    },
+  };
+
+  const unity = buildSceneBlueprint(record, {
+    id: "unity",
+    name: "Unity",
+    upAxis: "Y",
+    scale: 1,
+    units: "meters",
+  });
+  assert.equal(unity.engine.upAxis, "Y");
+  assert.deepEqual(unity.props[0].position, { x: 1, y: 0.5, z: -2 });
+  assert.equal(unity.props[0].heading, 90);
+  assert.deepEqual(unity.props[0].roles.loot, ["key", "gem"]);
+  assert.deepEqual(unity.props[1].roles.lock, {
+    prop: "portcullis",
+    state: "locked",
+    opensWith: "key",
+  });
+  assert.deepEqual(unity.audit, { readiness: 1, checks: [] });
+
+  const unreal = buildSceneBlueprint(record, {
+    id: "unreal",
+    name: "Unreal",
+    upAxis: "Z",
+    scale: 100,
+    units: "centimeters",
+  });
+  assert.deepEqual(unreal.props[0].position, { x: 100, y: -200, z: -50 });
 });
 
 test("Godot packs include an instanceable tscn wrapper for each model", () => {

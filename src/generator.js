@@ -11014,6 +11014,80 @@ function godotSceneFile(record, slug) {
   );
 }
 
+/* Scene blueprints hand a level designer the composed layout in the target
+   engine's own space: the prop transforms are rotated and scaled the same way
+   the GLB export is, so an editor script can drop them in without guessing. */
+function engineVector(prop, preset) {
+  const x = Number(prop?.x) || 0;
+  const y = Number(prop?.y) || 0;
+  const z = Number(prop?.z) || 0;
+  const scale = preset.scale || 1;
+  const round = (value) => Math.round(value * 1000) / 1000;
+  if (preset.upAxis === "Z") {
+    return { x: round(x * scale), y: round(z * scale), z: round(-y * scale) };
+  }
+  return { x: round(x * scale), y: round(y * scale), z: round(z * scale) };
+}
+
+/**
+ * Build an engine-space blueprint for one composed scene. It resolves which
+ * prop plays which design role (loot container, locked prop), converts every
+ * transform into the pack's engine space and carries the design block plus the
+ * design audit so the level can be rebuilt outside AI3D.
+ */
+export function buildSceneBlueprint(record, preset) {
+  const scene = record?.scene || {};
+  const design = scene.design || null;
+  const props = Array.isArray(scene.props) ? scene.props : [];
+  const lootByContainer = new Map();
+  for (const table of design?.lootTables || []) {
+    if (table?.container) {
+      lootByContainer.set(table.container, table.items || []);
+    }
+  }
+  const lockByProp = new Map();
+  for (const lock of design?.locks || []) {
+    if (lock?.prop) lockByProp.set(lock.prop, lock);
+  }
+  const placements = props.map((prop) => {
+    const roles = {};
+    if (lootByContainer.has(prop.type)) {
+      roles.loot = lootByContainer.get(prop.type);
+    }
+    if (lockByProp.has(prop.type)) {
+      roles.lock = lockByProp.get(prop.type);
+    }
+    return {
+      name: prop.name,
+      type: prop.type,
+      position: engineVector(prop, preset),
+      heading: Math.round((((prop.rotationY || 0) * 180) / Math.PI) * 10) / 10,
+      bounds: prop.bounds || null,
+      collision: prop.collision || null,
+      roles: Object.keys(roles).length ? roles : undefined,
+    };
+  });
+  return {
+    schema: "ai3d-scene-blueprint",
+    version: "1.0",
+    engine: {
+      id: preset.id,
+      name: preset.name,
+      upAxis: preset.upAxis,
+      scale: preset.scale,
+      units: preset.units,
+    },
+    scene: { kit: scene.kit ?? null, seed: scene.seed ?? null },
+    spawnPoints: design?.spawnPoints || {},
+    objectives: design?.objectives || [],
+    lootTables: design?.lootTables || [],
+    locks: design?.locks || [],
+    directives: design?.directives || [],
+    props: placements,
+    audit: scene.designAudit || null,
+  };
+}
+
 function engineReadme(preset, records) {
   const count = records.length;
   let heading =
@@ -11040,6 +11114,9 @@ function engineReadme(preset, records) {
               (prop) => `- ${prop.type}${prop.size ? ` (${prop.size}x)` : ""}`,
             )
             .join("\n") + "\n";
+      }
+      if (scene.files?.blueprint) {
+        heading += `Blueprint: ${scene.files.blueprint}\n`;
       }
     }
   }
@@ -11482,6 +11559,7 @@ export function buildGamePackFiles({
             : null,
         design: sceneDesign ? `design/${slug}.json` : null,
         designAudit: sceneDesign ? `design/${slug}.audit.json` : null,
+        blueprint: sceneDesign ? `blueprints/${slug}.json` : null,
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
         animations: (asset.animationFiles || []).map(
@@ -11567,6 +11645,9 @@ export function buildGamePackFiles({
           JSON.stringify(record.scene.designAudit, null, 2),
         );
       }
+      files[`blueprints/${slug}.json`] = encoder.encode(
+        JSON.stringify(buildSceneBlueprint(record, preset), null, 2),
+      );
     }
     for (const lod of asset.lodLevels || []) {
       if (lod.glbBytes) {
