@@ -160,6 +160,79 @@ test("the generate tool refuses paths outside the workspace", async (t) => {
   assert.equal(fs.existsSync(path.join(path.dirname(dir), "escape")), false);
 });
 
+test("the generate tool composes a scene kit into a level pack", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 15,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "scene",
+        output: "generated-assets/levels",
+        type: "dungeon",
+        engine: "unity",
+        seed: 7,
+        name: "crypt",
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.kind, "scene");
+  assert.equal(result.asset.type, "dungeon");
+  assert.equal(result.asset.id, "crypt");
+  assert.ok(result.asset.stats.triangles > 0);
+  assert.equal(typeof result.asset.designAudit.readiness, "number");
+  assert.ok(result.asset.designAudit.checks.length > 0);
+
+  const manifest = path.join(
+    dir,
+    "generated-assets/levels/crypt/pack/manifest.json",
+  );
+  const parsed = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  assert.equal(parsed.assets[0].kind, "scene");
+  assert.equal(parsed.assets[0].scene.kit, "dungeon");
+  assert.equal(parsed.assets[0].files.blueprint, "blueprints/crypt.json");
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        dir,
+        "generated-assets/levels/crypt/pack/blueprints/crypt.json",
+      ),
+    ),
+    true,
+  );
+  assert.equal(parsed.readiness.count, 1);
+});
+
+test("the generate tool reads a scene kit out of a prompt", async (t) => {
+  const dir = workspace(t);
+  const call = (args) =>
+    handlerFor(dir)({
+      id: 16,
+      method: "tools/call",
+      params: { name: "ai3d_generate", arguments: args },
+    });
+
+  const prompted = await call({
+    kind: "scene",
+    output: "generated-assets/prompted-scene",
+    prompt: "a small temple level",
+    seed: 2,
+  });
+  assert.equal(prompted.result.structuredContent.asset.type, "temple");
+
+  const unknown = await call({
+    kind: "scene",
+    output: "generated-assets/nowhere",
+    prompt: "a quiet harbour",
+  });
+  assert.equal(unknown.result.isError, true);
+  const refused = JSON.parse(unknown.result.content[0].text);
+  assert.equal(refused.code, "BAD_PARAMETER");
+  assert.match(refused.message, /scene kit/);
+});
+
 test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {
   const handle = handlerFor(workspace(t));
   const call = (args) =>

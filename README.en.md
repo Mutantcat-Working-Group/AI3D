@@ -181,7 +181,10 @@ structured entries with citations. The chat panel and MCP share one
 implementation, so the two surfaces cannot drift apart. An MCP agent can also
 call `ai3d_generate` to create an asset from one sentence and write a GLB plus a
 Unity, Godot or Unreal engine pack into the workspace, sharing the same
-deterministic generator as the interface.
+deterministic generator as the interface. Pass `kind: "scene"` and it composes a
+whole level kit instead (dungeon, camp, outpost, village, temple, battle,
+wilderness, town), carrying the kit's design metadata, design audit and
+engine-space scene blueprint into the same pack.
 
 ### 7. Three ways in, one implementation
 
@@ -229,7 +232,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 374 unit and integration tests
+npm test             # 376 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -379,6 +382,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   into the game pack's readiness summary and game-ready.json (a passing design
   reads ready, any failing check reads needs-attention), and a pack that holds
   only scenes still emits the readiness report without any mesh assets.
+- **2.15 (done)** - agent scene generation: `ai3d_generate` takes
+  `kind: "scene"` to compose one of the eight level kits (dungeon, camp,
+  outpost, village, temple, battle, wilderness, town) from a `type` or a
+  sentence, writing a GLB, an engine pack, the design metadata, the design
+  audit and an engine-space scene blueprint into the workspace.
 
 ### 12. Documentation
 

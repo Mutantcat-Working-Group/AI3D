@@ -23,6 +23,16 @@ template `type` directly; at least one is required. Pass a workspace-relative
 prompt resolves, and the same six-language catalogue resolves prompts as it
 does in the browser workbench.
 
+Pass `kind: "scene"` to compose a whole level kit rather than a single prop.
+Scenes take a kit `type` (dungeon, camp, outpost, village, temple, battle,
+wilderness, town) or a prompt that names one, plus the optional layout knobs
+`spacing`, `groundPadding` and `propScale`. A scene ignores the per-mesh
+settings (`size`, `withLod`, `anchors`, `exportClips`, `collision`,
+`animation`) and instead writes the kit's design metadata, a design audit and
+an engine-space scene blueprint into the pack, so the level arrives with its
+spawn points, objectives, loot tables, locks and prop placements already in the
+target engine's axes and units.
+
 The tool writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up
 axis), an unpacked `pack/` directory for inspection and `summary.json` with

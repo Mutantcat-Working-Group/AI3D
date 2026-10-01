@@ -74,11 +74,19 @@ not a review: the files land under the workspace-relative `output` directory
 the workspace.
 
 Inputs: `prompt` or `type` (at least one) and `output` (required), plus
-optional `style`, `color`, `size`, `units`, `seed`, `engine`
-(unity/godot/unreal), `withLod`, `anchors`, `exportClips`, `collision`,
-`animation` and `name`. A prompt resolves type, style, color, size and units
-from the same six-language catalogue the UI uses; an explicit `type` wins over
-whatever the prompt resolves.
+optional `kind` (`asset` by default, or `scene`), `style`, `color`, `size`,
+`units`, `seed`, `engine` (unity/godot/unreal), `withLod`, `anchors`,
+`exportClips`, `collision`, `animation` and `name`. A prompt resolves type,
+style, color, size and units from the same six-language catalogue the UI uses;
+an explicit `type` wins over whatever the prompt resolves.
+
+`kind: "scene"` composes a whole level kit instead of a single prop. The kit
+type is one of `dungeon`, `camp`, `outpost`, `village`, `temple`, `battle`,
+`wilderness` or `town`, and the optional layout knobs `spacing`,
+`groundPadding` and `propScale` apply only here. A scene pack also carries the
+kit's design metadata, a design audit and an engine-space scene blueprint, so
+the level arrives with its spawn points, objectives, loot tables, locks and
+prop placements already expressed in the target engine's axes and units.
 
 The result writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up

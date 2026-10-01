@@ -79,7 +79,7 @@ AI3D 现在把聊天面板收进工作台：生成、导出或审阅时都能就
 - 专业建模流程：白模与基础网格工作流、从粗模到成品的管线顺序、重拓扑与四边面布线、UV 展开与像素密度、高低模烘焙与法线贴图、法线贴图／光滑组与切线空间、模块化场景套件与装饰条贴图、骨骼绑定与蒙皮预算、贴图通道打包与色彩空间、资产命名约定、硬表面倒角与分缝、游戏资产预算与 LOD／虚拟几何体、PBR 材质制作。
 - 公共白模与素材来源：Blender 官方人体白模资产包（CC0）、史密森尼开放获取 3D 藏品（CC0）、OpenGameArt、Scan the World 公共雕塑扫描、Mixamo 免费骨骼角色与动作、Poly Haven、Kenney、Quaternius、Poly Pizza、Sketchfab 的 CC0 筛选、维基共享资源 3D 模型、MakeHuman 人体白模、Z-Anatomy 开放解剖图谱、NASA 3D Resources，逐条标注许可，其中 CC0 资源注明可商用免署名。
 
-MCP 客户端可以调用 `ai3d_knowledge` 工具检索同一份知识包，返回结构化条目与引用信息；聊天面板与 MCP 共用这一份实现，不会各自漂移。Agent 也可以调用 `ai3d_generate` 工具，用一句话直接生成资产，并把 GLB 与 Unity／Godot／Unreal 引擎包写进工作区，与界面共用同一套确定性生成器。
+MCP 客户端可以调用 `ai3d_knowledge` 工具检索同一份知识包，返回结构化条目与引用信息；聊天面板与 MCP 共用这一份实现，不会各自漂移。Agent 也可以调用 `ai3d_generate` 工具，用一句话直接生成资产，或者传 `kind: "scene"` 合成整套关卡套装（地牢、营地、前哨、村庄、神庙、战场、荒野、城镇），并把 GLB 与 Unity／Godot／Unreal 引擎包写进工作区，与界面共用同一套确定性生成器；场景套装会一并带上设计元数据、设计审计与引擎坐标的场景蓝图。
 
 ### 七、三种入口，同一套实现
 
@@ -114,7 +114,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 374 unit and integration tests
+npm test             # 376 unit and integration tests
 npm run test:browser # 86 real-Chromium tests
 ```
 
@@ -188,6 +188,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.12（已完成）** — 场景设计审计：关卡元数据按场景道具逐一校验（出生点、目标、掉落容器与物品、机关锁与触发器），游戏套装额外产出 design/<场景>.audit.json，生成区同步显示通过／警告／失败徽标，八个套装数据也已补齐缺失的宝箱、钥匙台、闸门等道具。
 - **2.13（已完成）** — 引擎场景蓝图：每个带设计的场景在游戏套装里额外产出 blueprints/<场景>.json，把每个道具的位置、朝向、包围盒与设计角色（掉落容器、机关锁）按目标引擎的坐标与单位换算（Unity/Godot 为 Y 轴米、Unreal 为 Z 轴厘米），方便编辑器脚本直接摆放场景。
 - **2.14（已完成）** — 场景关卡就绪度：带设计的场景现在把设计审计折算成关卡就绪度，并入游戏套装的 readiness 汇总与 game-ready.json（设计通过记 ready、存在失败项记 needs-attention），即使套装里只有场景资产、没有网格资产也照常输出就绪度报告。
+- **2.15（已完成）** — Agent 生成关卡套装：`ai3d_generate` 新增 `kind: "scene"`，可用 `type` 或一句话合成八种关卡套装之一（地牢、营地、前哨、村庄、神庙、战场、荒野、城镇），并把 GLB、引擎包、设计元数据、设计审计与引擎坐标的场景蓝图一并写进工作区。
 
 ### 十二、文档
 

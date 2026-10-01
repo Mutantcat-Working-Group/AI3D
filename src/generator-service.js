@@ -8,12 +8,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { unzipSync } from "fflate";
 import {
+  auditSceneDesign,
+  composeGameKit,
   generateAsset,
   exportGamePack,
   exportGLB,
   getAssetStats,
   getAssetTypes,
   getEnginePresets,
+  getGameKits,
 } from "./generator.js";
 import { CATALOGUES } from "./i18n/index.js";
 import { parseAssetPrompt, buildPromptLexicon } from "./asset-prompt.js";
@@ -38,6 +41,13 @@ const COLLISION_CHOICES = new Set([
 ]);
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const TYPE_IDS = new Set(getAssetTypes());
+const SCENE_KITS = getGameKits();
+const KIT_IDS = new Set(SCENE_KITS.map((kit) => kit.id));
+const KIT_TERMS = SCENE_KITS.map((kit) => ({
+  id: kit.id,
+  term: kit.id,
+  label: String(kit.name || kit.id).toLowerCase(),
+}));
 const promptLexicon = buildPromptLexicon(CATALOGUES);
 
 export class GenerationError extends Error {
@@ -117,6 +127,33 @@ function resolveType(prompt, type, parsed) {
   return resolved;
 }
 
+/* A scene is a composed kit, not a parametric prop, so it resolves against the
+ * kit ids instead of the asset catalogue. A prompt may name the kit id or its
+ * human label ("dungeon", "town"), which is how the browser workbench presents
+ * them; an explicit type still wins so the tool stays deterministic. */
+function resolveSceneKit(prompt, type) {
+  if (type) {
+    if (!KIT_IDS.has(type))
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `Unknown scene kit "${type}". Available: ${[...KIT_IDS].join(", ")}.`,
+      );
+    return type;
+  }
+  const text = String(prompt || "").toLowerCase();
+  const matches = (value) =>
+    new RegExp(`(^|[^a-z0-9])${value}([^a-z0-9]|$)`).test(text);
+  const match = KIT_TERMS.find(
+    (entry) => matches(entry.term) || matches(entry.label),
+  );
+  if (!match)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      `Prompt did not name a scene kit. Available: ${[...KIT_IDS].join(", ")}.`,
+    );
+  return match.id;
+}
+
 function assetSlug(value) {
   const slug = String(value || "asset")
     .toLowerCase()
@@ -174,7 +211,194 @@ function writeZipContents(zip, packDir) {
   }
 }
 
+/* Both the prop and the scene path write the same four artefacts, so the layout
+ * lives here once. The standalone GLB is written at the engine's scale and up
+ * axis, matching what the pack's models/ directory contains. */
+async function writePackArtifacts({
+  workspace,
+  output,
+  id,
+  model,
+  pack,
+  engine,
+}) {
+  const outDir = resolveOutputDir(workspace, output);
+  const itemDir = path.join(outDir, id);
+  const packDir = path.join(itemDir, "pack");
+  fs.mkdirSync(packDir, { recursive: true });
+  const packZip = path.join(itemDir, `${id}.zip`);
+  const glb = path.join(itemDir, `${id}.glb`);
+  const summary = path.join(itemDir, "summary.json");
+  fs.writeFileSync(packZip, Buffer.from(pack));
+  const enginePreset = getEnginePresets().find(
+    (preset) => preset.id === engine,
+  );
+  fs.writeFileSync(
+    glb,
+    Buffer.from(
+      await exportGLB(model, {
+        upAxis: enginePreset?.upAxis || "Y",
+        scale: enginePreset?.scale || 1,
+      }),
+    ),
+  );
+  writeZipContents(pack, packDir);
+  return { packZip, glb, packDir, summary };
+}
+
+/* Compose a level kit into a game pack. A scene skips the per-mesh settings
+ * that only mean something for a single prop (size, LODs, anchors, clips and
+ * collider presets); what it adds instead is the kit's design metadata and its
+ * audit, which the pack writes as design/ and blueprints/ files. */
+export async function generateSceneToPack({
+  workspace,
+  output,
+  prompt,
+  type,
+  style,
+  color,
+  seed,
+  units,
+  engine = "unity",
+  name,
+  texture = "auto",
+  textureStrength = 0.8,
+  textureSize = 256,
+  spacing,
+  groundPadding,
+  propScale,
+} = {}) {
+  if (!workspace || typeof workspace !== "string")
+    throw new GenerationError(BAD_PARAMETER, "workspace is required.");
+  if (!prompt && !type)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      "Either prompt or type is required.",
+    );
+
+  const kit = resolveSceneKit(prompt, type);
+  const kitName = SCENE_KITS.find((entry) => entry.id === kit)?.name || kit;
+  const resolvedStyle = requireChoice(style, STYLES, "style", "lowpoly");
+  const resolvedColor = requireHexColor(color);
+  const resolvedSeed = requireSeed(seed);
+  const resolvedUnits = requireChoice(units, UNITS, "units", "m");
+  const resolvedEngine = requireChoice(engine, ENGINE_IDS, "engine", "unity");
+  const resolvedTextureSize = requireChoice(
+    textureSize,
+    TEXTURE_SIZES,
+    "textureSize",
+    256,
+  );
+  const resolvedStrength = requireStrength(textureStrength);
+
+  const scene = composeGameKit(kit, {
+    seed: resolvedSeed ?? 1,
+    style: resolvedStyle,
+    color: resolvedColor,
+    texture,
+    textureStrength: resolvedStrength,
+    textureSize: resolvedTextureSize,
+    spacing,
+    groundPadding,
+    propScale,
+  });
+  const props = scene.userData.propList || [];
+  const design = scene.userData.design || null;
+  const audit = design
+    ? auditSceneDesign(design, { props, kind: "kit" })
+    : null;
+
+  const id = assetSlug(name || kit);
+  const asset = {
+    id,
+    name: name || kitName,
+    kind: "scene",
+    type: kit,
+    seed: resolvedSeed,
+    size: 1,
+    units: resolvedUnits,
+    fitAxis: "max",
+    pivot: "center",
+    style: resolvedStyle,
+    color: resolvedColor,
+    material: null,
+    texture,
+    textureStrength: resolvedStrength,
+    textureSize: resolvedTextureSize,
+    tags: ["scene", kit],
+    scene: {
+      quality: scene.userData.theme?.quality ?? 1,
+      spacing: scene.userData.theme?.spacing ?? 1,
+      groundPadding: scene.userData.theme?.groundPadding ?? 0.6,
+      propScale: scene.userData.theme?.propScale ?? 1,
+      groundColor: scene.userData.groundColor ?? null,
+      theme: scene.userData.theme ?? null,
+      props,
+      design,
+    },
+  };
+
+  const pack = await exportGamePack({
+    model: scene,
+    asset,
+    engine: resolvedEngine,
+    withLod: false,
+    anchors: false,
+    exportClips: false,
+    collision: "none",
+    animation: "none",
+  });
+
+  const files = await writePackArtifacts({
+    workspace,
+    output,
+    id,
+    model: scene,
+    pack,
+    engine: resolvedEngine,
+  });
+  const stats = getAssetStats(scene);
+  const summary = {
+    schema: "ai3d-generated-scene",
+    id,
+    name: asset.name,
+    kind: "scene",
+    kit,
+    style: resolvedStyle,
+    color: resolvedColor,
+    units: resolvedUnits,
+    seed: resolvedSeed,
+    engine: resolvedEngine,
+    props: props.map((prop) => prop.type),
+    design,
+    designAudit: audit,
+    stats,
+    prompt: prompt || null,
+    files,
+  };
+  fs.writeFileSync(files.summary, `${JSON.stringify(summary, null, 2)}\n`);
+
+  return {
+    ok: true,
+    asset: {
+      id,
+      name: asset.name,
+      kind: "scene",
+      type: kit,
+      style: resolvedStyle,
+      color: resolvedColor,
+      units: resolvedUnits,
+      seed: resolvedSeed,
+      engine: resolvedEngine,
+      stats,
+      designAudit: audit,
+    },
+    files,
+  };
+}
+
 export async function generateAssetToPack({
+  kind = "asset",
   workspace,
   output,
   prompt,
@@ -194,7 +418,34 @@ export async function generateAssetToPack({
   texture = "auto",
   textureStrength = 0.8,
   textureSize = 256,
+  spacing,
+  groundPadding,
+  propScale,
 } = {}) {
+  if (kind === "scene")
+    return generateSceneToPack({
+      workspace,
+      output,
+      prompt,
+      type,
+      style,
+      color,
+      seed,
+      units,
+      engine,
+      name,
+      texture,
+      textureStrength,
+      textureSize,
+      spacing,
+      groundPadding,
+      propScale,
+    });
+  if (kind !== "asset")
+    throw new GenerationError(
+      BAD_PARAMETER,
+      'kind must be "asset" or "scene".',
+    );
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");
   if (!prompt && !type)
@@ -286,28 +537,14 @@ export async function generateAssetToPack({
     animation,
   });
 
-  const outDir = resolveOutputDir(workspace, output);
-  const itemDir = path.join(outDir, id);
-  const packDir = path.join(itemDir, "pack");
-  fs.mkdirSync(packDir, { recursive: true });
-
-  const zipPath = path.join(itemDir, `${id}.zip`);
-  const glbPath = path.join(itemDir, `${id}.glb`);
-  const summaryPath = path.join(itemDir, "summary.json");
-  fs.writeFileSync(zipPath, Buffer.from(pack));
-  const enginePreset = getEnginePresets().find(
-    (preset) => preset.id === resolvedEngine,
-  );
-  fs.writeFileSync(
-    glbPath,
-    Buffer.from(
-      await exportGLB(model, {
-        upAxis: enginePreset?.upAxis || "Y",
-        scale: enginePreset?.scale || 1,
-      }),
-    ),
-  );
-  writeZipContents(pack, packDir);
+  const files = await writePackArtifacts({
+    workspace,
+    output,
+    id,
+    model,
+    pack,
+    engine: resolvedEngine,
+  });
 
   const stats = getAssetStats(model);
   const summary = {
@@ -330,14 +567,9 @@ export async function generateAssetToPack({
     stats,
     dimensions: model.userData?.dimensions || null,
     prompt: prompt || null,
-    files: {
-      packZip: zipPath,
-      glb: glbPath,
-      packDir,
-      summary: summaryPath,
-    },
+    files,
   };
-  fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
+  fs.writeFileSync(files.summary, `${JSON.stringify(summary, null, 2)}\n`);
 
   return {
     ok: true,
