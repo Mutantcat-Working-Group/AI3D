@@ -482,6 +482,7 @@ export default {
   "gen.textureSand": "砂",
   "gen.textureNone": "なし",
   "gen.textureStrength": "強さ",
+  "gen.textureSize": "テクスチャ解像度",
   "gen.textureStrip": "テクスチャプレビュー",
   "gen.randomSeed": "ランダム",
   "gen.previewError": "プレビュー失敗",

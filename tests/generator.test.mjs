@@ -366,6 +366,27 @@ test("generated assets carry a full procedural PBR texture set", () => {
   }
 });
 
+test("textureSize selects the procedural map resolution", () => {
+  const model = generateAsset("sword", {
+    size: 1,
+    seed: 7,
+    textureSize: 512,
+  });
+  const mats = meshMaterials(model);
+  assert.ok(mats.length > 0);
+  const texture = mats[0].map;
+  assert.equal(texture.image.width, 512);
+  assert.equal(texture.image.height, 512);
+
+  const small = generateAsset("sword", {
+    size: 1,
+    seed: 7,
+    textureSize: 64,
+  });
+  const smallTexture = meshMaterials(small)[0].map;
+  assert.equal(smallTexture.image.width, 64);
+});
+
 test("texture PNGs are deterministic per seed", () => {
   const a = getAssetTextureInfo(
     { type: "sword", texture: "metal", textureStrength: 0.8 },
@@ -395,6 +416,21 @@ test("texture PNGs are deterministic per seed", () => {
     getAssetTextureInfo({ type: "sword", texture: "none" }, 9),
     null,
   );
+});
+
+test("texture PNGs honour the requested resolution", () => {
+  const info = getAssetTextureInfo(
+    { type: "sword", texture: "metal", textureSize: 512 },
+    9,
+  );
+  assert.ok(info);
+  assert.equal(info.texture.size, 512);
+  const png = info.textures.albedo;
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  // PNG IHDR width and height are the first two big-endian uint32s after the
+  // 8-byte signature and 4-byte length + 4-byte "IHDR" type.
+  assert.equal(view.getUint32(16, false), 512);
+  assert.equal(view.getUint32(20, false), 512);
 });
 
 test("GLB export embeds procedural texture images", async () => {
@@ -550,6 +586,7 @@ test("game kits apply the chosen theme to every prop", () => {
     material,
     texture: "metal",
     textureStrength: 0.9,
+    textureSize: 256,
     segments: 12,
     quality: 1,
     spacing: 1,
@@ -1377,6 +1414,7 @@ test("exportGamePack ships standalone PBR textures and manifest metadata", async
       seed: 7,
       texture: "metal",
       textureStrength: 0.9,
+      textureSize: 128,
     },
     engine: "unity",
     exportedAt: "2026-09-29T00:00:00.000Z",
@@ -1395,6 +1433,7 @@ test("exportGamePack ships standalone PBR textures and manifest metadata", async
   }
   assert.equal(manifest.assets[0].texture.kind, "metal");
   assert.equal(manifest.assets[0].texture.strength, 0.9);
+  assert.equal(manifest.assets[0].textureSize, 128);
   assert.deepEqual(manifest.assets[0].files.textures, [
     "textures/sword-tex/albedo.png",
     "textures/sword-tex/normal.png",

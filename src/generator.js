@@ -5,6 +5,7 @@ import { ConvexGeometry } from "three/addons/geometries/ConvexGeometry.js";
 import { zipSync } from "fflate";
 import {
   createProceduralTextures,
+  TEXTURE_SIZES,
   resolveTextureKind,
   ensureNodeCanvasPolyfill,
 } from "./procedural-textures.js";
@@ -913,6 +914,7 @@ function mulberry32(a) {
  * @param {string} options.material.emissive - Hex emissive color or null
  * @param {string} options.texture - Texture preset or "auto"/"none"
  * @param {number} options.textureStrength - Procedural texture strength 0..1
+ * @param {number} options.textureSize - Procedural map size (64/128/256/512)
  */
 export function generateAsset(
   type,
@@ -925,6 +927,7 @@ export function generateAsset(
     material = null,
     texture = "auto",
     textureStrength = 0.8,
+    textureSize = 256,
     units = "m",
     fitAxis = "max",
     pivot = "center",
@@ -1106,6 +1109,7 @@ export function generateAsset(
   applyProceduralTextureSet(group, type, {
     texture,
     strength: textureStrength,
+    size: textureSize,
     seed,
   });
 
@@ -1145,6 +1149,7 @@ export function generateAsset(
  * @param {number} options.baseSeed - First seed in the batch
  * @param {string} options.texture - Texture preset or "auto"/"none"
  * @param {number} options.textureStrength - Procedural texture strength 0..1
+ * @param {number} options.textureSize - Procedural map size (64/128/256/512)
  * @returns {Array<{seed: number, index: number, model: THREE.Group, stats: object}>}
  */
 export function generateVariantSet(
@@ -1157,6 +1162,7 @@ export function generateVariantSet(
     material = null,
     texture = "auto",
     textureStrength = 0.8,
+    textureSize = 256,
     count = 4,
     baseSeed = 0,
     units = "m",
@@ -1179,6 +1185,7 @@ export function generateVariantSet(
       material,
       texture,
       textureStrength,
+      textureSize,
       units,
       fitAxis,
       pivot,
@@ -1243,13 +1250,15 @@ function createMaterial(color, style) {
 function applyProceduralTextureSet(
   object,
   type,
-  { texture = "auto", strength = 0.8, seed = null } = {},
+  { texture = "auto", strength = 0.8, size = 256, seed = null } = {},
 ) {
   const kind = resolveTextureKind(type, texture);
   if (!kind) return;
   const textureSeed = seed == null ? 1 : Math.max(1, Math.floor(seed) + 1);
   const set = createProceduralTextures(kind, {
-    size: 128,
+    size: TEXTURE_SIZES.includes(Math.round(Number(size) || 256))
+      ? Math.round(Number(size))
+      : 256,
     strength: Math.max(0, Math.min(1, Number(strength) || 0)),
     seed: textureSeed,
   });
@@ -1283,8 +1292,13 @@ export function getAssetTextureInfo(asset = {}, seed = null) {
     Math.min(1, Number(asset.textureStrength ?? 0.8) || 0),
   );
   const textureSeed = seed == null ? 1 : Math.max(1, Math.floor(seed) + 1);
+  const textureSize = TEXTURE_SIZES.includes(
+    Math.round(Number(asset.textureSize) || 0),
+  )
+    ? Math.round(Number(asset.textureSize))
+    : 256;
   const set = createProceduralTextures(kind, {
-    size: 128,
+    size: textureSize,
     strength,
     seed: textureSeed,
     png: true,
@@ -1293,7 +1307,7 @@ export function getAssetTextureInfo(asset = {}, seed = null) {
     texture: {
       kind,
       strength,
-      size: set.size,
+      size: textureSize,
     },
     textures: set.pngs,
   };
@@ -1440,6 +1454,7 @@ const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
  * @param {object} options.material - Material overrides passed to every prop
  * @param {string} options.texture - Procedural texture preset or "auto"/"none"
  * @param {number} options.textureStrength - Procedural texture strength 0..1
+ * @param {number} options.textureSize - Procedural map size (64/128/256/512)
  * @param {number} options.spacing - Grid spacing multiplier
  * @param {number} options.groundPadding - Ground margin on each side
  * @param {number} options.propScale - Global prop scale multiplier
@@ -1457,6 +1472,7 @@ export function composeGameKit(
     material = null,
     texture = "auto",
     textureStrength = 0.8,
+    textureSize = 256,
     spacing = 1,
     groundPadding = 0.6,
     propScale = 1,
@@ -1484,6 +1500,7 @@ export function composeGameKit(
     material,
     texture,
     textureStrength,
+    textureSize,
     segments,
     quality,
     spacing: spacingScale,
@@ -1530,6 +1547,7 @@ export function composeGameKit(
   applyProceduralTextureSet(ground, kit, {
     texture,
     strength: textureStrength,
+    size: textureSize,
     seed,
   });
   group.add(ground);
@@ -1575,6 +1593,7 @@ export function composeGameKit(
       material,
       texture,
       textureStrength,
+      textureSize,
     });
     model.name = `${kit}-${type}-${index + 1}`;
     model.traverse((child) => {
@@ -1751,6 +1770,7 @@ export function getModularScenePresets() {
  * @param {object} options.material - Material overrides passed to every piece
  * @param {string} options.texture - Procedural texture preset or "auto"/"none"
  * @param {number} options.textureStrength - Procedural texture strength 0..1
+ * @param {number} options.textureSize - Procedural map size (64/128/256/512)
  * @param {number} options.spacing - Grid spacing multiplier
  * @param {number} options.groundPadding - Ground margin on each side
  * @param {number} options.propScale - Global prop scale multiplier
@@ -1770,6 +1790,7 @@ export function composeModularScene(
     material = null,
     texture = "auto",
     textureStrength = 0.8,
+    textureSize = 256,
     spacing = 1,
     groundPadding = 0.6,
     propScale = 1,
@@ -1803,6 +1824,7 @@ export function composeModularScene(
     material,
     texture,
     textureStrength,
+    textureSize,
     segments,
     quality,
     spacing: spacingScale,
@@ -1827,6 +1849,7 @@ export function composeModularScene(
       material,
       texture,
       textureStrength,
+      textureSize,
     });
     model.name = placement.name;
     model.traverse((child) => {
@@ -1888,6 +1911,7 @@ export function composeModularScene(
       material,
       texture,
       textureStrength,
+      textureSize,
     });
     model.name = `${presetId}-${requestedType}-${index + 1}`;
     model.traverse((child) => {
@@ -1992,6 +2016,7 @@ export function editSceneProp(scene, propIndex, changes = {}) {
       material: theme.material || null,
       texture: theme.texture ?? "auto",
       textureStrength: theme.textureStrength ?? 0.8,
+      textureSize: theme.textureSize ?? 256,
     });
     model.name = `${scene.userData.kit || "kit"}-${requestedType}-${index + 1}`;
     model.traverse((child) => {
@@ -2129,6 +2154,7 @@ export function addSceneProp(scene, placement = {}) {
     material: theme.material || null,
     texture: theme.texture ?? "auto",
     textureStrength: theme.textureStrength ?? 0.8,
+    textureSize: theme.textureSize ?? 256,
   });
   const kit = scene.userData.kit || "kit";
   model.name = `${kit}-${type}-${index + 1}`;
@@ -5810,6 +5836,7 @@ function buildSceneRecord(asset) {
         material: asset.material || null,
         texture: asset.texture ?? "auto",
         textureStrength: asset.textureStrength ?? 0.8,
+        textureSize: asset.textureSize ?? 256,
       },
     props: Array.isArray(asset.scene?.props) ? asset.scene.props : [],
   };
@@ -5852,6 +5879,7 @@ export function buildGamePackFiles({
       material: asset.material || null,
       texture: asset.texture || null,
       textureStrength: asset.textureStrength ?? 0.8,
+      textureSize: asset.textureSize ?? 256,
       tags: isScene
         ? Array.isArray(asset.tags)
           ? asset.tags
@@ -6002,6 +6030,7 @@ export async function exportGamePack({
             material: asset.material || null,
             texture: asset.texture ?? "auto",
             textureStrength: asset.textureStrength ?? 0.8,
+            textureSize: asset.textureSize ?? 256,
           },
         props: Array.isArray(asset.scene?.props)
           ? asset.scene.props
@@ -6127,6 +6156,7 @@ export function exportAssetManifest(assets, format = "json") {
       emissive: asset.material?.emissive ?? null,
       texture: asset.texture ?? "auto",
       textureStrength: asset.textureStrength ?? 0.8,
+      textureSize: asset.textureSize ?? 256,
       scene: isScene ? asset.scene || null : null,
       triangles: asset.stats?.triangles ?? null,
       vertices: asset.stats?.vertices ?? null,
@@ -6166,6 +6196,7 @@ export function exportAssetManifest(assets, format = "json") {
       "kind",
       "texture",
       "textureStrength",
+      "textureSize",
       "roughness",
       "metalness",
       "emissive",

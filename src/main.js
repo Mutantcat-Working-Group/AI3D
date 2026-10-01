@@ -333,6 +333,12 @@ app.innerHTML = `${SPRITE}
         <option value="none">${T("gen.textureNone")}</option>
       </select>
       <label class="gen-texture-strength">${T("gen.textureStrength")} <input type="range" id="gen-texture-strength" min="0" max="1" step="0.05" value="0.8"></label>
+      <label>${T("gen.textureSize")} <select id="gen-texture-size">
+        <option value="64">64</option>
+        <option value="128">128</option>
+        <option value="256" selected>256</option>
+        <option value="512">512</option>
+      </select></label>
       <div id="gen-texture-strip" class="gen-texture-strip" aria-label="${T("gen.textureStrip")}"></div>
       <label>${T("gen.seed")}</label>
       <div class="gen-color-row">
@@ -2640,6 +2646,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
       material: asset.material || theme.material || null,
       texture: asset.texture ?? theme.texture ?? "auto",
       textureStrength: asset.textureStrength ?? theme.textureStrength ?? 0.8,
+      textureSize: asset.textureSize ?? theme.textureSize ?? 256,
       modular: asset.scene?.modular ?? null,
       props: Array.isArray(asset.scene?.props) ? asset.scene.props : null,
     });
@@ -2662,6 +2669,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
         material: asset.material || theme.material || null,
         texture: asset.texture ?? theme.texture ?? "auto",
         textureStrength: asset.textureStrength ?? theme.textureStrength ?? 0.8,
+        textureSize: asset.textureSize ?? theme.textureSize ?? 256,
         props: Array.isArray(asset.scene?.props) ? asset.scene.props : null,
       })
     : generateThreeAsset(asset.type, {
@@ -2677,6 +2685,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
         material: asset.material || null,
         texture: asset.texture ?? "auto",
         textureStrength: asset.textureStrength ?? 0.8,
+        textureSize: asset.textureSize ?? 256,
       });
 }
 
@@ -2818,6 +2827,7 @@ async function generateAsset() {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
     });
     genState.model = {
       ...assetType,
@@ -2828,6 +2838,7 @@ async function generateAsset() {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
       tags: getAssetTags(assetType.type),
     };
     genState.originalModel = cloneModelDeep(model);
@@ -2885,6 +2896,7 @@ function generateVariants() {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
       count,
       baseSeed,
     });
@@ -2898,6 +2910,7 @@ function generateVariants() {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
     }));
     renderVariantGrid();
     setGenStatus(
@@ -2992,6 +3005,7 @@ function readMaterialSettings() {
     emissive: emissive === "#000000" ? null : emissive,
     texture: $("#gen-texture").value || "auto",
     textureStrength: parseFloat($("#gen-texture-strength").value) || 0.8,
+    textureSize: parseFloat($("#gen-texture-size").value) || 256,
   };
 }
 
@@ -3011,8 +3025,14 @@ function renderTextureStrip() {
   if (!strip) return;
   const choice = $("#gen-texture").value || "auto";
   const strength = parseFloat($("#gen-texture-strength").value) || 0.8;
+  const textureSize = parseFloat($("#gen-texture-size").value) || 256;
   const info = getAssetTextureInfo(
-    { type: "cube", texture: choice, textureStrength: strength },
+    {
+      type: "cube",
+      texture: choice,
+      textureStrength: strength,
+      textureSize,
+    },
     1,
   );
   if (!info) {
@@ -3350,6 +3370,7 @@ async function downloadGenPack() {
     material: genState.model.material || null,
     texture: genState.model.texture ?? "auto",
     textureStrength: genState.model.textureStrength ?? 0.8,
+    textureSize: genState.model.textureSize ?? 256,
   };
   setGenStatus(t("gen.generating"), "info");
   try {
@@ -3603,6 +3624,7 @@ function composeGameKitScene(kitId) {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
       ...kitOptions,
     });
     const stats = getAssetStats(scene);
@@ -3619,6 +3641,7 @@ function composeGameKitScene(kitId) {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
       segments: scene.userData.theme.segments ?? kitOptions.segments,
       quality: scene.userData.theme.quality ?? 1,
       spacing: scene.userData.theme.spacing ?? kitOptions.spacing,
@@ -3679,6 +3702,7 @@ function composeModularSceneScene(presetId) {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
       modular,
     });
     const stats = getAssetStats(scene);
@@ -3695,6 +3719,7 @@ function composeModularSceneScene(presetId) {
       material,
       texture: material.texture,
       textureStrength: material.textureStrength,
+      textureSize: material.textureSize,
       segments: scene.userData.theme.segments ?? 12,
       quality: scene.userData.theme.quality ?? 1,
       spacing: scene.userData.theme.spacing ?? 1,
@@ -3787,6 +3812,7 @@ $("#gen-emissive-reset").addEventListener("click", () => {
 });
 $("#gen-texture").addEventListener("change", renderTextureStrip);
 $("#gen-texture-strength").addEventListener("input", renderTextureStrip);
+$("#gen-texture-size").addEventListener("change", renderTextureStrip);
 $("#gen-style").addEventListener("change", (e) => {
   const presets = {
     lowpoly: { roughness: 0.8, metalness: 0.1 },

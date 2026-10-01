@@ -483,6 +483,7 @@ export default {
   "gen.textureSand": "Sand",
   "gen.textureNone": "None",
   "gen.textureStrength": "Strength",
+  "gen.textureSize": "Texture Resolution",
   "gen.textureStrip": "Texture Preview",
   "gen.randomSeed": "Random",
   "gen.previewError": "Preview failed",

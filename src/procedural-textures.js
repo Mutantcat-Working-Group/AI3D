@@ -19,6 +19,8 @@ export const TEXTURE_KINDS = [
   "sand",
 ];
 
+export const TEXTURE_SIZES = [64, 128, 256, 512];
+
 export const TEXTURE_DEFAULTS = {
   sword: "metal",
   axe: "metal",
@@ -316,7 +318,8 @@ export function createProceduralTextures(
   { size = 128, strength = 1, seed = 1, png = false } = {},
 ) {
   const resolvedKind = TEXTURE_KINDS.includes(kind) ? kind : "stone";
-  const mapSize = Math.max(64, Math.min(256, Math.round(size || 128)));
+  const requestedSize = Math.round(Number(size) || 128);
+  const mapSize = TEXTURE_SIZES.includes(requestedSize) ? requestedSize : 128;
   const mapStrength = clamp01(Number(strength) || 0);
   const mapSeed = Math.floor(Number(seed) || 1) >>> 0 || 1;
 

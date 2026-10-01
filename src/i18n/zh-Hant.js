@@ -457,6 +457,7 @@ export default {
   "gen.textureSand": "沙地",
   "gen.textureNone": "無",
   "gen.textureStrength": "強度",
+  "gen.textureSize": "貼圖解析度",
   "gen.textureStrip": "貼圖預覽",
   "gen.randomSeed": "隨機",
   "gen.previewError": "預覽失敗",

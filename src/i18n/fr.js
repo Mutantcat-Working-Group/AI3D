@@ -494,6 +494,7 @@ export default {
   "gen.textureSand": "Sable",
   "gen.textureNone": "Aucune",
   "gen.textureStrength": "Intensité",
+  "gen.textureSize": "Résolution de texture",
   "gen.textureStrip": "Aperçu de la texture",
   "gen.randomSeed": "Aléatoire",
   "gen.previewError": "Aperçu échoué",
