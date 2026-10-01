@@ -573,6 +573,7 @@ export default {
   "gen.zUp": "Z-up",
   "gen.exportLod": "Inclure les niveaux LOD",
   "gen.exportAnchors": "Inclure les points d'ancrage nommés",
+  "gen.exportClips": "Exporter un GLB par clip d'animation",
   "gen.animation": "Animation",
   "gen.animationAuto": "Auto (tout conserver)",
   "gen.animationIdle": "Repos",

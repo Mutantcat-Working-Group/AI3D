@@ -1369,6 +1369,50 @@ test("Godot packs include an instanceable tscn wrapper for each model", () => {
   assert.equal(manifest.assets[0].files.scene, "scenes/sword-test-1.tscn");
 });
 
+test("buildGamePackFiles stores per-clip animation GLBs and manifest files", () => {
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        animationFiles: [
+          {
+            name: "idle",
+            duration: 2,
+            glbBytes: new Uint8Array([0x67, 0x6c, 0x74, 0x66]),
+          },
+          {
+            name: "attack",
+            duration: 1.25,
+            glbBytes: new Uint8Array([0x67, 0x6c, 0x62, 0x02]),
+          },
+        ],
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+
+  assert.ok(files["animations/sword-test-1/idle.glb"]);
+  assert.ok(files["animations/sword-test-1/attack.glb"]);
+  assert.deepEqual(manifest.assets[0].files.animations, [
+    "animations/sword-test-1/idle.glb",
+    "animations/sword-test-1/attack.glb",
+  ]);
+  assert.deepEqual(manifest.assets[0].clipFiles, [
+    {
+      name: "idle",
+      duration: 2,
+      file: "animations/sword-test-1/idle.glb",
+    },
+    {
+      name: "attack",
+      duration: 1.25,
+      file: "animations/sword-test-1/attack.glb",
+    },
+  ]);
+});
+
 test("game packs include collision metadata and a collider GLB", () => {
   const zip = buildGamePackFiles({
     assets: [
@@ -1679,6 +1723,46 @@ test("exportGamePack records exported anchors and leaves them out by default", a
     new TextDecoder().decode(plainFiles["manifest.json"]),
   );
   assert.equal(plainManifest.assets[0].anchors, null);
+});
+
+test("exportGamePack writes per-clip animation GLBs when requested and skips them by default", async () => {
+  const source = generateAsset("dragon", { size: 2, seed: 9, segments: 10 });
+  const clipZip = await exportGamePack({
+    model: source,
+    asset: { id: "dragon-clips", type: "dragon", seed: 9 },
+    engine: "unity",
+    exportClips: true,
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const clipFiles = unzipSync(clipZip);
+  const clipManifest = JSON.parse(
+    new TextDecoder().decode(clipFiles["manifest.json"]),
+  );
+
+  assert.ok(clipManifest.assets[0].clipFiles.length >= 3, "has clip files");
+  for (const clip of clipManifest.assets[0].clipFiles) {
+    const glb = clipFiles[clip.file];
+    assert.ok(glb, `clip exists: ${clip.file}`);
+    assert.equal(String.fromCharCode(...glb.slice(0, 4)), "glTF");
+    assert.ok(clip.duration > 0, `clip has duration: ${clip.name}`);
+  }
+  assert.ok(
+    clipManifest.assets[0].files.animations.length >= 3,
+    "files list includes clips",
+  );
+
+  const plainZip = await exportGamePack({
+    model: source,
+    asset: { id: "dragon-single", type: "dragon", seed: 9 },
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const plainFiles = unzipSync(plainZip);
+  assert.equal(
+    Object.keys(plainFiles).some((name) => name.startsWith("animations/")),
+    false,
+    "no clips written by default",
+  );
 });
 
 test("exportGamePack writes colliders and respects the none choice", async () => {

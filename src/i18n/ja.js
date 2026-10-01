@@ -561,6 +561,7 @@ export default {
   "gen.zUp": "Z-up",
   "gen.exportLod": "LOD レベルを含める",
   "gen.exportAnchors": "名前付きアンカー ノードを含める",
+  "gen.exportClips": "アニメーションクリップごとに GLB を書き出す",
   "gen.animation": "アニメーション",
   "gen.animationAuto": "自動（すべて保持）",
   "gen.animationIdle": "待機",

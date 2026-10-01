@@ -575,6 +575,7 @@ export default {
   "gen.zUp": "Z-up",
   "gen.exportLod": "LOD-Ebenen einbeziehen",
   "gen.exportAnchors": "Benannte Ankerpunkte einbeziehen",
+  "gen.exportClips": "Einzelne GLBs pro Animationsclip exportieren",
   "gen.animation": "Animation",
   "gen.animationAuto": "Automatisch (alle behalten)",
   "gen.animationIdle": "Leerlauf",

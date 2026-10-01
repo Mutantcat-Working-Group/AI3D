@@ -562,6 +562,7 @@ export default {
   "gen.zUp": "Z-up",
   "gen.exportLod": "Include LOD levels",
   "gen.exportAnchors": "Include named anchor nodes",
+  "gen.exportClips": "Export per-clip animation GLBs",
   "gen.animation": "Animation",
   "gen.animationAuto": "Auto (keep all)",
   "gen.animationIdle": "Idle",

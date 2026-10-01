@@ -7742,6 +7742,11 @@ export function buildGamePackFiles({
       kind: isScene ? "scene" : asset.kind || "asset",
       type: asset.type,
       animations: Array.isArray(asset.animations) ? asset.animations : [],
+      clipFiles: (asset.animationFiles || []).map((clip) => ({
+        name: clip.name,
+        duration: clip.duration,
+        file: `animations/${slug}/${clip.name}.glb`,
+      })),
       favorite: asset.favorite ?? false,
       seed: asset.seed ?? null,
       size: asset.size ?? 1,
@@ -7786,6 +7791,9 @@ export function buildGamePackFiles({
             : null,
         thumbnail: asset.thumbnailBytes ? `thumbnails/${slug}.png` : null,
         collider: asset.colliderBytes ? `colliders/${slug}.glb` : null,
+        animations: (asset.animationFiles || []).map(
+          (clip) => `animations/${slug}/${clip.name}.glb`,
+        ),
         textures: asset.textures
           ? ["albedo", "normal", "roughness", "metalness"]
               .filter((name) => asset.textures[name])
@@ -7867,6 +7875,9 @@ export function buildGamePackFiles({
     if (asset.colliderBytes) {
       files[`colliders/${slug}.glb`] = asset.colliderBytes;
     }
+    for (const clip of asset.animationFiles || []) {
+      files[`animations/${slug}/${clip.name}.glb`] = clip.glbBytes;
+    }
     if (asset.textures) {
       for (const [name, bytes] of Object.entries(asset.textures)) {
         files[`textures/${slug}/${name}.png`] = bytes;
@@ -7890,6 +7901,7 @@ export async function exportGamePack({
   engine = "unity",
   withLod = false,
   anchors = false,
+  exportClips = false,
   thumbnailDataUrl = null,
   collision = "auto",
   animation = "auto",
@@ -7947,6 +7959,24 @@ export async function exportGamePack({
   const shouldAnchor = anchors && !isScene;
   const anchorExportModel = (object) =>
     shouldAnchor ? buildAnchoredModel(object, asset.type) || object : object;
+  const animationFiles = [];
+  if (exportClips && selectedAnimations.length) {
+    const clipModel = shouldAnchor
+      ? buildAnchoredModel(model, asset.type) || model
+      : model;
+    for (const clip of selectedAnimations) {
+      animationFiles.push({
+        name: assetSlug(clip.name) || `clip-${animationFiles.length + 1}`,
+        duration: Math.round(clip.duration * 100) / 100,
+        glbBytes: new Uint8Array(
+          await exportGLB(clipModel, {
+            ...options,
+            animations: [clip],
+          }),
+        ),
+      });
+    }
+  }
   const lodLevels = [];
   let collisionInfo = null;
   let colliderBytes = null;
@@ -8024,6 +8054,7 @@ export async function exportGamePack({
     glbBytes,
     thumbnailBytes,
     animations: animationInfo,
+    animationFiles,
     collision: collisionInfo,
     colliderBytes,
     ...(textureInfo || {}),

@@ -469,6 +469,7 @@ app.innerHTML = `${SPRITE}
       </select>
       <label class="gen-check"><input type="checkbox" id="gen-export-lod" checked>${T("gen.exportLod")}</label>
       <label class="gen-check"><input type="checkbox" id="gen-export-anchors">${T("gen.exportAnchors")}</label>
+      <label class="gen-check"><input type="checkbox" id="gen-export-clips">${T("gen.exportClips")}</label>
       <label>${T("gen.engine")}</label>
       <select id="gen-engine">
         <option value="unity">${T("gen.engineUnity")}</option>
@@ -3045,6 +3046,7 @@ async function exportVariantPack() {
             collisionChoice,
             animationChoice,
             withLod,
+            exportClips: $("#gen-export-clips")?.checked ?? false,
           },
         ),
       );
@@ -3629,6 +3631,7 @@ async function downloadGenPack() {
   const animation = $("#gen-animation")?.value || "auto";
   const withLod = $("#gen-export-lod")?.checked || false;
   const anchors = $("#gen-export-anchors")?.checked || false;
+  const exportClips = $("#gen-export-clips")?.checked || false;
   const source = genState.originalModel || genState.model.threeObject;
   const asset = {
     id: genState.model.id || `${genState.model.type}-${Date.now()}`,
@@ -3669,6 +3672,7 @@ async function downloadGenPack() {
       animation,
       withLod,
       anchors,
+      exportClips,
       thumbnailDataUrl,
     });
     downloadBytesAsFile(pack, `ai3d-pack-${assetSlugForUi(asset.id)}.zip`);
@@ -4550,6 +4554,7 @@ async function buildLibraryPackAsset(asset, options = {}) {
     audit = false,
     repair = false,
     withLod = false,
+    exportClips = false,
   } = options;
   const preset = enginePreset ||
     getEnginePresets().find((p) => p.id === engine) || {
@@ -4587,6 +4592,18 @@ async function buildLibraryPackAsset(asset, options = {}) {
     duration: Math.round(clip.duration * 100) / 100,
     tracks: clip.tracks.length,
   }));
+  const animationFiles = [];
+  if (exportClips && selectedAnimations.length) {
+    for (const clip of selectedAnimations) {
+      animationFiles.push({
+        name: clip.name,
+        duration: Math.round(clip.duration * 100) / 100,
+        glbBytes: new Uint8Array(
+          await exportGLB(model, { ...preset, animations: [clip] }),
+        ),
+      });
+    }
+  }
   const glbBytes = new Uint8Array(
     await exportGLB(model, { ...preset, animations: selectedAnimations }),
   );
@@ -4652,6 +4669,7 @@ async function buildLibraryPackAsset(asset, options = {}) {
     lodLevels,
     thumbnailBytes,
     animations,
+    animationFiles,
     collision,
     colliderBytes,
     readiness,
@@ -4682,6 +4700,7 @@ async function exportLibraryPack() {
           collisionChoice,
           animationChoice,
           withLod: $("#gen-export-lod")?.checked ?? false,
+          exportClips: $("#gen-export-clips")?.checked ?? false,
         }),
       );
     }
@@ -4737,6 +4756,7 @@ async function exportGameReadyLibraryPack() {
           audit: true,
           repair,
           withLod: $("#gen-export-lod")?.checked ?? false,
+          exportClips: $("#gen-export-clips")?.checked ?? false,
         }),
       );
     }

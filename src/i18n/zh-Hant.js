@@ -536,6 +536,7 @@ export default {
   "gen.zUp": "Z-up",
   "gen.exportLod": "包含 LOD 層級",
   "gen.exportAnchors": "包含命名附加點節點",
+  "gen.exportClips": "按動畫剪輯單獨匯出 GLB",
   "gen.animation": "動畫",
   "gen.animationAuto": "自動（保留全部）",
   "gen.animationIdle": "待機",

@@ -49,7 +49,9 @@ each one, and save the ones you like to the asset library.
   dragons get idle / fly / attack, and animated props ship procedural clips
   (chest open, flame flicker, flag wave, fountain flow, wheel / propeller
   spin, turret sweep, antenna sway, crystal / runestone pulse, tree sway,
-  boat bob); play them in the preview and export them in the GLB.
+  boat bob); play them in the preview and export them in the GLB. Engine packs
+  can also write each clip as its own `animations/<asset>/<clip>.glb` for
+  state-machine wiring.
 - **LODs** - generate three LOD levels in one click, preview each level and
   export the set; every level carries triangle, vertex, part and draw-call
   budgets, and the simplifier keeps materials and merges same-material meshes.
