@@ -849,6 +849,35 @@ test("saved scene placements rebuild edited and removed props", () => {
   );
 });
 
+test("saved scene design metadata rebuilds edited level design", () => {
+  const original = composeGameKit("camp", { seed: 18 });
+  const defaultDesign = original.userData.design;
+  assert.ok(defaultDesign.spawnPoints, "the camp kit starts with a design");
+  assert.equal(defaultDesign.locks.length, 0);
+
+  const saved = JSON.parse(JSON.stringify(defaultDesign));
+  saved.spawnPoints.playerStart = 5;
+  saved.objectives[1].title = "Restock the camp";
+  saved.lootTables[0].items = ["bread", "rope"];
+  saved.locks.push({
+    prop: "portcullis",
+    state: "open",
+    opensWith: "gate_key",
+  });
+  saved.directives = ["Keep the campfire lit.", "Guard the flag."];
+
+  const rebuilt = composeGameKit("camp", { seed: 18, design: saved });
+  assert.deepEqual(rebuilt.userData.design, saved);
+  // Without a saved design the kit default comes back, and it is a copy: an
+  // edited scene must not mutate the shared kit definition.
+  defaultDesign.spawnPoints.playerStart = 42;
+  defaultDesign.locks.push({ prop: "noise", state: "locked" });
+  const fresh = composeGameKit("camp", { seed: 18 });
+  assert.equal(fresh.userData.design.locks.length, 0);
+  assert.notEqual(fresh.userData.design, rebuilt.userData.design);
+  assert.equal(fresh.userData.design.spawnPoints.playerStart, 1);
+});
+
 test("editSceneProp updates one model and its export metadata", () => {
   const scene = composeGameKit("dungeon", { seed: 14 });
   const updated = editSceneProp(scene, 1, {

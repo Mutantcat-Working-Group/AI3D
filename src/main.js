@@ -281,6 +281,46 @@ app.innerHTML = `${SPRITE}
           <button id="gen-prop-delete" class="quiet" type="button">${icon("trash")}<span>${T("gen.propDelete")}</span></button>
         </div>
       </div>
+      <details id="gen-design-editor" class="gen-design-editor" hidden>
+        <summary>
+          <span>${T("gen.designEditor")}</span>
+          <span id="gen-design-readiness" class="gen-design-readiness"></span>
+        </summary>
+        <div class="gen-design-section">
+          <div class="gen-design-section-head">
+            <span>${T("gen.designSpawnPoints")}</span>
+            <button class="quiet icon-only" type="button" data-design-add="spawnPoints" title="${T("gen.designAdd")}" aria-label="${T("gen.designAdd")}">${icon("plus")}</button>
+          </div>
+          <div id="gen-design-spawns" class="gen-design-rows"></div>
+        </div>
+        <div class="gen-design-section">
+          <div class="gen-design-section-head">
+            <span>${T("gen.designObjectives")}</span>
+            <button class="quiet icon-only" type="button" data-design-add="objectives" title="${T("gen.designAdd")}" aria-label="${T("gen.designAdd")}">${icon("plus")}</button>
+          </div>
+          <div id="gen-design-objectives" class="gen-design-rows"></div>
+        </div>
+        <div class="gen-design-section">
+          <div class="gen-design-section-head">
+            <span>${T("gen.designLootTables")}</span>
+            <button class="quiet icon-only" type="button" data-design-add="lootTables" title="${T("gen.designAdd")}" aria-label="${T("gen.designAdd")}">${icon("plus")}</button>
+          </div>
+          <div id="gen-design-loot" class="gen-design-rows"></div>
+        </div>
+        <div class="gen-design-section">
+          <div class="gen-design-section-head">
+            <span>${T("gen.designLocks")}</span>
+            <button class="quiet icon-only" type="button" data-design-add="locks" title="${T("gen.designAdd")}" aria-label="${T("gen.designAdd")}">${icon("plus")}</button>
+          </div>
+          <div id="gen-design-locks" class="gen-design-rows"></div>
+        </div>
+        <div class="gen-design-section">
+          <div class="gen-design-section-head">
+            <span>${T("gen.designDirectives")}</span>
+          </div>
+          <textarea id="gen-design-directives" class="gen-design-directives" rows="3" data-design-section="directives" placeholder="${T("gen.designDirectivesPlaceholder")}" aria-label="${T("gen.designDirectives")}"></textarea>
+        </div>
+      </details>
     </div>
     <div class="gen-modular" id="gen-modular" hidden>
       <div class="gen-types-title">${T("gen.modular")}</div>
@@ -2671,6 +2711,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
       textureSize: asset.textureSize ?? theme.textureSize ?? 256,
       modular: asset.scene?.modular ?? null,
       props: Array.isArray(asset.scene?.props) ? asset.scene.props : null,
+      design: asset.scene?.design ?? theme.design ?? null,
     });
   }
   return asset.kind === "scene"
@@ -2693,6 +2734,7 @@ function modelFromAssetRecord(asset, { preview = false } = {}) {
         textureStrength: asset.textureStrength ?? theme.textureStrength ?? 0.8,
         textureSize: asset.textureSize ?? theme.textureSize ?? 256,
         props: Array.isArray(asset.scene?.props) ? asset.scene.props : null,
+        design: asset.scene?.design ?? theme.design ?? null,
       })
     : generateThreeAsset(asset.type, {
         size: asset.size,
@@ -4017,6 +4059,287 @@ function renderGenPropEditor() {
   );
 }
 
+const SCENE_LOCK_STATE_KEYS = {
+  locked: "gen.designLockState.locked",
+  open: "gen.designLockState.open",
+  sealed: "gen.designLockState.sealed",
+};
+
+function sceneDesignAuditForUi(scene) {
+  const design = scene?.userData?.design;
+  if (design) return sceneDesignAudit(scene);
+  return auditSceneDesign(null, {
+    props: scene?.userData?.propList || [],
+    kind:
+      scene?.userData?.sceneKind === "modular-scene" ? "modular-scene" : "kit",
+  });
+}
+
+/* The editor owns the editable shape of a level design. Keep the fallback in
+   one place so adding the first directive to a scene without metadata also
+   gives the designer a usable player start instead of an empty object. */
+function ensureSceneDesign(scene) {
+  if (
+    scene.userData.design &&
+    typeof scene.userData.design === "object" &&
+    !Array.isArray(scene.userData.design)
+  ) {
+    return scene.userData.design;
+  }
+  scene.userData.design = {
+    spawnPoints: { playerStart: 1 },
+    objectives: [],
+    lootTables: [],
+    locks: [],
+    directives: [],
+  };
+  return scene.userData.design;
+}
+
+function sceneDesignArray(design, key) {
+  if (!Array.isArray(design[key])) design[key] = [];
+  return design[key];
+}
+
+function commitSceneDesign(scene) {
+  genState.model.scene ||= {};
+  genState.model.scene.design = scene.userData.design || null;
+  genState.model.scene.designAudit = sceneDesignAudit(scene);
+  renderGenDesignReadiness(scene);
+  renderGenLayout();
+}
+
+function renderGenDesignReadiness(scene) {
+  const readiness = $("#gen-design-readiness");
+  if (!readiness) return;
+  const audit = sceneDesignAuditForUi(scene);
+  const summary = audit?.summary || { pass: 0, warn: 0, fail: 1 };
+  readiness.textContent = t("scene.design.readiness", {
+    pass: summary.pass || 0,
+    warn: summary.warn || 0,
+    fail: summary.fail || 0,
+  });
+  readiness.className = `gen-design-readiness ${
+    summary.fail > 0 ? "is-fail" : summary.warn > 0 ? "is-warn" : "is-pass"
+  }`;
+  const checks = audit?.checks || [];
+  readiness.title = checks
+    .map(
+      (check) =>
+        `${check.label} (${check.status}) - ${check.details.join("; ")}`,
+    )
+    .join("\n");
+}
+
+function renderGenDesignEditor() {
+  const editor = $("#gen-design-editor");
+  if (!editor) return;
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene) {
+    editor.hidden = true;
+    return;
+  }
+
+  editor.hidden = false;
+  const design =
+    scene.userData.design &&
+    typeof scene.userData.design === "object" &&
+    !Array.isArray(scene.userData.design)
+      ? scene.userData.design
+      : {};
+  const spawnPoints =
+    design.spawnPoints && typeof design.spawnPoints === "object"
+      ? Object.entries(design.spawnPoints)
+      : [];
+  const objectives = Array.isArray(design.objectives) ? design.objectives : [];
+  const lootTables = Array.isArray(design.lootTables) ? design.lootTables : [];
+  const locks = Array.isArray(design.locks) ? design.locks : [];
+  const directives = Array.isArray(design.directives) ? design.directives : [];
+
+  $("#gen-design-spawns").innerHTML = spawnPoints
+    .map(
+      ([name, count], index) => `
+        <div class="gen-design-row" data-design-row="spawnPoints" data-index="${index}">
+          <div class="gen-design-fields">
+            <input data-design-field="name" value="${esc(name)}" placeholder="${T("gen.designSpawnName")}" aria-label="${T("gen.designSpawnName")}">
+            <input data-design-field="count" type="number" min="0" max="99" step="1" value="${Number(count) || 0}" placeholder="${T("gen.designSpawnCount")}" aria-label="${T("gen.designSpawnCount")}">
+          </div>
+          <button class="quiet icon-only" type="button" data-design-remove="spawnPoints" data-index="${index}" title="${T("gen.designRemove")}" aria-label="${T("gen.designRemove")}">${icon("trash")}</button>
+        </div>`,
+    )
+    .join("");
+
+  $("#gen-design-objectives").innerHTML = objectives
+    .map(
+      (objective, index) => `
+        <div class="gen-design-row" data-design-row="objectives" data-index="${index}">
+          <div class="gen-design-fields">
+            <input data-design-field="id" value="${esc(objective?.id || "")}" placeholder="${T("gen.designObjectiveId")}" aria-label="${T("gen.designObjectiveId")}">
+            <input data-design-field="title" value="${esc(objective?.title || "")}" placeholder="${T("gen.designObjectiveTitle")}" aria-label="${T("gen.designObjectiveTitle")}">
+            <input class="span-two" data-design-field="summary" value="${esc(objective?.summary || "")}" placeholder="${T("gen.designObjectiveSummary")}" aria-label="${T("gen.designObjectiveSummary")}">
+          </div>
+          <button class="quiet icon-only" type="button" data-design-remove="objectives" data-index="${index}" title="${T("gen.designRemove")}" aria-label="${T("gen.designRemove")}">${icon("trash")}</button>
+        </div>`,
+    )
+    .join("");
+
+  $("#gen-design-loot").innerHTML = lootTables
+    .map(
+      (table, index) => `
+        <div class="gen-design-row" data-design-row="lootTables" data-index="${index}">
+          <div class="gen-design-fields">
+            <input data-design-field="container" value="${esc(table?.container || "")}" placeholder="${T("gen.designLootContainer")}" aria-label="${T("gen.designLootContainer")}">
+            <input data-design-field="items" value="${esc((Array.isArray(table?.items) ? table.items : []).join(", "))}" placeholder="${T("gen.designLootItems")}" aria-label="${T("gen.designLootItems")}">
+          </div>
+          <button class="quiet icon-only" type="button" data-design-remove="lootTables" data-index="${index}" title="${T("gen.designRemove")}" aria-label="${T("gen.designRemove")}">${icon("trash")}</button>
+        </div>`,
+    )
+    .join("");
+
+  $("#gen-design-locks").innerHTML = locks
+    .map(
+      (lock, index) => `
+        <div class="gen-design-row" data-design-row="locks" data-index="${index}">
+          <div class="gen-design-fields">
+            <input data-design-field="prop" value="${esc(lock?.prop || "")}" placeholder="${T("gen.designLockProp")}" aria-label="${T("gen.designLockProp")}">
+            <input data-design-field="opensWith" value="${esc(lock?.opensWith || "")}" placeholder="${T("gen.designLockOpensWith")}" aria-label="${T("gen.designLockOpensWith")}">
+            <select class="span-two" data-design-field="state" aria-label="${T("gen.designLockState")}">
+              ${Object.entries(SCENE_LOCK_STATE_KEYS)
+                .map(
+                  ([state, key]) =>
+                    `<option value="${state}"${(lock?.state || "locked") === state ? " selected" : ""}>${T(key)}</option>`,
+                )
+                .join("")}
+            </select>
+          </div>
+          <button class="quiet icon-only" type="button" data-design-remove="locks" data-index="${index}" title="${T("gen.designRemove")}" aria-label="${T("gen.designRemove")}">${icon("trash")}</button>
+        </div>`,
+    )
+    .join("");
+
+  $("#gen-design-directives").value = directives
+    .filter((line) => typeof line === "string")
+    .join("\n");
+  renderGenDesignReadiness(scene);
+}
+
+function addSceneDesignEntry(section) {
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene) return;
+  try {
+    const design = ensureSceneDesign(scene);
+    if (section === "spawnPoints") {
+      design.spawnPoints ||= {};
+      let index = 1;
+      while (design.spawnPoints[`spawn${index}`] !== undefined) index += 1;
+      design.spawnPoints[`spawn${index}`] = 1;
+    } else if (section === "objectives") {
+      const rows = sceneDesignArray(design, "objectives");
+      rows.push({
+        id: `objective-${rows.length + 1}`,
+        title: "",
+        summary: "",
+      });
+    } else if (section === "lootTables") {
+      sceneDesignArray(design, "lootTables").push({
+        container: "",
+        items: [],
+      });
+    } else if (section === "locks") {
+      sceneDesignArray(design, "locks").push({
+        prop: "",
+        state: "locked",
+        opensWith: "",
+      });
+    }
+    commitSceneDesign(scene);
+    renderGenDesignEditor();
+    setGenStatus(t("gen.applied"), "ok");
+  } catch {
+    renderGenDesignEditor();
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+function removeSceneDesignEntry(section, index) {
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene || !Number.isInteger(index))
+    return;
+  try {
+    const design = ensureSceneDesign(scene);
+    if (section === "spawnPoints") {
+      const entries = Object.entries(design.spawnPoints || {});
+      if (index < 0 || index >= entries.length) return;
+      entries.splice(index, 1);
+      design.spawnPoints = Object.fromEntries(entries);
+    } else {
+      const rows = sceneDesignArray(design, section);
+      if (index < 0 || index >= rows.length) return;
+      rows.splice(index, 1);
+    }
+    commitSceneDesign(scene);
+    renderGenDesignEditor();
+    setGenStatus(t("gen.applied"), "ok");
+  } catch {
+    renderGenDesignEditor();
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+function applySceneDesignEdit(section, index, field, value) {
+  const scene = genState.model?.threeObject;
+  if (genState.model?.kind !== "scene" || !scene) return;
+  try {
+    const design = ensureSceneDesign(scene);
+    if (section === "directives") {
+      design.directives = String(value ?? "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    } else if (section === "spawnPoints") {
+      const entries = Object.entries(design.spawnPoints || {});
+      if (index < 0 || index >= entries.length) return;
+      const [name, count] = entries[index];
+      if (field === "name") {
+        const nextName = String(value ?? "").trim() || name;
+        entries[index] = [nextName, count];
+      } else if (field === "count") {
+        entries[index] = [
+          name,
+          Math.max(0, Math.min(99, Math.round(Number(value) || 0))),
+        ];
+      }
+      design.spawnPoints = Object.fromEntries(entries);
+    } else {
+      const rows = sceneDesignArray(design, section);
+      if (index < 0 || index >= rows.length) return;
+      rows[index] ||= {};
+      if (section === "lootTables" && field === "items") {
+        rows[index].items = String(value ?? "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      } else if (section === "locks" && field === "state") {
+        rows[index].state = SCENE_LOCK_STATE_KEYS[value] ? value : "locked";
+      } else if (
+        section === "objectives" &&
+        ["id", "title", "summary"].includes(field)
+      ) {
+        rows[index][field] = String(value ?? "").trim();
+      } else if (section === "lootTables" && field === "container") {
+        rows[index].container = String(value ?? "").trim();
+      } else if (section === "locks" && ["prop", "opensWith"].includes(field)) {
+        rows[index][field] = String(value ?? "").trim();
+      }
+    }
+    commitSceneDesign(scene);
+    setGenStatus(t("gen.applied"), "ok");
+  } catch {
+    renderGenDesignEditor();
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
 function applyScenePropEdit(changes) {
   const scene = genState.model?.threeObject;
   if (genState.model?.kind !== "scene" || !scene) return;
@@ -4212,6 +4535,7 @@ function updateGenScenePackButton() {
   const button = $("#gen-scene-pack");
   if (button) button.hidden = genState.model?.kind !== "scene";
   renderGenPropEditor();
+  renderGenDesignEditor();
 }
 
 $("#gen-generate").addEventListener("click", generateAsset);
@@ -4388,6 +4712,37 @@ $("#gen-prop-delete").addEventListener("click", () => {
   renderGenPropEditor();
   syncGenPreview();
   setGenStatus(t("gen.applied"), "ok");
+});
+$("#gen-design-editor").addEventListener("click", (e) => {
+  const add = e.target.closest("[data-design-add]");
+  if (add) {
+    addSceneDesignEntry(add.dataset.designAdd);
+    return;
+  }
+  const remove = e.target.closest("[data-design-remove]");
+  if (remove) {
+    removeSceneDesignEntry(
+      remove.dataset.designRemove,
+      Number(remove.dataset.index),
+    );
+  }
+});
+$("#gen-design-editor").addEventListener("change", (e) => {
+  const section = e.target.dataset.designSection;
+  if (section === "directives") {
+    applySceneDesignEdit(section, null, "directives", e.target.value);
+    return;
+  }
+  const field = e.target.dataset.designField;
+  if (!field) return;
+  const row = e.target.closest("[data-design-row]");
+  if (!row) return;
+  applySceneDesignEdit(
+    row.dataset.designRow,
+    Number(row.dataset.index),
+    field,
+    e.target.value,
+  );
 });
 
 // --- Generated asset preview ---

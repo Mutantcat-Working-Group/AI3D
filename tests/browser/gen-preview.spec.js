@@ -447,6 +447,110 @@ test("composed scene props can be edited, reloaded and deleted", async ({
   await expect(page.locator("#gen-prop-y")).toHaveValue("1.5");
 });
 
+/* The design editor is the gameplay half of a scene: spawns, objectives, loot,
+   locks and directives are authored here and then ride with the scene pack.
+   The test proves the values round-trip through save/load, not just that the
+   controls render. */
+test("scene design metadata can be edited, audited and reloaded", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+  await page.locator('#gen-kits [data-kit="camp"]').click();
+  await page.locator("#gen-compose").click();
+
+  const editor = page.locator("#gen-design-editor");
+  await expect(editor).toBeVisible();
+  await editor.evaluate((el) => (el.open = true));
+
+  /* The camp kit ships one spawn group per role; bumping the count and the
+     objective text is the common first edit a designer makes. */
+  const spawns = editor.locator("#gen-design-spawns .gen-design-row");
+  await expect(spawns).toHaveCount(2);
+  await spawns.nth(0).locator('[data-design-field="count"]').fill("4");
+  await spawns.nth(0).locator('[data-design-field="count"]').blur();
+
+  const objectives = editor.locator("#gen-design-objectives .gen-design-row");
+  await expect(objectives).toHaveCount(2);
+  await objectives
+    .nth(1)
+    .locator('[data-design-field="title"]')
+    .fill("Restock the camp");
+  await objectives.nth(1).locator('[data-design-field="title"]').blur();
+
+  const loot = editor.locator("#gen-design-loot .gen-design-row");
+  await expect(loot).toHaveCount(2);
+  await loot
+    .nth(0)
+    .locator('[data-design-field="items"]')
+    .fill("bread, potion");
+  await loot.nth(0).locator('[data-design-field="items"]').blur();
+
+  /* Locks start empty; adding one exercises the create path and the enum
+     select. The audit only passes when the locked prop and its trigger both
+     resolve against the scene, so the editor has to write a wired lock. */
+  await editor.locator('[data-design-add="locks"]').click();
+  const locks = editor.locator("#gen-design-locks .gen-design-row");
+  await expect(locks).toHaveCount(1);
+  await locks.nth(0).locator('[data-design-field="prop"]').fill("flag");
+  await locks.nth(0).locator('[data-design-field="prop"]').blur();
+  await locks.nth(0).locator('[data-design-field="opensWith"]').fill("crate");
+  await locks.nth(0).locator('[data-design-field="opensWith"]').blur();
+  await locks
+    .nth(0)
+    .locator('[data-design-field="state"]')
+    .selectOption("open");
+
+  await page
+    .locator("#gen-design-directives")
+    .fill("Keep the campfire lit.\nGuard the flag.");
+  await page.locator("#gen-design-directives").blur();
+
+  const readiness = page.locator("#gen-design-readiness");
+  await expect(readiness).toHaveClass(/is-pass/);
+
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator("#gen-library .gen-asset-load").click();
+
+  await expect(editor).toBeVisible();
+  await editor.evaluate((el) => (el.open = true));
+  await expect(
+    editor
+      .locator("#gen-design-spawns .gen-design-row")
+      .nth(0)
+      .locator('[data-design-field="count"]'),
+  ).toHaveValue("4");
+  await expect(
+    editor
+      .locator("#gen-design-objectives .gen-design-row")
+      .nth(1)
+      .locator('[data-design-field="title"]'),
+  ).toHaveValue("Restock the camp");
+  await expect(
+    editor
+      .locator("#gen-design-loot .gen-design-row")
+      .nth(0)
+      .locator('[data-design-field="items"]'),
+  ).toHaveValue("bread, potion");
+  await expect(
+    editor
+      .locator("#gen-design-locks .gen-design-row")
+      .nth(0)
+      .locator('[data-design-field="prop"]'),
+  ).toHaveValue("flag");
+  await expect(
+    editor
+      .locator("#gen-design-locks .gen-design-row")
+      .nth(0)
+      .locator('[data-design-field="state"]'),
+  ).toHaveValue("open");
+  await expect(page.locator("#gen-design-directives")).toHaveValue(
+    "Keep the campfire lit.\nGuard the flag.",
+  );
+});
+
 /* A variant batch is a real game-pipeline batch: one click turns the seed
    takes into a single engine pack with a per-variant LOD chain, and the zip
    is the proof rather than another preview screenshot. */

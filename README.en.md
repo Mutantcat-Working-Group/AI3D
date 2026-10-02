@@ -232,8 +232,8 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 378 unit and integration tests
-npm run test:browser # 86 real-Chromium tests
+npm test             # 379 unit and integration tests
+npm run test:browser # 87 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -397,6 +397,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   blueprint. One menu command drops the composed model into the level and
   places every prop anchor and enemy spawn at its blueprint transform, with the
   combat stats attached to the spawn markers.
+- **2.18 (done)** - the generator edits level design in place: after composing a
+  scene you can add or remove spawn points, objectives, loot tables, locks and
+  directives, and the readiness badge re-audits on every edit. Saving and
+  reloading a scene restores the design metadata alongside props and theme, so
+  the blueprint, audit and engine setup script all carry the edited result.
 
 ### 12. Documentation
 

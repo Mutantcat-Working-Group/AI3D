@@ -114,8 +114,8 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 378 unit and integration tests
-npm run test:browser # 86 real-Chromium tests
+npm test             # 379 unit and integration tests
+npm run test:browser # 87 real-Chromium tests
 ```
 
 `npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。
@@ -191,6 +191,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.15（已完成）** — Agent 生成关卡套装：`ai3d_generate` 新增 `kind: "scene"`，可用 `type` 或一句话合成八种关卡套装之一（地牢、营地、前哨、村庄、神庙、战场、荒野、城镇），并把 GLB、引擎包、设计元数据、设计审计与引擎坐标的场景蓝图一并写进工作区。
 - **2.16（已完成）** — 蓝图标记敌人出生点：场景蓝图中生物类道具现在带上阵营、AI 行为、生命、移速、警戒范围与攻击伤害，并在顶层汇总成 spawns 列表，关卡脚本可以按蓝图直接放置敌人。
 - **2.17（已完成）** — 场景套装附带引擎搭建脚本：带设计的场景在蓝图之外再产出一个目标引擎的编辑器脚本（Unity 的 `blueprints/场景.unity.cs`、Unreal 的 `blueprints/场景.unreal.py`、Godot 的 `blueprints/场景.godot.gd`），用一条菜单命令就把合成模型与道具锚点、敌人出生点按蓝图坐标摆进关卡，敌人标记还带上蓝图里的阵营与战斗数值。
+- **2.18（已完成）** — 生成区就地编辑关卡设计：合成场景后可以直接增删出生点、目标、掉落表、机关锁与导演指示，就绪度徽标随编辑实时重算；保存并重载场景时设计元数据与道具、主题一起还原，再产出的蓝图、审计与引擎搭建脚本都带着编辑后的结果。
 
 ### 十二、文档
 

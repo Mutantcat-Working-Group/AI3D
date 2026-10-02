@@ -2754,6 +2754,9 @@ const KIT_STYLE = { flatShading: true, roughness: 0.75, metalness: 0.15 };
  * @param {number} options.propScale - Global prop scale multiplier
  * @param {Array<object>} options.props - Saved prop placements. When supplied,
  *   these replace the kit defaults so deleted or edited props survive a reload.
+ * @param {object} options.design - Saved scene design metadata. When supplied,
+ *   it replaces the kit default so edited spawns, objectives, loot, locks and
+ *   directives survive a reload.
  */
 export function composeGameKit(
   kit,
@@ -2771,6 +2774,7 @@ export function composeGameKit(
     groundPadding = 0.6,
     propScale = 1,
     props = null,
+    design = null,
   } = {},
 ) {
   const def = GAME_KITS[kit];
@@ -2788,8 +2792,9 @@ export function composeGameKit(
   group.name = `kit-${kit}`;
   group.userData.kit = kit;
   group.userData.groundColor = def.groundColor;
-  group.userData.design = def.design
-    ? JSON.parse(JSON.stringify(def.design))
+  const sourceDesign = design || def.design;
+  group.userData.design = sourceDesign
+    ? JSON.parse(JSON.stringify(sourceDesign))
     : null;
   group.userData.theme = {
     style,
@@ -3093,6 +3098,7 @@ export function composeModularScene(
     propScale = 1,
     modular = {},
     props = null,
+    design = null,
   } = {},
 ) {
   const preset = MODULAR_SCENE_PRESETS[presetId];
@@ -3115,6 +3121,7 @@ export function composeModularScene(
   group.userData.preset = presetId;
   group.userData.kit = presetId;
   group.userData.sceneKind = "modular-scene";
+  group.userData.design = design ? JSON.parse(JSON.stringify(design)) : null;
   group.userData.theme = {
     style,
     color,
