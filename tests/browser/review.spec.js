@@ -2270,9 +2270,16 @@ test("a mark arrives at its point instead of flying in from the corner", async (
   const spot = await point(page);
   await page.mouse.click(spot.x, spot.y);
   await expect(page.locator(".model-pin.landing")).toHaveCount(1);
-  // Long enough for the render loop to place the label, and 0.6% into an
-  // arrival that now lasts twenty seconds.
-  await page.waitForTimeout(120);
+  // The label is placed by the render loop, so the element existing is not the
+  // same thing as it having been positioned: its first frame sits at the
+  // layer's origin, and a fixed wait for that frame is a race on a shared
+  // runner. Wait for the position the loop writes, which still leaves almost
+  // all of the twenty-second arrival to run.
+  await page.waitForFunction(
+    () => document.querySelector(".model-pin")?.style.translate !== "",
+    undefined,
+    { polling: 100 },
+  );
   const travel = await page.evaluate(
     ([x, y]) => {
       const box = document.querySelector(".model-pin").getBoundingClientRect();
