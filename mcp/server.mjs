@@ -110,15 +110,15 @@ export const TOOL = {
 export const GENERATE_TOOL = {
   name: "ai3d_generate",
   description:
-    'Generate a game-ready 3D asset, a whole level kit, or a batch asset set, and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. Pass kind "scene" to compose a level kit (dungeon, camp, outpost, village, temple, battle, wilderness, town) instead of a single prop; a scene pack adds the kit\'s design metadata, a design audit and an engine-space scene blueprint. Pass kind "set" with an items array to generate many props in one call, each in its own folder plus a set.json manifest summing them, sharing the set-level style, engine and export switches. Pass quality "audit" to record each generated prop\'s game-readiness score and issues in the pack and set manifest, or "repair" to also apply the mechanical fixes the workbench game-ready export applies. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.',
+    'Generate a game-ready 3D asset, a whole level kit, a batch asset set, or a complete game asset project, and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. Pass kind "scene" to compose a level kit (dungeon, camp, outpost, village, temple, battle, wilderness, town) instead of a single prop; a scene pack adds the kit\'s design metadata, a design audit and an engine-space scene blueprint. Pass kind "set" with an items array to generate many props in one call, each in its own folder plus a set.json manifest summing them, sharing the set-level style, engine and export switches. Pass kind "project" with a project template such as prototype-starter, fantasy-dungeon, village-adventure, sci-fi-outpost or wilderness-survival to expand one brief into categorized asset sets, complete scene kits, an engine import order and project.json delivery manifest. Project generation defaults quality to the template setting (normally audit) and carries profile, budgets and aggregate readiness through every nested pack. Pass quality "audit" to record each generated prop\'s game-readiness score and issues in the pack and set manifest, or "repair" to also apply the mechanical fixes the workbench game-ready export applies. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.',
   inputSchema: {
     type: "object",
     properties: {
       kind: {
         type: "string",
-        enum: ["asset", "scene", "set"],
+        enum: ["asset", "scene", "set", "project"],
         description:
-          'What to build: "asset" (default) for a single prop, "scene" for a composed level kit, or "set" for a batch of props from items.',
+          'What to build: "asset" (default) for a single prop, "scene" for a composed level kit, "set" for a batch of props from items, or "project" for a complete multi-pack game asset project.',
       },
       output: {
         type: "string",
@@ -128,12 +128,24 @@ export const GENERATE_TOOL = {
       prompt: {
         type: "string",
         description:
-          'Natural-language description, e.g. "a red low-poly sword 1.5 m" or "a dungeon level". Either prompt or type is required.',
+          'Natural-language description, e.g. "a red low-poly sword 1.5 m", "a dungeon level" or "a wilderness survival game". Either prompt or type is required for asset, scene and set calls; project calls may use template instead.',
       },
       type: {
         type: "string",
         description:
-          "Template id. For kind asset: sword, tree, house, character, chest. For kind scene: dungeon, camp, outpost, village, temple, battle, wilderness, town. Overrides whatever a prompt resolves to.",
+          "Template id. For kind asset: sword, tree, house, character, chest. For kind scene: dungeon, camp, outpost, village, temple, battle, wilderness, town. Overrides whatever a prompt resolves to. Not used for kind project; use template instead.",
+      },
+      template: {
+        type: "string",
+        enum: [
+          "prototype-starter",
+          "fantasy-dungeon",
+          "village-adventure",
+          "sci-fi-outpost",
+          "wilderness-survival",
+        ],
+        description:
+          "Project only: the curated project template to expand. A prompt can select the same templates when template is omitted.",
       },
       style: {
         type: "string",
@@ -337,7 +349,7 @@ export const GENERATE_TOOL = {
         type: "string",
         enum: ["off", "audit", "repair"],
         description:
-          'Game-readiness gate for single assets and sets: "off" (default) skips it, "audit" scores each prop and records issues, "repair" applies the workbench\'s mechanical fixes before scoring. Scenes always report their design audit instead.',
+          'Game-readiness gate for single assets and sets: "off" (default) skips it, "audit" scores each prop and records issues, "repair" applies the workbench\'s mechanical fixes before scoring. Projects default to the selected template setting and normally use "audit". Scenes always report their design audit instead.',
       },
       profile: {
         type: "string",
@@ -353,31 +365,31 @@ export const GENERATE_TOOL = {
 export const CATALOG_TOOL = {
   name: "ai3d_catalog",
   description:
-    'Read-only discovery of what AI3D can generate, so a caller can look before it generates. mode "types" lists asset type keys with tags, collider preset, animation clips, gameplay role and spawn stats; mode "kits" lists the scene kits with their prop types and default level design; mode "design" describes the scene design fields and rules that ai3d_generate accepts when kind is "scene"; mode "all" (default) returns all three. Nothing is written to the workspace and no geometry is built.',
+    'Read-only discovery of what AI3D can generate, so a caller can look before it generates. mode "types" lists asset type keys with tags, collider preset, animation clips, gameplay role and spawn stats; mode "kits" lists the scene kits with their prop types and default level design; mode "design" describes the scene design fields and rules that ai3d_generate accepts when kind is "scene"; mode "projects" lists complete project templates with their categorized asset groups, scene kits, defaults and aliases; mode "all" (default) returns every section. Nothing is written to the workspace and no geometry is built.',
   inputSchema: {
     type: "object",
     properties: {
       mode: {
         type: "string",
-        enum: ["all", "types", "kits", "design"],
+        enum: ["all", "types", "kits", "design", "projects"],
         description: "Which catalogue section to return (default all).",
       },
       query: {
         type: "string",
         description:
-          "Case-insensitive substring filter over type keys and tags, or kit ids and names.",
+          "Case-insensitive substring filter over type keys and tags, or kit and project ids, names, summaries and tags.",
       },
       tags: {
         type: "array",
         items: { type: "string" },
         description:
-          "Only asset types carrying every one of these tags, such as 'food' or 'dungeon'.",
+          "Only asset types or project templates carrying every one of these tags, such as 'food', 'dungeon' or 'sci-fi'.",
       },
       limit: {
         type: "integer",
         minimum: 1,
         maximum: 500,
-        description: "Cap the number of types or kits returned.",
+        description: "Cap the number of types, kits or projects returned.",
       },
     },
   },

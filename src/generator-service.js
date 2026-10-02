@@ -24,9 +24,15 @@ import {
   getKitCatalogue,
   getSceneDesignCatalogue,
   repairGameAsset,
+  summariseGameReadiness,
 } from "./generator.js";
 import { CATALOGUES } from "./i18n/index.js";
 import { parseAssetPrompt, buildPromptLexicon } from "./asset-prompt.js";
+import {
+  PROJECT_TEMPLATES,
+  findProjectTemplate,
+  matchProjectTemplate,
+} from "./project-templates.js";
 
 export const GENERATION_ERROR = "GENERATION_ERROR";
 export const BAD_PARAMETER = "BAD_PARAMETER";
@@ -57,6 +63,9 @@ const KIT_TERMS = SCENE_KITS.map((kit) => ({
   term: kit.id,
   label: String(kit.name || kit.id).toLowerCase(),
 }));
+const PROJECT_TEMPLATE_IDS = new Set(
+  PROJECT_TEMPLATES.map((template) => template.id),
+);
 const promptLexicon = buildPromptLexicon(CATALOGUES);
 
 export class GenerationError extends Error {
@@ -179,7 +188,7 @@ function requireSceneDesign(value) {
   }
 }
 
-const CATALOGUE_MODES = new Set(["all", "types", "kits", "design"]);
+const CATALOGUE_MODES = new Set(["all", "types", "kits", "design", "projects"]);
 
 const PROP_PLACEMENT_FIELDS = ["size", "x", "y", "z", "rotationY", "seed"];
 
@@ -366,6 +375,52 @@ export function describeCatalogue({ mode = "all", query, tags, limit } = {}) {
     result.kits = resolvedLimit == null ? kits : kits.slice(0, resolvedLimit);
     result.kitCount = matched;
   }
+  if (resolvedMode === "all" || resolvedMode === "projects") {
+    let projects = PROJECT_TEMPLATES.map((template) => ({
+      id: template.id,
+      name: template.name,
+      summary: template.summary,
+      tags: template.tags,
+      style: template.style,
+      quality: template.quality,
+      profile: template.profile,
+      assetGroups: template.assetGroups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        summary: group.summary,
+        count: group.items.length,
+        items: group.items.map((item) => item.type),
+      })),
+      scenes: template.scenes.map((scene) => ({
+        id: scene.id,
+        name: scene.name,
+        kit: scene.kit,
+        summary: scene.summary,
+      })),
+      assetCount: template.assetGroups.reduce(
+        (sum, group) => sum + group.items.length,
+        0,
+      ),
+      sceneCount: template.scenes.length,
+    }));
+    if (needle)
+      projects = projects.filter(
+        (project) =>
+          project.id.toLowerCase().includes(needle) ||
+          project.name.toLowerCase().includes(needle) ||
+          project.summary.toLowerCase().includes(needle) ||
+          project.tags.some((tag) => tag.toLowerCase().includes(needle)),
+      );
+    if (wanted.length)
+      projects = projects.filter((project) => {
+        const own = project.tags.map((tag) => tag.toLowerCase());
+        return wanted.every((tag) => own.includes(tag));
+      });
+    const matched = projects.length;
+    result.projects =
+      resolvedLimit == null ? projects : projects.slice(0, resolvedLimit);
+    result.projectCount = matched;
+  }
   if (resolvedMode === "all" || resolvedMode === "design")
     result.design = getSceneDesignCatalogue();
   return result;
@@ -416,6 +471,77 @@ function resolveSceneKit(prompt, type) {
       `Prompt did not name a scene kit. Available: ${[...KIT_IDS].join(", ")}.`,
     );
   return match.id;
+}
+
+/* A project is selected by template id or by a brief such as "build a
+ * wilderness survival game". Template ids win over prompt matching so an
+ * explicit request stays deterministic. */
+function resolveProjectTemplate(prompt, template) {
+  if (template) {
+    const found = findProjectTemplate(template);
+    if (!found)
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `Unknown project template "${template}". Available: ${[
+          ...PROJECT_TEMPLATE_IDS,
+        ].join(", ")}.`,
+      );
+    return found;
+  }
+  const found = matchProjectTemplate(prompt);
+  if (!found)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      `Prompt did not name a project template. Available: ${[
+        ...PROJECT_TEMPLATE_IDS,
+      ].join(", ")}.`,
+    );
+  return found;
+}
+
+/* Validate the selected template against the live registries before writing
+ * anything. This keeps a future template typo from leaving a half-built
+ * project after some nested packs have already been generated. */
+function validateProjectTemplate(template) {
+  const groupIds = new Set();
+  const sceneIds = new Set();
+  for (const group of template.assetGroups) {
+    if (groupIds.has(group.id))
+      throw new GenerationError(
+        GENERATION_ERROR,
+        `Project template "${template.id}" repeats asset group "${group.id}".`,
+      );
+    groupIds.add(group.id);
+    if (!Array.isArray(group.items) || group.items.length === 0)
+      throw new GenerationError(
+        GENERATION_ERROR,
+        `Project asset group "${group.id}" has no items.`,
+      );
+    for (const item of group.items)
+      if (!TYPE_IDS.has(item.type))
+        throw new GenerationError(
+          GENERATION_ERROR,
+          `Project asset group "${group.id}" references unknown type "${item.type}".`,
+        );
+  }
+  if (!Array.isArray(template.scenes) || template.scenes.length === 0)
+    throw new GenerationError(
+      GENERATION_ERROR,
+      `Project template "${template.id}" has no scene kits.`,
+    );
+  for (const scene of template.scenes) {
+    if (sceneIds.has(scene.id))
+      throw new GenerationError(
+        GENERATION_ERROR,
+        `Project template "${template.id}" repeats scene "${scene.id}".`,
+      );
+    sceneIds.add(scene.id);
+    if (!KIT_IDS.has(scene.kit))
+      throw new GenerationError(
+        GENERATION_ERROR,
+        `Project scene "${scene.id}" references unknown kit "${scene.kit}".`,
+      );
+  }
 }
 
 function assetSlug(value) {
@@ -533,7 +659,7 @@ export async function generateSceneToPack({
   propScale,
   props = null,
   design = null,
-  quality = "off",
+  quality,
   profile = "balanced",
 } = {}) {
   if (!workspace || typeof workspace !== "string")
@@ -698,6 +824,378 @@ export async function generateSceneToPack({
   };
 }
 
+function projectReadme({ manifest }) {
+  const lines = [
+    `# ${manifest.name}`,
+    "",
+    `Generated by AI3D from the \`${manifest.template}\` project template.`,
+    "",
+    "## Delivery",
+    "",
+    `- Target engine: ${manifest.engine}`,
+    `- Target profile: ${manifest.profile}`,
+    `- Quality gate: ${manifest.quality}`,
+    `- Asset groups: ${manifest.counts.assetGroups}`,
+    `- Assets: ${manifest.counts.assets}`,
+    `- Scene kits: ${manifest.counts.scenes}`,
+    "",
+    "## Import Order",
+    "",
+    "| # | Kind | Pack | Purpose |",
+    "| - | ---- | ---- | ------- |",
+    ...manifest.importOrder.map(
+      (entry) =>
+        `| ${entry.order} | ${entry.kind} | \`${entry.manifest}\` | ${entry.summary} |`,
+    ),
+    "",
+    "## Totals",
+    "",
+    `- Triangles: ${manifest.totals.triangles}`,
+    `- Vertices: ${manifest.totals.vertices}`,
+    `- Parts: ${manifest.totals.parts}`,
+    `- Draw calls: ${manifest.totals.drawCalls}`,
+    `- Audited assets: ${manifest.readiness.count}`,
+    `- Ready: ${manifest.readiness.ready}`,
+    `- Repaired: ${manifest.readiness.repaired}`,
+    `- Needs attention: ${manifest.readiness.issues}`,
+    "",
+    "## Checklist",
+    "",
+    ...manifest.deliveryChecklist.map((item) => `- [ ] ${item}`),
+    "",
+    "## Files",
+    "",
+    `- Project manifest: \`${manifest.files.project}\``,
+    `- Import order: \`${manifest.files.importOrder}\``,
+    "",
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/* Expand a curated project template into real asset sets and scene packs. The
+ * nested calls intentionally use the same public generation paths as an
+ * individual set or scene request, so a project can never drift from the
+ * artifacts a caller gets one pack at a time. */
+export async function generateProjectToPack({
+  workspace,
+  output,
+  prompt,
+  template,
+  style,
+  color,
+  units,
+  seed,
+  engine = "unity",
+  withLod = false,
+  anchors = false,
+  exportClips = false,
+  collision = "auto",
+  animation = "auto",
+  name,
+  texture = "auto",
+  textureStrength = 0.8,
+  textureSize = 256,
+  quality,
+  profile,
+} = {}) {
+  if (!workspace || typeof workspace !== "string")
+    throw new GenerationError(BAD_PARAMETER, "workspace is required.");
+  const resolvedTemplate = resolveProjectTemplate(prompt, template);
+  validateProjectTemplate(resolvedTemplate);
+
+  const resolvedStyle = requireChoice(
+    style || resolvedTemplate.style,
+    STYLES,
+    "style",
+    "lowpoly",
+  );
+  const resolvedColor = requireHexColor(color);
+  const resolvedUnits = requireChoice(units, UNITS, "units", "m");
+  const resolvedEngine = requireChoice(engine, ENGINE_IDS, "engine", "unity");
+  const resolvedTextureSize = requireChoice(
+    textureSize,
+    TEXTURE_SIZES,
+    "textureSize",
+    256,
+  );
+  const resolvedStrength = requireStrength(textureStrength);
+  const resolvedQuality = requireChoice(
+    quality ?? resolvedTemplate.quality,
+    QUALITY_MODES,
+    "quality",
+    "audit",
+  );
+  const resolvedProfile = requireChoice(
+    profile || resolvedTemplate.profile,
+    ASSET_PROFILES,
+    "profile",
+    "balanced",
+  );
+  const baseSeed = requireSeed(seed);
+  const baseOutput =
+    typeof output === "string" && output.trim() ? output : "generated-assets";
+  const projectId = assetSlug(name || resolvedTemplate.id);
+  const projectOutput = path.posix.join(baseOutput, projectId);
+  const projectDir = resolveOutputDir(workspace, projectOutput);
+  const workspaceRoot = path.resolve(workspace);
+  const relative = (absolute) =>
+    path.relative(workspaceRoot, absolute).split(path.sep).join("/");
+  const enginePreset =
+    getEnginePresets().find((preset) => preset.id === resolvedEngine) || null;
+
+  const assetGroups = [];
+  for (let index = 0; index < resolvedTemplate.assetGroups.length; index += 1) {
+    const group = resolvedTemplate.assetGroups[index];
+    const groupSeed = baseSeed == null ? undefined : baseSeed + index * 1000;
+    const generated = await generateSetToPack({
+      workspace,
+      output: path.posix.join(projectOutput, "assets"),
+      items: group.items.map((item) => ({ ...item })),
+      style: resolvedStyle,
+      color: resolvedColor,
+      units: resolvedUnits,
+      seed: groupSeed,
+      engine: resolvedEngine,
+      withLod,
+      anchors,
+      exportClips,
+      collision,
+      animation,
+      name: group.id,
+      texture,
+      textureStrength: resolvedStrength,
+      textureSize: resolvedTextureSize,
+      quality: resolvedQuality,
+      profile: resolvedProfile,
+    });
+    assetGroups.push({
+      id: group.id,
+      name: group.name,
+      summary: group.summary,
+      count: generated.set.count,
+      totals: generated.set.totals,
+      readiness: generated.set.readiness,
+      quality: generated.set.quality,
+      profile: generated.set.profile,
+      files: generated.files,
+      items: generated.items,
+    });
+  }
+
+  const scenes = [];
+  for (let index = 0; index < resolvedTemplate.scenes.length; index += 1) {
+    const scene = resolvedTemplate.scenes[index];
+    const sceneSeed =
+      baseSeed == null ? undefined : baseSeed + 10000 + index * 1000;
+    const generated = await generateSceneToPack({
+      workspace,
+      output: path.posix.join(projectOutput, "scenes"),
+      type: scene.kit,
+      style: resolvedStyle,
+      color: resolvedColor,
+      seed: sceneSeed,
+      units: resolvedUnits,
+      engine: resolvedEngine,
+      name: scene.id,
+      texture,
+      textureStrength: resolvedStrength,
+      textureSize: resolvedTextureSize,
+      quality: resolvedQuality,
+      profile: resolvedProfile,
+    });
+    const files = Object.fromEntries(
+      Object.entries(generated.files).map(([key, value]) => [
+        key,
+        relative(value),
+      ]),
+    );
+    scenes.push({
+      id: scene.id,
+      name: scene.name,
+      summary: scene.summary,
+      kit: scene.kit,
+      style: resolvedStyle,
+      units: resolvedUnits,
+      seed: sceneSeed,
+      stats: generated.asset.stats,
+      readiness: generated.readiness,
+      designAudit: generated.asset.designAudit,
+      quality: resolvedQuality,
+      profile: resolvedProfile,
+      files,
+    });
+  }
+
+  const records = [
+    ...assetGroups.flatMap((group) => group.items),
+    ...scenes.map((scene) => ({
+      id: scene.id,
+      name: scene.name,
+      type: scene.kit,
+      kind: "scene",
+      readiness: scene.readiness,
+      scene: { designAudit: scene.designAudit },
+      profile: scene.profile,
+    })),
+  ];
+  const readiness = summariseGameReadiness(records);
+  const totals = [...assetGroups, ...scenes].reduce(
+    (sum, record) => {
+      const stats = record.totals || record.stats || {};
+      sum.triangles += Number(stats.triangles) || 0;
+      sum.vertices += Number(stats.vertices) || 0;
+      sum.parts += Number(stats.parts) || 0;
+      sum.drawCalls += Number(stats.drawCalls) || 0;
+      return sum;
+    },
+    { triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+  );
+  const counts = {
+    assetGroups: assetGroups.length,
+    assets: assetGroups.reduce((sum, group) => sum + group.count, 0),
+    scenes: scenes.length,
+  };
+  counts.models = counts.assets + counts.scenes;
+
+  const setupSuffix =
+    resolvedEngine === "unity"
+      ? ".unity.cs"
+      : resolvedEngine === "unreal"
+        ? ".unreal.py"
+        : ".godot.gd";
+  const importOrder = [
+    ...assetGroups.map((group, index) => ({
+      order: index + 1,
+      kind: "asset-set",
+      id: group.id,
+      name: group.name,
+      summary: group.summary,
+      count: group.count,
+      manifest: group.files.manifest,
+      directory: group.files.setDir,
+    })),
+    ...scenes.map((scene, index) => ({
+      order: assetGroups.length + index + 1,
+      kind: "scene-kit",
+      id: scene.id,
+      name: scene.name,
+      summary: scene.summary,
+      kit: scene.kit,
+      manifest: path.posix.join(scene.files.packDir, "manifest.json"),
+      directory: scene.files.packDir,
+      blueprint: path.posix.join(scene.files.packDir, "blueprints"),
+      setup: path.posix.join(
+        scene.files.packDir,
+        `blueprints/${scene.id}${setupSuffix}`,
+      ),
+    })),
+  ];
+  const deliveryChecklist = [
+    `Import the asset sets in the listed order into ${enginePreset?.name || resolvedEngine}, keeping each pack's models and textures together.`,
+    "Open each scene kit, run its engine builder script, then wire the generated spawn points, objectives, loot tables and locks.",
+    `Review project.json and each nested readiness report against the ${resolvedProfile} budget before the first playable build.`,
+    "Keep project.json and import-order.json with the build so downstream automation can reconstruct the delivery order.",
+  ];
+  const importPlan = {
+    schema: "ai3d-project-import-order",
+    project: projectId,
+    engine: {
+      id: resolvedEngine,
+      name: enginePreset?.name || resolvedEngine,
+      upAxis: enginePreset?.upAxis || "Y",
+      scale: enginePreset?.scale || 1,
+      units: enginePreset?.units || resolvedUnits,
+    },
+    counts,
+    order: importOrder,
+    checklist: deliveryChecklist,
+  };
+
+  const projectFile = path.join(projectDir, "project.json");
+  const readmeFile = path.join(projectDir, "README.md");
+  const importOrderFile = path.join(projectDir, "import-order.json");
+  const files = {
+    project: relative(projectFile),
+    readme: relative(readmeFile),
+    importOrder: relative(importOrderFile),
+  };
+  const manifest = {
+    schema: "ai3d-generated-project",
+    version: "1.0",
+    id: projectId,
+    name: name || resolvedTemplate.name,
+    template: resolvedTemplate.id,
+    prompt: prompt || null,
+    style: resolvedStyle,
+    color: resolvedColor,
+    units: resolvedUnits,
+    engine: resolvedEngine,
+    seed: baseSeed,
+    quality: resolvedQuality,
+    profile: resolvedProfile,
+    counts,
+    totals,
+    readiness,
+    assetGroups: assetGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      summary: group.summary,
+      count: group.count,
+      totals: group.totals,
+      readiness: group.readiness,
+      files: group.files,
+    })),
+    scenes: scenes.map((scene) => ({
+      id: scene.id,
+      name: scene.name,
+      summary: scene.summary,
+      kit: scene.kit,
+      stats: scene.stats,
+      readiness: scene.readiness,
+      designAudit: scene.designAudit,
+      files: scene.files,
+    })),
+    importOrder,
+    deliveryChecklist,
+    files,
+    generatedAt: new Date().toISOString(),
+  };
+
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.writeFileSync(importOrderFile, `${JSON.stringify(importPlan, null, 2)}\n`);
+  fs.writeFileSync(readmeFile, projectReadme({ manifest }));
+  fs.writeFileSync(projectFile, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  return {
+    ok: true,
+    project: {
+      id: projectId,
+      name: manifest.name,
+      template: resolvedTemplate.id,
+      style: resolvedStyle,
+      units: resolvedUnits,
+      engine: resolvedEngine,
+      seed: baseSeed,
+      quality: resolvedQuality,
+      profile: resolvedProfile,
+      counts,
+      totals,
+      readiness,
+    },
+    assetGroups: assetGroups.map((group) => ({
+      id: group.id,
+      name: group.name,
+      count: group.count,
+      totals: group.totals,
+      readiness: group.readiness,
+      files: group.files,
+      items: group.items,
+    })),
+    scenes,
+    files,
+  };
+}
+
 /* A whole asset set in one request: the caller hands in a list of asset specs
  * and gets one nested pack per asset plus a set manifest summing them. This is
  * the "fill my game's asset list" path for chat and MCP -- the shared style,
@@ -851,6 +1349,7 @@ export async function generateAssetToPack({
   workspace,
   output,
   prompt,
+  template,
   type,
   style,
   color,
@@ -873,9 +1372,56 @@ export async function generateAssetToPack({
   props = null,
   design = null,
   items = null,
-  quality = "off",
-  profile = "balanced",
+  quality,
+  profile,
 } = {}) {
+  if (kind === "project") {
+    if (type != null && type !== "")
+      throw new GenerationError(
+        BAD_PARAMETER,
+        'type is not supported when kind is "project"; use template.',
+      );
+    for (const [field, value] of [
+      ["items", items],
+      ["props", props],
+      ["design", design],
+      ["spacing", spacing],
+      ["groundPadding", groundPadding],
+      ["propScale", propScale],
+    ])
+      if (value != null && value !== "")
+        throw new GenerationError(
+          BAD_PARAMETER,
+          `${field} is not supported when kind is "project".`,
+        );
+    return generateProjectToPack({
+      workspace,
+      output,
+      prompt,
+      template,
+      style,
+      color,
+      units,
+      seed,
+      engine,
+      withLod,
+      anchors,
+      exportClips,
+      collision,
+      animation,
+      name,
+      texture,
+      textureStrength,
+      textureSize,
+      quality,
+      profile,
+    });
+  }
+  if (template != null && template !== "")
+    throw new GenerationError(
+      BAD_PARAMETER,
+      'template is only supported when kind is "project".',
+    );
   if (kind === "scene")
     return generateSceneToPack({
       workspace,
@@ -924,7 +1470,7 @@ export async function generateAssetToPack({
   if (kind !== "asset")
     throw new GenerationError(
       BAD_PARAMETER,
-      'kind must be "asset", "scene" or "set".',
+      'kind must be "asset", "scene", "set" or "project".',
     );
   if (design != null && design !== "")
     throw new GenerationError(

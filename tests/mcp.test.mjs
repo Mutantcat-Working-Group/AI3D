@@ -24,7 +24,25 @@ const stl =
 function workspace(t) {
   fs.mkdirSync(path.join(repo, "tmp"), { recursive: true });
   const dir = fs.mkdtempSync(path.join(repo, "tmp", "mcp-workspace-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  // A review server runs detached, and Windows releases the directory it held
+  // as its working directory a moment after the process is killed. The sync
+  // retry budget lost that race and failed a test whose assertions had passed,
+  // so cleanup waits for the handle instead of assuming it is already gone.
+  t.after(async () => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+        return;
+      } catch (error) {
+        if (
+          attempt >= 100 ||
+          !["EPERM", "EBUSY", "ENOTEMPTY"].includes(error.code)
+        )
+          throw error;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+  });
   fs.mkdirSync(path.join(dir, "web"));
   fs.writeFileSync(path.join(dir, "web/index.html"), "<!doctype html>");
   fs.mkdirSync(path.join(dir, "projects/lamp"), { recursive: true });
@@ -90,6 +108,20 @@ test("the tool says up front that nothing here will announce a submission", asyn
     "types",
     "kits",
     "design",
+    "projects",
+  ]);
+  assert.deepEqual(GENERATE_TOOL.inputSchema.properties.kind.enum, [
+    "asset",
+    "scene",
+    "set",
+    "project",
+  ]);
+  assert.deepEqual(GENERATE_TOOL.inputSchema.properties.template.enum, [
+    "prototype-starter",
+    "fantasy-dungeon",
+    "village-adventure",
+    "sci-fi-outpost",
+    "wilderness-survival",
   ]);
   assert.equal(GENERATE_TOOL.inputSchema.required.includes("output"), true);
   assert.equal(
@@ -120,10 +152,24 @@ test("the catalog tool reports types, kits and the scene design contract", async
   assert.equal(catalogue.mode, "all");
   assert.ok(catalogue.typeCount > 50, "expected a broad asset catalogue");
   assert.equal(catalogue.kitCount, 8);
+  assert.equal(catalogue.projectCount, 5);
   const dungeon = catalogue.kits.find((kit) => kit.id === "dungeon");
   assert.ok(dungeon.props.includes("portcullis"));
   assert.equal(Array.isArray(dungeon.design.objectives), true);
   assert.deepEqual(catalogue.design.lockStates, ["locked", "open", "sealed"]);
+  const starter = catalogue.projects.find(
+    (project) => project.id === "prototype-starter",
+  );
+  assert.deepEqual(
+    starter.assetGroups.map((group) => group.id),
+    ["prototype-props", "prototype-actors"],
+  );
+  assert.deepEqual(
+    starter.scenes.map((scene) => scene.kit),
+    ["camp"],
+  );
+  assert.equal(starter.assetCount, 5);
+  assert.equal(starter.sceneCount, 1);
 
   // Filters run over the same registry the generator reads, so a tag that
   // exists cannot silently come back empty.
@@ -546,6 +592,137 @@ test("the generate tool rejects malformed asset set items", async (t) => {
   );
 });
 
+test("the generate tool expands a project template into categorized packs", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 29,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "project",
+        output: "generated-assets",
+        template: "prototype-starter",
+        name: "starter-slice",
+        engine: "godot",
+        profile: "desktop",
+        seed: 40,
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(answer.result.isError, undefined);
+  assert.equal(result.ok, true);
+  assert.equal(result.project.template, "prototype-starter");
+  assert.equal(result.project.name, "starter-slice");
+  assert.equal(result.project.engine, "godot");
+  assert.equal(result.project.quality, "audit");
+  assert.equal(result.project.profile, "desktop");
+  assert.deepEqual(result.project.counts, {
+    assetGroups: 2,
+    assets: 5,
+    scenes: 1,
+    models: 6,
+  });
+  assert.ok(result.project.totals.triangles > 0);
+  assert.equal(result.project.readiness.count, 6);
+  assert.equal(result.project.readiness.profile, "desktop");
+  assert.equal(
+    result.project.readiness.ready +
+      result.project.readiness.repaired +
+      result.project.readiness.issues +
+      result.project.readiness.notAudited,
+    6,
+  );
+
+  const projectFile = path.join(dir, result.files.project);
+  const readmeFile = path.join(dir, result.files.readme);
+  const importOrderFile = path.join(dir, result.files.importOrder);
+  assert.equal(fs.existsSync(projectFile), true);
+  assert.equal(fs.existsSync(readmeFile), true);
+  assert.equal(fs.existsSync(importOrderFile), true);
+
+  const project = JSON.parse(fs.readFileSync(projectFile, "utf8"));
+  assert.equal(project.schema, "ai3d-generated-project");
+  assert.equal(project.template, "prototype-starter");
+  assert.equal(project.profile, "desktop");
+  assert.equal(project.readiness.count, 6);
+  assert.equal(project.assetGroups.length, 2);
+  assert.equal(project.scenes.length, 1);
+  assert.equal(project.scenes[0].kit, "camp");
+
+  const importOrder = JSON.parse(fs.readFileSync(importOrderFile, "utf8"));
+  assert.equal(importOrder.schema, "ai3d-project-import-order");
+  assert.deepEqual(
+    importOrder.order.map((entry) => entry.kind),
+    ["asset-set", "asset-set", "scene-kit"],
+  );
+  assert.equal(
+    fs.existsSync(path.join(dir, importOrder.order[0].manifest)),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(path.join(dir, importOrder.order[2].manifest)),
+    true,
+  );
+  assert.match(fs.readFileSync(readmeFile, "utf8"), /prototype-starter/);
+
+  const firstGroup = result.assetGroups[0];
+  const setFile = path.join(dir, firstGroup.files.manifest);
+  assert.equal(fs.existsSync(setFile), true);
+  const set = JSON.parse(fs.readFileSync(setFile, "utf8"));
+  assert.equal(set.schema, "ai3d-generated-set");
+  assert.equal(set.count, 3);
+  assert.equal(set.profile, "desktop");
+
+  const scenePack = path.join(
+    dir,
+    result.scenes[0].files.packDir,
+    "manifest.json",
+  );
+  assert.equal(fs.existsSync(scenePack), true);
+  const sceneManifest = JSON.parse(fs.readFileSync(scenePack, "utf8"));
+  assert.equal(sceneManifest.assets[0].kind, "scene");
+  assert.equal(sceneManifest.assets[0].scene.kit, "camp");
+});
+
+test("the generate tool rejects unknown or misplaced project templates", async (t) => {
+  const dir = workspace(t);
+  const call = (args) =>
+    handlerFor(dir)({
+      id: 30,
+      method: "tools/call",
+      params: { name: "ai3d_generate", arguments: args },
+    });
+  const unknown = await call({
+    kind: "project",
+    output: "generated-assets/unknown-project",
+    template: "not-a-project",
+  });
+  assert.equal(unknown.result.isError, true);
+  const refused = JSON.parse(unknown.result.content[0].text);
+  assert.equal(refused.code, "BAD_PARAMETER");
+  assert.match(refused.message, /Unknown project template/);
+
+  for (const [kind, extra] of [
+    ["asset", { type: "sword" }],
+    ["scene", { type: "dungeon" }],
+    ["set", { items: [{ type: "sword" }] }],
+  ]) {
+    const misplaced = await call({
+      kind,
+      output: `generated-assets/wrong-project-template-${kind}`,
+      template: "prototype-starter",
+      ...extra,
+    });
+    assert.equal(misplaced.result.isError, true);
+    assert.match(
+      JSON.parse(misplaced.result.content[0].text).message,
+      /only supported when kind is "project"/,
+    );
+  }
+});
+
 test("the generate tool can gate one asset on game readiness", async (t) => {
   const dir = workspace(t);
   const answer = await handlerFor(dir)({
@@ -817,7 +994,15 @@ test("a review opened over MCP is owned by MCP, and refusals come back as result
     assert.equal(refused.result.isError, true);
     assert.ok(JSON.parse(refused.result.content[0].text).code);
   } finally {
-    await call({ action: "stop", project: "projects/lamp" });
+    // A stop that quietly came back as a tool error would leave the detached
+    // server alive and the workspace undeletable, and only cleanup would say
+    // so. Surface it here where the failure names the cause.
+    const stopped = await call({ action: "stop", project: "projects/lamp" });
+    assert.equal(
+      stopped.result.isError,
+      undefined,
+      JSON.stringify(stopped.result.content?.[0]?.text ?? stopped.result),
+    );
   }
 });
 

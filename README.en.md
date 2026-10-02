@@ -183,21 +183,27 @@ call `ai3d_generate` to create an asset from one sentence and write a GLB plus a
 Unity, Godot or Unreal engine pack into the workspace, sharing the same
 deterministic generator as the interface. Pass `kind: "set"` with an `items`
 list to build a whole asset set in one call and sum it in a set.json manifest,
-or pass `kind: "scene"` and it composes a
-whole level kit instead (dungeon, camp, outpost, village, temple, battle,
-wilderness, town), with an optional `design` object for custom spawn points,
-objectives, loot tables, locks and directives, or a `props` array that lays the
-scene out prop by prop, pinning each prop's type, size, position, rotation and
-seed instead of taking the kit's own arrangement. The returned design audit
-validates that metadata, and the same pack carries it into the engine-space
-scene blueprint. Single assets and whole sets also take `quality: "audit"` or
-`"repair"` to run the game-readiness gate: the score, failures and repairs are
-recorded in each asset's summary.json, in the pack's
+pass `kind: "scene"` to compose a whole level kit (dungeon, camp, outpost,
+village, temple, battle, wilderness, town) with an optional `design` object
+for custom spawn points, objectives, loot tables, locks and directives, or a
+`props` array that lays the scene out prop by prop, pinning each prop's type,
+size, position, rotation and seed instead of taking the kit's own arrangement,
+or pass `kind: "project"` with a `template` (prototype starter, fantasy
+dungeon, village adventure, sci-fi outpost or wilderness survival) to expand
+one brief into categorized asset sets, complete scene kits, an engine import
+order and a project.json delivery manifest. Project templates carry their
+quality and platform-profile defaults into every nested pack. The returned
+design audit validates scene metadata, and the same pack carries it into the
+engine-space scene blueprint. Single assets and whole sets also take
+`quality: "audit"` or `"repair"` to run the game-readiness gate: the score,
+failures and repairs are recorded in each asset's summary.json, in the pack's
 manifest.json/game-ready.json and in the set's set.json, sharing the
 workbench's game-ready path. Before generating, a read-only `ai3d_catalog` tool
 lists every asset type's tags, collider preset, animation clips, gameplay role
-and spawn/AI data, each scene kit's prop types and default level design, and
-the scene design fields and the rules the audit enforces.
+and spawn/AI data, each scene kit's prop types and default level design, the
+scene design fields and the rules the audit enforces, and a `projects` mode
+that returns every complete project template with its asset groups, scene kits,
+defaults and aliases.
 
 ### 7. Three ways in, one implementation
 
@@ -461,6 +467,16 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   readiness block gains a `profile` and a `budget`, both written to
   `summary.json`, `set.json`, the pack's `manifest.json` and `game-ready.json`
   so a build machine reads the exact ceilings the assets were judged against.
+- **2.26 (done)** - complete project generation: `ai3d_generate` now takes
+  `kind: "project"` with a `template` (prototype starter, fantasy dungeon,
+  village adventure, sci-fi outpost or wilderness survival) and expands one
+  brief into categorized asset sets, complete scene kits and an engine import
+  order. The project root writes `project.json`, `import-order.json` and
+  `README.md`, aggregates triangle, vertex, part, draw-call and readiness
+  totals, and carries the template's `quality` and `profile` defaults into
+  every nested pack. `ai3d_catalog` also gains a `projects` mode for
+  discovering templates, groups, scenes, defaults and aliases before
+  generation.
 
 ### 12. Documentation
 

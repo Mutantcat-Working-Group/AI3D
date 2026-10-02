@@ -74,12 +74,12 @@ not a review: the files land under the workspace-relative `output` directory
 the workspace.
 
 Inputs: `prompt` or `type` (at least one) and `output` (required), plus
-optional `kind` (`asset` by default, `scene` or `set`), `style`, `color`,
-`size`, `units`, `seed`, `engine` (unity/godot/unreal), `withLod`, `anchors`,
-`exportClips`, `collision`, `animation`, `name`, `quality` and `profile`. A
-prompt resolves type, style, color, size and units from the same six-language
-catalogue the UI uses; an explicit `type` wins over whatever the prompt
-resolves.
+optional `kind` (`asset` by default, `scene`, `set` or `project`), `template`,
+`style`, `color`, `size`, `units`, `seed`, `engine` (unity/godot/unreal),
+`withLod`, `anchors`, `exportClips`, `collision`, `animation`, `name`,
+`quality` and `profile`. A prompt resolves type, style, color, size and units
+from the same six-language catalogue the UI uses; an explicit `type` wins over
+whatever the prompt resolves.
 
 `kind: "scene"` composes a whole level kit instead of a single prop. The kit
 type is one of `dungeon`, `camp`, `outpost`, `village`, `temple`, `battle`,
@@ -110,6 +110,19 @@ resolved style, units, engine, seed and aggregate triangles, vertices, parts and
 draw calls, plus each asset's own summary and file paths. Passing a set seed
 derives each asset's seed as `seed + index`, so the same request rebuilds the
 same set.
+
+`kind: "project"` expands one curated project template into a complete,
+categorized delivery. Pass `template` as `prototype-starter`,
+`fantasy-dungeon`, `village-adventure`, `sci-fi-outpost` or
+`wilderness-survival`, or let a prompt select one by name or alias. Each asset
+group is written through the same batch-set path as `kind: "set"`, and each
+level is written through the same scene-pack path as `kind: "scene"`. The
+project root adds `project.json` (the delivery manifest with aggregate counts,
+totals and readiness), `import-order.json` (the engine-ordered import plan)
+and `README.md` (the hand-off checklist). The template supplies its own
+`quality` and `profile` defaults, while explicit request fields still win; the
+resolved profile and budget are carried into every nested asset pack, set
+manifest and scene pack.
 
 `quality` (`off` by default, or `audit`/`repair`) turns on the game-readiness
 gate for single assets and whole sets. `audit` scores each generated prop with
@@ -143,10 +156,12 @@ guess a key. `mode: "types"` lists every asset type with its tags, collider
 preset, animation clips, gameplay role and spawn stats; `mode: "kits"` lists
 the scene kits with the prop types they place and the default level design
 they ship; `mode: "design"` describes the scene design fields and the rules
-the audit enforces; the default `mode: "all"` returns all three. `query`
-filters by substring and `tags` keeps only the types carrying every named tag,
-so a loot table or a `type` can be resolved against the same registry the
-generator reads before anything is written.
+the audit enforces; `mode: "projects"` lists the complete project templates
+with their asset groups, scene kits, defaults and aliases; the default
+`mode: "all"` returns every section. `query` filters by substring and `tags`
+keeps only the types or project templates carrying every named tag, so a loot
+table, a `type` or a project template can be resolved against the same registry
+the generator reads before anything is written.
 
 ## `status.notifier` — whether anyone will tell you
 
