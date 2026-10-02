@@ -12160,6 +12160,7 @@ export function buildGamePackFiles({
   engine = "unity",
   exportedAt = new Date().toISOString(),
   set = null,
+  project = null,
 }) {
   const preset = getEnginePreset(engine);
   const records = assets.map((asset) => {
@@ -12341,6 +12342,20 @@ export function buildGamePackFiles({
         null,
         2,
       ),
+    );
+  }
+  /* A project is a set with a plan: the same assets plus project.json and
+     import-order.json so a build machine reads what to import and in which
+     order. The workbench and the agent project tool both write these two
+     documents through here. */
+  if (project?.manifest) {
+    files["project.json"] = encoder.encode(
+      JSON.stringify(project.manifest, null, 2),
+    );
+  }
+  if (project?.importOrder) {
+    files["import-order.json"] = encoder.encode(
+      JSON.stringify(project.importOrder, null, 2),
     );
   }
   if (readinessSummary) {

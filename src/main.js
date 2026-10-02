@@ -79,6 +79,7 @@ import {
   GEN_TYPE_KEYS,
   GEN_COLOR_KEYS,
 } from "./asset-prompt.js";
+import { PROJECT_TEMPLATES, findProjectTemplate } from "./project-templates.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
    the reviewer's own preferences have been read. Correcting it here is what
@@ -460,6 +461,17 @@ app.innerHTML = `${SPRITE}
       </div>
       <textarea id="gen-batch-input" rows="3" placeholder="${T("gen.batchPlaceholder")}"></textarea>
       <div id="gen-batch-list" class="gen-batch-list" aria-live="polite"></div>
+    </div>
+    <div class="gen-project">
+      <div class="gen-project-tools">
+        <label for="gen-project-template">${T("gen.project")}</label>
+        <select id="gen-project-template" aria-label="${T("gen.projectTemplate")}"></select>
+        <input id="gen-project-name" class="gen-project-name" placeholder="${T("gen.projectName")}">
+        <button id="gen-project-generate" class="quiet">${T("gen.projectGenerate")}</button>
+        <button id="gen-project-pack" class="quiet" hidden>${T("gen.projectPack")}</button>
+      </div>
+      <div id="gen-project-summary" class="gen-project-summary" aria-live="polite"></div>
+      <div id="gen-project-list" class="gen-project-list" aria-live="polite"></div>
     </div>
     <div id="gen-status" class="gen-status"></div>
     <div id="gen-layout" class="gen-layout" hidden></div>
@@ -2584,6 +2596,8 @@ const genState = {
   variants: [],
   batch: [],
   batchSeed: null,
+  project: null,
+  projectSeed: null,
 };
 let selectedGenKit = "dungeon";
 let selectedGenModular = null;
@@ -2610,6 +2624,22 @@ const MODULAR_SCENE_KEYS = {
   tower_room: "gen.modularScene.towerRoom",
   corridor: "gen.modularScene.corridor",
 };
+
+/* Project templates name themselves in English because the CLI and MCP read
+   that same table. The workbench shows the identical plans under a translated
+   label, so a Chinese reader picks their project in their own words. */
+const PROJECT_TEMPLATE_KEYS = {
+  "fantasy-dungeon": "gen.project.fantasyDungeon",
+  "village-adventure": "gen.project.villageAdventure",
+  "sci-fi-outpost": "gen.project.sciFiOutpost",
+  "wilderness-survival": "gen.project.wildernessSurvival",
+  "prototype-starter": "gen.project.prototypeStarter",
+};
+
+function projectTemplateLabel(template) {
+  const key = PROJECT_TEMPLATE_KEYS[template.id];
+  return key ? t(key) : template.name;
+}
 
 /* The hint names the style a sentence asked for, and the select already owns
    those three words. Reusing them keeps one label per style. */
@@ -3490,9 +3520,11 @@ function saveAllBatchItems() {
   setGenStatus(t("gen.applied"), "ok");
 }
 
-function loadBatchItem(index) {
-  const item = genState.batch[index];
-  if (!item) return;
+/* A generated record carries its own Three.js model until it is saved, when
+   the model is dropped and rebuilt from the seed. Loading is shared so a batch
+   card and a project row put the same thing in front of the reviewer. */
+function loadGeneratedRecord(item) {
+  if (!item?.threeObject) return;
   const model = cloneModelDeep(item.threeObject);
   genState.model = { ...item, threeObject: model };
   genState.originalModel = cloneModelDeep(model);
@@ -3506,6 +3538,10 @@ function loadBatchItem(index) {
   renderGenLayout();
   updateGenScenePackButton();
   showGenPreview();
+}
+
+function loadBatchItem(index) {
+  loadGeneratedRecord(genState.batch[index]);
 }
 
 async function exportBatchPack() {
@@ -3565,6 +3601,551 @@ async function exportBatchPack() {
     );
     setGenStatus(
       t("gen.batchPackReady", { count: String(items.length) }),
+      "ok",
+    );
+  } catch {
+    setGenStatus(t("gen.error"), "error");
+  }
+}
+
+// --- Project Templates ---
+/* A project template is the plan the agent-facing `ai3d_project` tool already
+   understands: a handful of asset groups plus the scenes that dress them. The
+   workbench expands the same plan through the same generators, keeps every
+   Three.js model alive for review, and writes `project.json` /
+   `import-order.json` beside the flat pack so the zip reads back as a project
+   rather than a pile of loose assets. */
+
+/* The pack layout is flat (models/, design/, blueprints/), so the manifest
+   slugs must match the ones buildGamePackFiles writes. This mirrors that
+   module's private slugger so the two never disagree about a file name. */
+function projectPackSlug(value) {
+  const slug = String(value || "asset")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || "asset";
+}
+
+function renderGenProjectTemplates() {
+  const select = $("#gen-project-template");
+  if (!select) return;
+  select.innerHTML = PROJECT_TEMPLATES.map(
+    (template) =>
+      `<option value="${esc(template.id)}">${esc(projectTemplateLabel(template))}</option>`,
+  ).join("");
+}
+
+function sceneSetupSuffix(engine) {
+  if (engine === "unity") return ".unity.cs";
+  if (engine === "unreal") return ".unreal.py";
+  return ".godot.gd";
+}
+
+function sceneSetupPath(engine, slug) {
+  return `blueprints/${slug}${sceneSetupSuffix(engine)}`;
+}
+
+/* Yield to the browser between groups so the progress line actually paints.
+   Building 30-odd assets is fast but not instant, and a frozen panel reads as
+   a hang. */
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function generateProject() {
+  if (genState.generating) return;
+  const template = findProjectTemplate($("#gen-project-template")?.value);
+  if (!template) {
+    setGenStatus(t("gen.projectEmpty"), "warn");
+    return;
+  }
+  const style = template.style || $("#gen-style").value;
+  const color = $("#gen-color").value;
+  const { size, units } = readSizeSettings();
+  const fitAxis = $("#gen-fit").value;
+  const pivot = $("#gen-pivot").value;
+  const material = readMaterialSettings();
+  const kitOptions = readGenKitOptions();
+  const profile = template.profile || genProfile();
+  const quality = template.quality || "audit";
+  const seedInput = $("#gen-seed").value.trim();
+  const baseSeed =
+    seedInput === ""
+      ? Math.floor(Math.random() * 1_000_000)
+      : Math.max(0, Math.floor(Number(seedInput) || 0));
+  const projectName =
+    $("#gen-project-name").value.trim() || projectTemplateLabel(template);
+  const engine = $("#gen-engine")?.value || "unity";
+  const totalSteps = template.assetGroups.length + template.scenes.length;
+
+  genState.generating = true;
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const groups = [];
+    const records = [];
+    let step = 0;
+    for (
+      let groupIndex = 0;
+      groupIndex < template.assetGroups.length;
+      groupIndex++
+    ) {
+      const group = template.assetGroups[groupIndex];
+      step += 1;
+      setGenStatus(
+        t("gen.projectRunning", {
+          group: group.name,
+          current: String(step),
+          total: String(totalSteps),
+        }),
+        "info",
+      );
+      await nextFrame();
+      const groupSeed = baseSeed + groupIndex * 1000;
+      const used = new Set();
+      const items = group.items.map((item, index) => {
+        const seed = groupSeed + index;
+        const model = generateThreeAsset(item.type, {
+          size,
+          units,
+          fitAxis,
+          pivot,
+          segments: kitOptions.segments,
+          style,
+          color,
+          seed,
+          material,
+          texture: material.texture,
+          textureStrength: material.textureStrength,
+          textureSize: material.textureSize,
+        });
+        return {
+          id: nextBatchId(item.type, used),
+          kind: "asset",
+          type: item.type,
+          name: item.type,
+          prompt: item.prompt || item.type,
+          seed,
+          size,
+          units,
+          fitAxis,
+          pivot,
+          segments: kitOptions.segments,
+          style,
+          color,
+          material,
+          texture: material.texture,
+          textureStrength: material.textureStrength,
+          textureSize: material.textureSize,
+          tags: getAssetTags(item.type),
+          stats: getAssetStats(model),
+          profile,
+          quality,
+          project: template.id,
+          group: group.id,
+          threeObject: model,
+        };
+      });
+      groups.push({ ...group, items });
+      records.push(...items);
+    }
+
+    const scenes = [];
+    for (
+      let sceneIndex = 0;
+      sceneIndex < template.scenes.length;
+      sceneIndex++
+    ) {
+      const spec = template.scenes[sceneIndex];
+      step += 1;
+      setGenStatus(
+        t("gen.projectRunning", {
+          group: spec.name,
+          current: String(step),
+          total: String(totalSteps),
+        }),
+        "info",
+      );
+      await nextFrame();
+      const seed = baseSeed + 10000 + sceneIndex * 1000;
+      const scene = composeGameKit(spec.kit, {
+        seed,
+        style,
+        color,
+        material,
+        texture: material.texture,
+        textureStrength: material.textureStrength,
+        textureSize: material.textureSize,
+        ...kitOptions,
+      });
+      const sceneMeta = {
+        quality: scene.userData.theme?.quality ?? kitOptions.quality ?? 1,
+        spacing: scene.userData.theme?.spacing ?? kitOptions.spacing,
+        groundPadding:
+          scene.userData.theme?.groundPadding ?? kitOptions.groundPadding,
+        propScale: scene.userData.theme?.propScale ?? kitOptions.propScale,
+        groundColor: scene.userData.groundColor ?? null,
+        theme: scene.userData.theme ?? null,
+        props: scene.userData.propList || [],
+        design: scene.userData.design || null,
+      };
+      const record = {
+        id: spec.id,
+        kind: "scene",
+        type: spec.kit,
+        name: spec.name,
+        prompt: spec.name,
+        seed,
+        size: 1,
+        units,
+        fitAxis: "max",
+        pivot: "center",
+        segments: kitOptions.segments,
+        style,
+        color,
+        material,
+        texture: material.texture,
+        textureStrength: material.textureStrength,
+        textureSize: material.textureSize,
+        quality,
+        profile,
+        spacing: sceneMeta.spacing,
+        groundPadding: sceneMeta.groundPadding,
+        propScale: sceneMeta.propScale,
+        tags: ["scene", spec.kit],
+        scene: { ...sceneMeta, designAudit: sceneDesignAudit(scene) },
+        stats: getAssetStats(scene),
+        project: template.id,
+        sceneId: spec.id,
+        summary: spec.summary,
+        threeObject: scene,
+      };
+      scenes.push(record);
+      records.push(record);
+    }
+
+    const totals = records.reduce(
+      (sum, record) => {
+        sum.triangles += Number(record.stats?.triangles) || 0;
+        sum.vertices += Number(record.stats?.vertices) || 0;
+        sum.parts += Number(record.stats?.parts) || 0;
+        sum.drawCalls += Number(record.stats?.drawCalls) || 0;
+        return sum;
+      },
+      { triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+    );
+    const counts = {
+      assetGroups: groups.length,
+      assets: records.length - scenes.length,
+      scenes: scenes.length,
+      models: records.length,
+    };
+    genState.project = {
+      id: projectPackSlug(projectName),
+      name: projectName,
+      templateId: template.id,
+      templateName: template.name,
+      summary: template.summary,
+      style,
+      color,
+      units,
+      engine,
+      profile,
+      quality,
+      seed: baseSeed,
+      groups,
+      scenes,
+      records,
+      counts,
+      totals,
+    };
+    genState.projectSeed = baseSeed;
+    /* The library records drop the Three.js models and rebuild them from the
+       seed, which is what keeps browser storage small. */
+    records.forEach((record) =>
+      assetLibrary.add({ ...record, threeObject: null }),
+    );
+    renderAssetLibrary();
+    renderGenProject();
+    setGenStatus(
+      t("gen.projectReady", {
+        assets: String(counts.assets),
+        scenes: String(counts.scenes),
+      }),
+      "ok",
+    );
+  } catch {
+    genState.project = null;
+    renderGenProject();
+    setGenStatus(t("gen.error"), "error");
+  } finally {
+    genState.generating = false;
+  }
+}
+
+function renderGenProject() {
+  const summary = $("#gen-project-summary");
+  const list = $("#gen-project-list");
+  const pack = $("#gen-project-pack");
+  const project = genState.project;
+  if (pack) pack.hidden = !project;
+  if (!summary || !list) return;
+  if (!project) {
+    summary.textContent = "";
+    list.innerHTML = `<div class="gen-library-empty">${t("gen.projectEmpty")}</div>`;
+    return;
+  }
+  summary.innerHTML = `
+    <div class="gen-project-head">
+      <strong>${esc(project.name)}</strong>
+      <small>${esc(project.templateName)} · ${esc(project.style)} · ${esc(project.profile)} · #${esc(String(project.seed))}</small>
+    </div>
+    <div class="gen-project-counts">
+      <span>${project.counts.assets} ${t("gen.projectAssets")}</span>
+      <span>${project.counts.scenes} ${t("gen.projectScenes")}</span>
+      <span>${project.totals.triangles} ${t("gen.triangles")}</span>
+    </div>`;
+  const rows = [
+    ...project.groups.map((group) => ({
+      key: group.id,
+      name: group.name,
+      count: group.items.length,
+      records: group.items,
+    })),
+    ...project.scenes.map((scene) => ({
+      key: scene.sceneId,
+      name: scene.name,
+      count: 1,
+      records: [scene],
+    })),
+  ];
+  list.innerHTML = rows
+    .map(
+      (row) => `
+    <div class="gen-project-group">
+      <div class="gen-project-group-head">
+        <strong>${esc(row.name)}</strong>
+        <small>${row.count}</small>
+      </div>
+      <div class="gen-project-items">${row.records
+        .map(
+          (record) =>
+            `<button type="button" class="gen-project-item" data-project-record="${esc(record.id)}" title="${esc(record.prompt)}">${esc(record.name)}</button>`,
+        )
+        .join("")}</div>
+    </div>`,
+    )
+    .join("");
+}
+
+/* The project documents mirror the agent-facing schema so a workbench project
+   and an MCP project read back the same way; only the file paths differ,
+   because the browser pack is flat. */
+function buildProjectDocuments({ project, packAssets, engine, preset }) {
+  const ids = packAssets.map((asset) =>
+    projectPackSlug(asset.id || asset.type),
+  );
+  const assetGroups = project.groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    summary: group.summary,
+    count: group.items.length,
+    totals: group.items.reduce(
+      (sum, item) => {
+        sum.triangles += Number(item.stats?.triangles) || 0;
+        sum.vertices += Number(item.stats?.vertices) || 0;
+        sum.parts += Number(item.stats?.parts) || 0;
+        sum.drawCalls += Number(item.stats?.drawCalls) || 0;
+        return sum;
+      },
+      { triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+    ),
+    files: {
+      directory: "models",
+      manifest: "manifest.json",
+      items: group.items.map((item) => ({
+        id: item.id,
+        model: `models/${projectPackSlug(item.id || item.type)}/LOD0.glb`,
+      })),
+    },
+  }));
+  const sceneDocs = project.scenes.map((record) => {
+    const slug = projectPackSlug(record.id || record.type);
+    return {
+      id: record.id,
+      name: record.name,
+      summary: record.summary || null,
+      kit: record.type,
+      stats: record.stats,
+      readiness: null,
+      designAudit: record.scene?.designAudit ?? null,
+      files: {
+        design: `design/${slug}.json`,
+        designAudit: `design/${slug}.audit.json`,
+        blueprint: `blueprints/${slug}.json`,
+        setup: sceneSetupPath(engine, slug),
+      },
+    };
+  });
+  const importOrder = [
+    ...assetGroups.map((group, index) => ({
+      order: index + 1,
+      kind: "asset-set",
+      id: group.id,
+      name: group.name,
+      summary: group.summary,
+      count: group.count,
+      manifest: "manifest.json",
+      directory: "models",
+    })),
+    ...sceneDocs.map((scene, index) => ({
+      order: assetGroups.length + index + 1,
+      kind: "scene-kit",
+      id: scene.id,
+      name: scene.name,
+      summary: scene.summary,
+      kit: scene.kit,
+      manifest: "manifest.json",
+      directory: "blueprints",
+      blueprint: scene.files.blueprint,
+      setup: scene.files.setup,
+    })),
+  ];
+  const deliveryChecklist = [
+    `Import the ${assetGroups.length} asset sets in the listed order into ${preset.name}, keeping each model and its textures together.`,
+    "Open each scene kit, run its engine builder script, then wire the generated spawn points, objectives, loot tables and locks.",
+    `Review project.json and each readiness report against the ${project.profile} budget before the first playable build.`,
+    "Keep project.json and import-order.json with the build so downstream automation can reconstruct the delivery order.",
+  ];
+  /* Scenes report readiness from their design audit, not a mesh gate, so build
+     the summary from the design block the way the agent project path does. */
+  const readinessRecords = packAssets.map((asset) =>
+    asset.kind === "scene"
+      ? {
+          id: asset.id,
+          name: asset.name,
+          type: asset.type,
+          kind: "scene",
+          profile: asset.profile,
+          scene: { designAudit: asset.scene?.designAudit },
+        }
+      : asset,
+  );
+  const readiness = summariseGameReadiness(readinessRecords);
+  const counts = { ...project.counts };
+  const manifest = {
+    schema: "ai3d-generated-project",
+    version: "1.0",
+    id: project.id,
+    name: project.name,
+    template: project.templateId,
+    prompt: null,
+    style: project.style,
+    color: project.color,
+    units: project.units,
+    engine,
+    seed: project.seed,
+    quality: project.quality,
+    profile: project.profile,
+    counts,
+    totals: project.totals,
+    readiness,
+    assetGroups,
+    scenes: sceneDocs,
+    importOrder,
+    deliveryChecklist,
+    files: {
+      project: "project.json",
+      readme: "README.md",
+      importOrder: "import-order.json",
+    },
+    pack: { files: ids.map((slug) => `models/${slug}/LOD0.glb`) },
+    generatedAt: new Date().toISOString(),
+  };
+  const plan = {
+    schema: "ai3d-project-import-order",
+    project: project.id,
+    engine: {
+      id: preset.id,
+      name: preset.name,
+      upAxis: preset.upAxis,
+      scale: preset.scale,
+      units: preset.units,
+    },
+    counts,
+    order: importOrder,
+    checklist: deliveryChecklist,
+  };
+  return { manifest, importOrder: plan };
+}
+
+async function exportProjectPack() {
+  const project = genState.project;
+  if (!project || project.records.length === 0) {
+    setGenStatus(t("gen.projectEmpty"), "warn");
+    return;
+  }
+  const engine = $("#gen-engine")?.value || project.engine || "unity";
+  const enginePreset = getEnginePresets().find((p) => p.id === engine) || {
+    id: "unity",
+    name: "Unity",
+    upAxis: "Y",
+    scale: 1,
+    units: "m",
+  };
+  const collisionChoice = $("#gen-collision")?.value || "auto";
+  const animationChoice = $("#gen-animation")?.value || "auto";
+  const withLod = $("#gen-export-lod")?.checked ?? false;
+  const exportClips = $("#gen-export-clips")?.checked ?? false;
+  setGenStatus(
+    t("gen.projectPackRunning", {
+      current: "0",
+      total: String(project.records.length),
+    }),
+    "info",
+  );
+  try {
+    const packAssets = [];
+    for (let i = 0; i < project.records.length; i++) {
+      setGenStatus(
+        t("gen.projectPackRunning", {
+          current: String(i + 1),
+          total: String(project.records.length),
+        }),
+        "info",
+      );
+      packAssets.push(
+        await buildLibraryPackAsset(project.records[i], {
+          engine,
+          enginePreset,
+          collisionChoice,
+          animationChoice,
+          audit: true,
+          repair: true,
+          withLod,
+          exportClips,
+          profile: project.profile,
+        }),
+      );
+    }
+    const documents = buildProjectDocuments({
+      project,
+      packAssets,
+      engine,
+      preset: enginePreset,
+    });
+    const pack = buildGamePackFiles({
+      assets: packAssets,
+      engine,
+      project: documents,
+    });
+    downloadBytesAsFile(
+      pack,
+      `ai3d-project-${project.id}-${new Date().toISOString().slice(0, 10)}.zip`,
+    );
+    setGenStatus(
+      t("gen.projectPackReady", { count: String(project.records.length) }),
       "ok",
     );
   } catch {
@@ -4914,6 +5495,16 @@ $("#gen-batch-list").addEventListener("click", (e) => {
   const card = e.target.closest(".gen-batch-card");
   if (card) loadBatchItem(Number(card.dataset.index));
 });
+$("#gen-project-generate").addEventListener("click", generateProject);
+$("#gen-project-pack").addEventListener("click", exportProjectPack);
+$("#gen-project-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-project-record]");
+  if (!btn) return;
+  const record = genState.project?.records.find(
+    (entry) => entry.id === btn.dataset.projectRecord,
+  );
+  if (record) loadGeneratedRecord(record);
+});
 $("#gen-emissive-reset").addEventListener("click", () => {
   $("#gen-emissive").value = "#000000";
 });
@@ -5711,7 +6302,9 @@ $("#gen-library-file").addEventListener("change", (event) => {
 renderGenTypeChips();
 renderGenKitChips();
 renderGenModularSceneChips();
+renderGenProjectTemplates();
 renderAssetLibrary();
+renderGenProject();
 renderVariantGrid();
 renderTextureStrip();
 

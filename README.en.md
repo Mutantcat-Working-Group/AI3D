@@ -99,6 +99,10 @@ each one, and save the ones you like to the asset library.
 - **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
   and town kits place props deterministically from a seed, exportable as a
   whole scene.
+- **Project templates** - prototype starter, fantasy dungeon, village
+  adventure, sci-fi outpost and wilderness survival each expand one brief into
+  categorized asset sets and complete scenes, shipping `project.json` and
+  `import-order.json` with the pack.
 - **Modular kit** - wall, window wall, door wall, corner wall, floor, stairs
   and arch pieces tile exactly on a grid with cell size, run length, height and
   thickness controls.
@@ -252,7 +256,7 @@ From a clone, for the full development environment:
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 403 unit and integration tests
-npm run test:browser # 88 real-Chromium tests
+npm run test:browser # 89 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -477,6 +481,14 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   every nested pack. `ai3d_catalog` also gains a `projects` mode for
   discovering templates, groups, scenes, defaults and aliases before
   generation.
+- **2.27 (done)** - workbench project generation: the generator panel gains a
+  Project strip that expands the prototype starter, fantasy dungeon, village
+  adventure, sci-fi outpost or wilderness survival template into categorized
+  asset sets and complete scene kits under one shared style, material and
+  export setting. Every record lands in the asset library and passes the
+  quality gate, and the export carries `project.json` and `import-order.json`
+  beside the flat `manifest.json`, matching the agent-facing project schema so
+  build scripts and chat read back the same plan.
 
 ### 12. Documentation
 

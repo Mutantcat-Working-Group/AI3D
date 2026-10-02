@@ -45,6 +45,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：用一句�
 - **引擎包**：Unity、Godot、Unreal 三种预设。Godot 包带可直接实例化 `LOD0.glb` 的 `.tscn` 场景；Unity 与 Unreal 目前输出 GLB、材质与导入元数据清单，不伪造引擎原生 `.prefab`／`.meta`／`.uasset`。导出包内含网格、材质（含 albedo／normal／roughness／metalness／AO 独立贴图）、碰撞体、动画清单与 manifest，并汇总整包三角形、顶点、部件与绘制调用预算，命名直接进引擎。
 - **变体批量包**：一批最多 12 个种子变体可以直接打包为一个引擎包，每个变体带缩略图、碰撞体与 4 级 LOD，一次投递一个道具的多个形态。
 - **套装**：地牢、营地、前哨站、村庄、神庙、战场、荒野、城镇等场景套装，按种子确定性摆放多件道具，可整场景导出。
+- **项目模板**：快速原型、奇幻地牢、村庄冒险、科幻前哨、荒野生存五种模板，一次展开成多个分类资产套装与完整场景，导出时附带 `project.json` 交付清单与 `import-order.json` 导入顺序。
 - **模块化组件**：墙、窗墙、门墙、转角墙、地板、楼梯、拱门按网格尺寸精确拼接，支持格距、长度、高度与墙厚参数。
 - **模块化场景**：庭院、塔楼房间、走廊等预设组合这些组件，在同一格子上按种子确定性排布，并支持整套场景导出。
 - **素材清单**：导出 JSON／CSV manifest，记录资产名、类型、标签、面数、顶点数、部件数、绘制调用、命名部位层级与附加点、逐级 LOD 与碰撞体信息。
@@ -115,7 +116,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 npm ci
 npm run samples      # 生成参数化样例模型
 npm test             # 403 unit and integration tests
-npm run test:browser # 88 real-Chromium tests
+npm run test:browser # 89 real-Chromium tests
 ```
 
 `npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。
@@ -200,6 +201,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.24（已完成）** — Agent 生成质量门控：`ai3d_generate` 新增 `quality`（`off`／`audit`／`repair`，默认 `off`），聊天或 MCP 生成单件资产与整套资产时可直接审计或先修复再审计；就绪度得分与失败项写进每件资产的 `summary.json`、引擎包的 `manifest.json`／`game-ready.json` 与套装的 `set.json`，与工作台的 game-ready 导出共用同一套审计与修复实现，场景仍以设计审计作为就绪度。
 - **2.25（已完成）** — 目标平台资产规格：生成区与 `ai3d_generate`（聊天／MCP）新增 `profile`（`balanced` 默认／`mobile`／`desktop`／`vr`），按目标平台调整三角形、绘制调用、贴图分辨率、LOD、骨骼与动画剪辑上限；就绪度块新增 `profile` 与 `budget`，并写进 `summary.json`、`set.json`、引擎包的 `manifest.json` 与 `game-ready.json`，让下游构建机直接读到资产被判定时用的具体预算。
 - **2.26（已完成）** — 游戏资产项目生成：`ai3d_generate` 新增 `kind: "project"` 与 `template`，可把快速原型、奇幻地牢、村庄冒险、科幻前哨或荒野生存模板一次展开成多个分类资产套装、完整场景套装和引擎导入顺序；项目根目录产出 `project.json` 交付清单、`import-order.json` 与 `README.md`，并汇总项目级三角形／顶点／部件／绘制调用和逐资产就绪度，模板的 `quality` 与 `profile` 默认值会贯穿全部嵌套包。`ai3d_catalog` 也新增 `projects` 模式，生成前即可读取每个模板的分组、场景、默认配置与别名。
+- **2.27（已完成）** — 工作台项目生成：生成区新增「项目」，可选快速原型、奇幻地牢、村庄冒险、科幻前哨或荒野生存模板，一次复用同一套风格、材质与导出设置生成分门别类的资产套装与完整场景套装，全部并入资产库并带质量门控；导出时项目包在扁平 `manifest.json` 之外附带 `project.json` 交付清单与 `import-order.json` 导入顺序，与 Agent 端的项目 schema 一致，故事件脚本与聊天可读回同一份计划。
 
 ### 十二、文档
 

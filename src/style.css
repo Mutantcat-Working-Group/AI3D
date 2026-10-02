@@ -2369,6 +2369,115 @@ dialog .muted {
   margin-bottom: 0;
   border-radius: 0;
 }
+/* A project is a set with a plan, so it borrows the set strip but lists the
+   groups vertically: the reader scans a build order, not a grid of takes. */
+.gen-project {
+  padding: 10px 12px;
+  border-top: 1px solid var(--line-1);
+}
+.gen-project-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gen-project-tools label {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.gen-project-tools select,
+.gen-project-tools input {
+  padding: 5px 6px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-project-tools select {
+  max-width: 150px;
+}
+.gen-project-name {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.gen-project-tools button {
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.gen-project-tools button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gen-project-summary:empty {
+  display: none;
+}
+.gen-project-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.gen-project-head small {
+  font-size: 10px;
+  color: var(--text-2);
+}
+.gen-project-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.gen-project-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.gen-project-group {
+  padding: 6px 8px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+}
+.gen-project-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.gen-project-group-head small {
+  font-size: 10px;
+  color: var(--text-2);
+}
+.gen-project-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.gen-project-item {
+  padding: 3px 6px;
+  font-size: 10px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.gen-project-item:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .gen-color-row {
   display: flex;
   gap: 8px;

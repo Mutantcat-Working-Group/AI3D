@@ -650,3 +650,59 @@ test("a typed asset set exports one pack with a set manifest", async ({
   }
   await expect(page.locator("#gen-status")).toContainText(/set\.json/i);
 });
+
+/* A project is the workbench half of the agent-facing project tool: one
+   template expands to asset groups plus scene kits, and the pack carries
+   project.json and import-order.json beside the flat manifest. */
+test("a project template expands and exports a project pack", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator("#gen-project-template").selectOption("prototype-starter");
+  await page.locator("#gen-project-name").fill("Starter Slice");
+  await page.locator("#gen-project-generate").click();
+  await expect(
+    page.locator("#gen-project-list .gen-project-group"),
+  ).toHaveCount(3, { timeout: 40000 });
+  await expect(page.locator("#gen-project-summary")).toContainText(
+    "Starter Slice",
+  );
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.locator("#gen-project-pack").click(),
+  ]);
+  const chunks = [];
+  for await (const chunk of await download.createReadStream())
+    chunks.push(chunk);
+  const files = unzipSync(Buffer.concat(chunks));
+  const project = JSON.parse(
+    Buffer.from(files["project.json"]).toString("utf8"),
+  );
+  const order = JSON.parse(
+    Buffer.from(files["import-order.json"]).toString("utf8"),
+  );
+
+  expect(project.schema).toBe("ai3d-generated-project");
+  expect(project.id).toBe("starter-slice");
+  expect(project.name).toBe("Starter Slice");
+  expect(project.template).toBe("prototype-starter");
+  expect(project.counts.assets).toBe(5);
+  expect(project.counts.scenes).toBe(1);
+  expect(order.schema).toBe("ai3d-project-import-order");
+  expect(order.project).toBe("starter-slice");
+  expect(order.order).toHaveLength(3);
+  for (const group of project.assetGroups) {
+    for (const item of group.files.items) {
+      expect(files[item.model]).toBeDefined();
+      expect(files[item.model].length).toBeGreaterThan(0);
+    }
+  }
+  const scene = project.scenes[0];
+  expect(files[scene.files.design]).toBeDefined();
+  expect(files[scene.files.blueprint]).toBeDefined();
+  await expect(page.locator("#gen-status")).toContainText(/project\.json/i);
+});
