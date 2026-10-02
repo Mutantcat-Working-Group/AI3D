@@ -245,7 +245,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 387 unit and integration tests
+npm test             # 401 unit and integration tests
 npm run test:browser # 88 real-Chromium tests
 ```
 
@@ -454,6 +454,13 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   pack's `manifest.json`/`game-ready.json` and in the set's `set.json`, sharing
   the workbench's game-ready audit and repair path; scenes keep their design
   audit as the readiness source.
+- **2.25 (done)** - target platform asset profiles: the generator and
+  `ai3d_generate` (chat/MCP) take a new `profile` (`balanced` by default,
+  `mobile`, `desktop` or `vr`) that sets the triangle, draw-call, texture,
+  LOD, bone and animation-clip ceilings the readiness gate enforces. The
+  readiness block gains a `profile` and a `budget`, both written to
+  `summary.json`, `set.json`, the pack's `manifest.json` and `game-ready.json`
+  so a build machine reads the exact ceilings the assets were judged against.
 
 ### 12. Documentation
 

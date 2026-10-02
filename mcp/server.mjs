@@ -339,6 +339,12 @@ export const GENERATE_TOOL = {
         description:
           'Game-readiness gate for single assets and sets: "off" (default) skips it, "audit" scores each prop and records issues, "repair" applies the workbench\'s mechanical fixes before scoring. Scenes always report their design audit instead.',
       },
+      profile: {
+        type: "string",
+        enum: ["balanced", "mobile", "desktop", "vr"],
+        description:
+          'Target platform budget (default "balanced"): "mobile", "desktop" and "vr" change the triangle, draw-call, texture, LOD, bone and animation-clip ceilings used by the readiness gate and written into the pack manifests.',
+      },
     },
     required: ["output"],
   },

@@ -114,7 +114,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 392 unit and integration tests
+npm test             # 401 unit and integration tests
 npm run test:browser # 88 real-Chromium tests
 ```
 
@@ -198,6 +198,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.22（已完成）** — Agent 端整套资产生成：`ai3d_generate` 新增 `kind: "set"`，可由聊天或 MCP 用 `items` 列表一次生成最多 32 件资产，共享同一套风格、引擎与导出开关，逐项可覆盖名称、尺寸、单位、颜色与种子；每件资产写入独立目录、重名自动加 `-2` 后缀，顶层产出 `set.json` 清单汇总解析后的设置与三角形／顶点／部件／绘制调用总量，套装种子按 `seed + index` 派生，同一请求可确定性重建。
 - **2.23（已完成）** — 工作台整套资产生成：生成区新增「资产套装」，每行输入一件资产即可复用同一套风格、尺寸单位、材质与导出设置生成最多 32 件模型；重名自动加 `-2` 后缀，套装种子按基础种子逐项派生。导出时整批资产写进一个目标引擎包，并附带与 Agent 端同格式的 `set.json`，逐项记录提示词、解析后的设置、统计和模型文件，供后续脚本与聊天继续引用。
 - **2.24（已完成）** — Agent 生成质量门控：`ai3d_generate` 新增 `quality`（`off`／`audit`／`repair`，默认 `off`），聊天或 MCP 生成单件资产与整套资产时可直接审计或先修复再审计；就绪度得分与失败项写进每件资产的 `summary.json`、引擎包的 `manifest.json`／`game-ready.json` 与套装的 `set.json`，与工作台的 game-ready 导出共用同一套审计与修复实现，场景仍以设计审计作为就绪度。
+- **2.25（已完成）** — 目标平台资产规格：生成区与 `ai3d_generate`（聊天／MCP）新增 `profile`（`balanced` 默认／`mobile`／`desktop`／`vr`），按目标平台调整三角形、绘制调用、贴图分辨率、LOD、骨骼与动画剪辑上限；就绪度块新增 `profile` 与 `budget`，并写进 `summary.json`、`set.json`、引擎包的 `manifest.json` 与 `game-ready.json`，让下游构建机直接读到资产被判定时用的具体预算。
 
 ### 十二、文档
 

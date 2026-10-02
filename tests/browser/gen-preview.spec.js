@@ -274,12 +274,18 @@ test("the readiness audit lists every game check for the generated asset", async
   await expect(panel).toBeVisible();
   await expect(page.locator("#gen-audit-summary strong")).toHaveText(/\d+%/);
   await expect(page.locator("#gen-audit-list .gen-audit-check")).toHaveCount(
-    11,
+    12,
   );
   await expect(
     page.locator("#gen-audit-list .gen-audit-check.pass"),
-  ).toHaveCount(11);
-  await expect(page.locator("#gen-audit-summary")).toContainText("11 Pass");
+  ).toHaveCount(12);
+  await expect(page.locator("#gen-audit-summary")).toContainText("12 Pass");
+  await expect(page.locator("#gen-profile")).toHaveValue("balanced");
+  await expect(page.locator("#gen-audit-summary")).toContainText("Balanced ·");
+
+  await page.locator("#gen-profile").selectOption("mobile");
+  await expect(page.locator("#gen-audit-summary")).toContainText("Mobile ·");
+  await expect(page.locator("#gen-audit-summary")).toContainText("256px maps");
 });
 
 /* A size is a number and a unit, and the unit is what makes it a real scale:

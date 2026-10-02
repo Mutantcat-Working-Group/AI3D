@@ -418,6 +418,12 @@ app.innerHTML = `${SPRITE}
           <option value="top">${T("gen.pivot.top")}</option>
         </select></label>
       </div>
+      <label>${T("gen.profile")} <select id="gen-profile">
+        <option value="balanced">${T("gen.profileBalanced")}</option>
+        <option value="mobile">${T("gen.profileMobile")}</option>
+        <option value="desktop">${T("gen.profileDesktop")}</option>
+        <option value="vr">${T("gen.profileVr")}</option>
+      </select></label>
       <button id="gen-generate" class="primary-button">${icon("gen")}<span>${T("gen.generate")}</span></button>
     </div>
     <div class="gen-preview" id="gen-preview" hidden>
@@ -3242,6 +3248,7 @@ async function exportVariantPack() {
             animationChoice,
             withLod,
             exportClips: $("#gen-export-clips")?.checked ?? false,
+            profile: genProfile(),
           },
         ),
       );
@@ -3536,6 +3543,7 @@ async function exportBatchPack() {
           animationChoice,
           withLod,
           exportClips,
+          profile: genProfile(),
         }),
       );
     }
@@ -3548,6 +3556,7 @@ async function exportBatchPack() {
         style: $("#gen-style")?.value || "lowpoly",
         units: packAssets[0]?.units || "m",
         seed: genState.batchSeed,
+        profile: genProfile(),
       },
     });
     downloadBytesAsFile(
@@ -3721,6 +3730,7 @@ function setGenAuditPanel(show) {
 const GEN_AUDIT_LABEL_KEYS = {
   parts: "gen.auditCheck.parts",
   budget: "gen.auditCheck.budget",
+  texture: "gen.auditCheck.texture",
   collision: "gen.auditCheck.collider",
   lod: "gen.auditCheck.lod",
   animation: "gen.auditCheck.animation",
@@ -3731,6 +3741,17 @@ const GEN_AUDIT_LABEL_KEYS = {
   origin: "gen.auditCheck.origin",
   mesh: "gen.auditCheck.mesh",
 };
+
+const GEN_PROFILE_KEYS = {
+  balanced: "gen.profileBalanced",
+  mobile: "gen.profileMobile",
+  desktop: "gen.profileDesktop",
+  vr: "gen.profileVr",
+};
+
+function genProfile() {
+  return $("#gen-profile")?.value || "balanced";
+}
 
 function renderGenAuditReport(report) {
   const summary = $("#gen-audit-summary");
@@ -3764,6 +3785,22 @@ function renderGenAuditReport(report) {
   fail.textContent = `${report.summary.fail} ${t("gen.auditFail")}`;
   counts.append(pass, warn, fail);
   summary.append(counts);
+
+  const profileId = report.overview?.profile || "balanced";
+  const profileName = t(GEN_PROFILE_KEYS[profileId] ?? profileId);
+  const profileLine = document.createElement("div");
+  profileLine.className = "gen-audit-profile";
+  const budget = report.budget;
+  profileLine.textContent = budget
+    ? t("gen.auditProfile", {
+        profile: profileName,
+        triangles: String(budget.triangles),
+        drawCalls: String(budget.drawCalls),
+        texture: String(budget.textureSize),
+        lod: String(budget.lodLevels),
+      })
+    : t("gen.auditProfilePlain", { profile: profileName });
+  summary.append(profileLine);
 
   const statusLine = report.summary.blocked
     ? document.createElement("div")
@@ -3814,6 +3851,7 @@ function runGenAudit() {
   const report = auditGameAsset(genState.model.threeObject, type, {
     pivot,
     meta: { name: genState.model.name, tags: genState.model.tags },
+    profile: genProfile(),
   });
   renderGenAuditReport(report);
   setGenAuditPanel(true);
@@ -3866,6 +3904,7 @@ function repairGenModel() {
   const result = repairGameAsset(genState.model.threeObject, type, {
     pivot,
     meta: { name: genState.model.name, tags: genState.model.tags },
+    profile: genProfile(),
   });
   genState.originalModel = cloneModelDeep(genState.model.threeObject);
   genState.lods = [];
@@ -4114,6 +4153,7 @@ async function downloadGenPack() {
     texture: genState.model.texture ?? "auto",
     textureStrength: genState.model.textureStrength ?? 0.8,
     textureSize: genState.model.textureSize ?? 256,
+    profile: genProfile(),
   };
   setGenStatus(t("gen.generating"), "info");
   try {
@@ -4816,6 +4856,9 @@ $("#gen-import").addEventListener("click", importGenModel);
 $("#gen-optimize").addEventListener("click", optimizeGenModel);
 $("#gen-audit").addEventListener("click", runGenAudit);
 $("#gen-audit-repair").addEventListener("click", repairGenModel);
+$("#gen-profile")?.addEventListener("change", () => {
+  if (!$("#gen-audit-panel")?.hidden) runGenAudit();
+});
 $("#gen-decimate").addEventListener("click", decimateGenModel);
 $("#gen-lod").addEventListener("click", buildGenLods);
 $("#gen-restore").addEventListener("click", restoreGenModel);
@@ -5357,6 +5400,7 @@ async function buildLibraryPackAsset(asset, options = {}) {
     repair = false,
     withLod = false,
     exportClips = false,
+    profile = "balanced",
   } = options;
   const preset = enginePreset ||
     getEnginePresets().find((p) => p.id === engine) || {
@@ -5369,25 +5413,37 @@ async function buildLibraryPackAsset(asset, options = {}) {
   const auditOptions = {
     pivot: asset.pivot ?? (isScene ? "ground" : "center"),
     meta: { name: asset.name, tags: asset.tags },
+    profile,
   };
   const before =
     audit && !repair ? auditGameAsset(model, type, auditOptions) : null;
   const repairResult = repair
     ? repairGameAsset(model, type, auditOptions)
     : null;
-  const readiness =
-    audit || repairResult
-      ? {
-          score: Math.round((repairResult?.report ?? before).readiness * 100),
-          fail: (repairResult?.report ?? before).summary.fail,
-          fixed: repairResult
-            ? repairResult.fixed.map((record) => record.code)
-            : [],
-          skipped: repairResult
-            ? repairResult.skipped.map((record) => record.detail)
-            : [],
-        }
-      : null;
+  const auditReport = repairResult?.report ?? before;
+  const readiness = auditReport
+    ? {
+        score: Math.round(auditReport.readiness * 100),
+        fail: auditReport.summary.fail,
+        fixed: repairResult
+          ? repairResult.fixed.map((record) => record.code)
+          : [],
+        skipped: repairResult
+          ? repairResult.skipped.map((record) => record.detail)
+          : [],
+        profile,
+        budget: auditReport.budget
+          ? {
+              triangles: auditReport.budget.triangles,
+              drawCalls: auditReport.budget.drawCalls,
+              textureSize: auditReport.budget.textureSize,
+              lodLevels: auditReport.budget.lodLevels,
+              bones: auditReport.budget.bones,
+              clips: auditReport.budget.clips,
+            }
+          : null,
+      }
+    : null;
   const selectedAnimations = selectAnimations(model, animationChoice);
   const animations = selectedAnimations.map((clip) => ({
     name: clip.name,
@@ -5456,6 +5512,7 @@ async function buildLibraryPackAsset(asset, options = {}) {
   return {
     ...asset,
     kind: isScene ? "scene" : asset.kind || "asset",
+    profile,
     scene: isScene
       ? asset.scene || {
           kit: asset.type,
@@ -5503,6 +5560,7 @@ async function exportLibraryPack() {
           animationChoice,
           withLod: $("#gen-export-lod")?.checked ?? false,
           exportClips: $("#gen-export-clips")?.checked ?? false,
+          profile: genProfile(),
         }),
       );
     }
@@ -5559,6 +5617,7 @@ async function exportGameReadyLibraryPack() {
           repair,
           withLod: $("#gen-export-lod")?.checked ?? false,
           exportClips: $("#gen-export-clips")?.checked ?? false,
+          profile: genProfile(),
         }),
       );
     }

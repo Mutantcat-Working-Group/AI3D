@@ -9552,6 +9552,134 @@ const AUDIT_BUDGETS = [
 ];
 const AUDIT_MAX_TRIANGLES = 120000;
 
+/* A pipeline profile is the contract a target platform signs off on. Each one
+   scales the size-banded triangle budget, caps draw calls and texture
+   resolution, and states the LOD, bone and clip budget a shipped asset has to
+   meet. "balanced" keeps the historic numbers so existing packs stay stable;
+   the other profiles trade detail for the budget the platform actually has. */
+export const ASSET_PROFILES = {
+  balanced: {
+    id: "balanced",
+    label: "Balanced",
+    description: "Cross-platform default: desktop packs, console ports and PC.",
+    triangleScale: 1,
+    maxTriangles: AUDIT_MAX_TRIANGLES,
+    maxDrawCalls: 32,
+    maxTextureSize: 512,
+    lodLevels: 2,
+    maxBones: 96,
+    maxClips: 12,
+  },
+  mobile: {
+    id: "mobile",
+    label: "Mobile",
+    description: "Phone and tablet budgets: fewer triangles, calls and bones.",
+    triangleScale: 0.45,
+    maxTriangles: 40000,
+    maxDrawCalls: 10,
+    maxTextureSize: 256,
+    lodLevels: 3,
+    maxBones: 48,
+    maxClips: 8,
+  },
+  desktop: {
+    id: "desktop",
+    label: "Desktop",
+    description: "PC and console flagship budget for hero props and levels.",
+    triangleScale: 1.6,
+    maxTriangles: 200000,
+    maxDrawCalls: 64,
+    maxTextureSize: 512,
+    lodLevels: 2,
+    maxBones: 192,
+    maxClips: 24,
+  },
+  vr: {
+    id: "vr",
+    label: "VR",
+    description: "VR targets run at high frame rates, so budgets stay tight.",
+    triangleScale: 0.7,
+    maxTriangles: 80000,
+    maxDrawCalls: 16,
+    maxTextureSize: 512,
+    lodLevels: 3,
+    maxBones: 72,
+    maxClips: 12,
+  },
+};
+export const DEFAULT_ASSET_PROFILE = "balanced";
+export const ASSET_PROFILE_IDS = Object.keys(ASSET_PROFILES);
+
+function resolveAssetProfile(profile) {
+  if (profile == null || profile === "") {
+    return ASSET_PROFILES[DEFAULT_ASSET_PROFILE];
+  }
+  return ASSET_PROFILES[profile] || null;
+}
+
+/* The triangle line is graduated by the model's longest dimension, because a
+   sword and a town gate cannot share a poly budget; the profile then scales
+   that line and caps it, and adds the draw-call, texture, LOD, bone and clip
+   ceilings the platform enforces. */
+function auditBudgetFor(stats, profile) {
+  const spec =
+    resolveAssetProfile(profile) || ASSET_PROFILES[DEFAULT_ASSET_PROFILE];
+  const longest =
+    stats?.dimensions &&
+    Math.max(
+      stats.dimensions.width,
+      stats.dimensions.height,
+      stats.dimensions.depth,
+    );
+  let base = 1800;
+  if (Number.isFinite(longest)) {
+    base = AUDIT_MAX_TRIANGLES;
+    for (const entry of AUDIT_BUDGETS) {
+      if (longest <= entry.max) {
+        base = entry.maxTriangles;
+        break;
+      }
+    }
+  }
+  const triangles = Math.max(
+    100,
+    Math.min(spec.maxTriangles, Math.round(base * spec.triangleScale)),
+  );
+  return {
+    profile: spec.id,
+    label: spec.label,
+    triangles,
+    drawCalls: spec.maxDrawCalls,
+    textureSize: spec.maxTextureSize,
+    lodLevels: spec.lodLevels,
+    bones: spec.maxBones,
+    clips: spec.maxClips,
+  };
+}
+
+/* Procedural maps are DataTextures and imported GLBs carry image or canvas
+   sources, so the size is read from whichever field the source exposes. */
+function texturePixelSize(texture) {
+  const image = texture?.image;
+  if (!image) return 0;
+  const width = Number(
+    image.width || image.naturalWidth || image.videoWidth || 0,
+  );
+  const height = Number(
+    image.height || image.naturalHeight || image.videoHeight || 0,
+  );
+  return Math.max(width || 0, height || 0);
+}
+
+const AUDIT_TEXTURE_SLOTS = [
+  "map",
+  "normalMap",
+  "roughnessMap",
+  "metalnessMap",
+  "aoMap",
+  "emissiveMap",
+];
+
 /* Most props ride centered on their origin, while playable and architectural
    pieces want to sit on the floor at y=0. The list is intentionally type
    driven, so an imported sword does not get penalised for a centered origin. */
@@ -9735,6 +9863,7 @@ function auditScoreFromStatus(score) {
  * @param {string} type - Asset type key (or "scene" for composed scenes)
  * @param {object} [options] - Audit options
  * @param {string} [options.pivot] - "center" or "ground"
+ * @param {string} [options.profile] - Target profile: balanced/mobile/desktop/vr
  * @param {Array} [options.lodLevels] - Precomputed LOD level descriptors
  * @param {string[]} [options.partNames] - Expected part names when a type is
  *   not in ASSET_TYPES (used by composed scenes)
@@ -9820,18 +9949,11 @@ export function auditGameAsset(object, type, options = {}) {
       stats.dimensions.height,
       stats.dimensions.depth,
     );
-  let budget = AUDIT_BUDGETS[0]?.maxTriangles || 1800;
-  if (Number.isFinite(longest)) {
-    for (const entry of AUDIT_BUDGETS) {
-      if (longest <= entry.max) {
-        budget = entry.maxTriangles;
-        break;
-      }
-      budget = AUDIT_MAX_TRIANGLES;
-    }
-  }
-  const ratio = stats.triangles / budget;
-  const budgetScore = ratio <= 1 ? 1 : ratio <= 3 ? 1 - (ratio - 1) / 3 : 0;
+  const budget = auditBudgetFor(stats, options.profile);
+  const ratio = stats.triangles / budget.triangles;
+  const drawRatio = stats.drawCalls / budget.drawCalls;
+  const over = Math.max(ratio, drawRatio);
+  const budgetScore = over <= 1 ? 1 : over <= 3 ? 1 - (over - 1) / 3 : 0;
   checks.push({
     id: "budget",
     label: "budget",
@@ -9839,8 +9961,8 @@ export function auditGameAsset(object, type, options = {}) {
     score: clampScore(budgetScore),
     status: auditScoreFromStatus(budgetScore),
     details: [
-      `${stats.triangles} triangles / ${budget} budget`,
-      `${stats.drawCalls} draw calls`,
+      `${budget.label} budget: ${stats.triangles} / ${budget.triangles} triangles`,
+      `${stats.drawCalls} / ${budget.drawCalls} draw calls`,
       `longest dimension ${Math.round((longest || 0) * 100) / 100} m`,
     ],
   });
@@ -9899,9 +10021,11 @@ export function auditGameAsset(object, type, options = {}) {
       ? 1 -
         lodTriangleCounts[lodTriangleCounts.length - 1] / lodTriangleCounts[0]
       : 0;
-  const meaningfulDrop = lodTriangleCounts.length >= 2 && lastReduction >= 0.15;
+  const lodTarget = budget.lodLevels;
+  const lodCountEnough = lodTriangleCounts.length >= lodTarget;
+  const meaningfulDrop = lodCountEnough && lastReduction >= 0.15;
   const skinKept =
-    lodTriangleCounts.length >= 2 &&
+    lodCountEnough &&
     (generatedLods || lodLevels).slice(1).every((level) => {
       let hasSkin = true;
       level.mesh?.traverse((child) => {
@@ -9915,16 +10039,16 @@ export function auditGameAsset(object, type, options = {}) {
       return hasSkin;
     });
   const lodScore = riggable
-    ? lodTriangleCounts.length >= 2 && meaningfulDrop && skinKept
+    ? lodCountEnough && meaningfulDrop && skinKept
       ? 1
-      : lodTriangleCounts.length >= 2 && meaningfulDrop
+      : lodCountEnough && meaningfulDrop
         ? 0.45
-        : lodTriangleCounts.length >= 2
+        : lodCountEnough
           ? 0.3
           : 0.25
-    : lodTriangleCounts.length >= 2 && meaningfulDrop
+    : lodCountEnough && meaningfulDrop
       ? 1
-      : lodTriangleCounts.length >= 2
+      : lodCountEnough
         ? 0.6
         : 0.3;
   checks.push({
@@ -9934,12 +10058,12 @@ export function auditGameAsset(object, type, options = {}) {
     score: lodScore,
     status: auditScoreFromStatus(lodScore),
     details: [
-      `${lodTriangleCounts.length} levels`,
+      `${lodTriangleCounts.length} levels / ${lodTarget} required`,
       lodTriangleCounts.length
         ? lodTriangleCounts.map((v, i) => `LOD${i} ${v}`).join(", ")
         : "none",
       ...(riggable && !skinKept ? ["skinned LOD keeps skin attributes"] : []),
-      ...(lodTriangleCounts.length >= 2 && !meaningfulDrop
+      ...(lodCountEnough && !meaningfulDrop
         ? ["end LOD reduction under 15%"]
         : []),
     ],
@@ -9959,6 +10083,8 @@ export function auditGameAsset(object, type, options = {}) {
   } else {
     animationScore = matchedClips.length >= 1 ? 1 : 0.4;
   }
+  const clipOverBudget = availableClips.length > budget.clips;
+  if (clipOverBudget) animationScore = Math.min(animationScore, 0.6);
   animationScore = clampScore(animationScore);
   checks.push({
     id: "animation",
@@ -9970,6 +10096,7 @@ export function auditGameAsset(object, type, options = {}) {
       `${matchedClips.length}/${expectedClips?.length || 0} expected clips`,
       expectedClips ? `expected ${expectedClips.join(", ")}` : "static asset",
       availableClips.length ? `found ${availableClips.join(", ")}` : "",
+      `${availableClips.length} / ${budget.clips} clip budget`,
     ].filter(Boolean),
   });
 
@@ -9997,8 +10124,9 @@ export function auditGameAsset(object, type, options = {}) {
         (entry) => entry.joints && entry.weights && entry.bound,
       )) ||
     skinned.length === 0;
+  const boneOverBudget = riggable && boneCount > budget.bones;
   const rigScore = riggable
-    ? skeletonGroup && boneCount >= 3 && allSkinned
+    ? skeletonGroup && boneCount >= 3 && allSkinned && !boneOverBudget
       ? 1
       : skeletonGroup
         ? 0.5
@@ -10012,11 +10140,12 @@ export function auditGameAsset(object, type, options = {}) {
     status: auditScoreFromStatus(rigScore),
     details: [
       `${skinCounts.length} skinned meshes`,
-      `${boneCount} bones`,
+      `${boneCount} bones / ${budget.bones} budget`,
       ...(riggable && !allSkinned
         ? ["some skinned meshes miss joints/weights"]
         : []),
       ...(riggable && !skeletonGroup ? ["no skeleton group"] : []),
+      ...(boneOverBudget ? ["skeleton over the profile bone budget"] : []),
     ],
   });
 
@@ -10075,6 +10204,38 @@ export function auditGameAsset(object, type, options = {}) {
     score: clampScore(uvCoverage),
     status: auditScoreFromStatus(uvCoverage),
     details: [`${uvMeshes}/${meshes.length} meshes with UVs`],
+  });
+
+  const textureSizes = [];
+  materialsList.forEach((mat) => {
+    for (const slot of AUDIT_TEXTURE_SLOTS) {
+      const size = texturePixelSize(mat?.[slot]);
+      if (size) textureSizes.push(size);
+    }
+  });
+  const maxTexture = textureSizes.length ? Math.max(...textureSizes) : 0;
+  const textureRatio = maxTexture ? maxTexture / budget.textureSize : 0;
+  const textureScore = !maxTexture
+    ? 1
+    : textureRatio <= 1
+      ? 1
+      : textureRatio <= 2
+        ? 0.5
+        : 0.15;
+  checks.push({
+    id: "texture",
+    label: "texture",
+    category: "texture",
+    score: clampScore(textureScore),
+    status: auditScoreFromStatus(textureScore),
+    details: [
+      maxTexture
+        ? `${textureSizes.length} maps, largest ${maxTexture}px / ${budget.textureSize}px budget`
+        : "no texture maps",
+      ...(maxTexture > budget.textureSize
+        ? [`${budget.label} caps maps at ${budget.textureSize}px`]
+        : []),
+    ],
   });
 
   const dims = stats.dimensions || {};
@@ -10155,7 +10316,10 @@ export function auditGameAsset(object, type, options = {}) {
         (def ? def.name : type === "scene" ? "Composed scene" : type),
       tags: options.meta?.tags || getAssetTags(type),
       pivot: options.pivot || (groundPivot ? "ground" : "center"),
+      profile: budget.profile,
+      profileLabel: budget.label,
     },
+    budget,
     stats,
     checks,
     summary: {
@@ -10176,26 +10340,12 @@ export function auditGameAsset(object, type, options = {}) {
    pretending geometry can conjure them. */
 const REPAIR_SKIP_PREFIX = "regenerate-asset";
 
-function repairBudgetFor(object) {
+function repairBudgetFor(object, profile) {
   const stats = getAssetStats(object);
-  const longest =
-    stats.dimensions &&
-    Math.max(
-      stats.dimensions.width,
-      stats.dimensions.height,
-      stats.dimensions.depth,
-    );
-  let budget = AUDIT_BUDGETS[0]?.maxTriangles || 1800;
-  if (Number.isFinite(longest)) {
-    for (const entry of AUDIT_BUDGETS) {
-      if (longest <= entry.max) {
-        budget = entry.maxTriangles;
-        break;
-      }
-      budget = AUDIT_MAX_TRIANGLES;
-    }
-  }
-  return { budget, triangles: stats.triangles };
+  return {
+    budget: auditBudgetFor(stats, profile).triangles,
+    triangles: stats.triangles,
+  };
 }
 
 function ensureRepairNormals(mesh) {
@@ -10297,7 +10447,7 @@ function collectRepairRecords(object, type, report, options = {}) {
   }
 
   if (failed.has("budget")) {
-    const { budget, triangles } = repairBudgetFor(object);
+    const { budget, triangles } = repairBudgetFor(object, options.profile);
     const target = Math.max(100, Math.floor(budget * 0.8));
     if (triangles > target) {
       const thresholds = [
@@ -11815,7 +11965,7 @@ export function auditSceneDesign(design, options = {}) {
 function normaliseReadiness(readiness) {
   if (!readiness || typeof readiness !== "object") return null;
   const fail = Number(readiness.fail) || 0;
-  return {
+  const block = {
     score: Number.isFinite(readiness.score)
       ? Math.max(0, Math.min(100, Math.round(readiness.score)))
       : null,
@@ -11824,6 +11974,31 @@ function normaliseReadiness(readiness) {
     skipped: Array.isArray(readiness.skipped)
       ? readiness.skipped.map(String)
       : [],
+  };
+  if (typeof readiness.profile === "string" && readiness.profile) {
+    block.profile = readiness.profile;
+  }
+  if (readiness.budget && typeof readiness.budget === "object") {
+    block.budget = normaliseBudgetBlock(readiness.budget);
+  }
+  return block;
+}
+
+/* A profile carries its budget into every manifest the pack writes, so a
+   downstream build machine can see which numbers the assets were judged
+   against instead of having to re-derive them from the profile name. */
+function normaliseBudgetBlock(budget) {
+  const pick = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  return {
+    triangles: pick(budget.triangles),
+    drawCalls: pick(budget.drawCalls),
+    textureSize: pick(budget.textureSize),
+    lodLevels: pick(budget.lodLevels),
+    bones: pick(budget.bones),
+    clips: pick(budget.clips),
   };
 }
 
@@ -11834,13 +12009,29 @@ function readinessFromSceneDesign(record) {
   const audit = record?.scene?.designAudit;
   if (!audit || typeof audit !== "object") return null;
   const fail = Number(audit.summary?.fail) || 0;
+  const score = Number.isFinite(audit.readiness)
+    ? Math.max(0, Math.min(100, Math.round(audit.readiness * 100)))
+    : null;
+  // A scene only reports a budget once it declares a target profile, so packs
+  // made before profiles existed keep their original readiness shape.
+  if (!record?.profile) {
+    return { score, fail, fixed: [], skipped: [] };
+  }
+  const budget = auditBudgetFor(record.stats || {}, record.profile);
   return {
-    score: Number.isFinite(audit.readiness)
-      ? Math.max(0, Math.min(100, Math.round(audit.readiness * 100)))
-      : null,
+    score,
     fail,
     fixed: [],
     skipped: [],
+    profile: record.profile,
+    budget: {
+      triangles: budget.triangles,
+      drawCalls: budget.drawCalls,
+      textureSize: budget.textureSize,
+      lodLevels: budget.lodLevels,
+      bones: budget.bones,
+      clips: budget.clips,
+    },
   };
 }
 
@@ -11862,7 +12053,7 @@ export function summariseGameReadiness(records = []) {
         : readiness.fixed.length > 0
           ? "repaired"
           : "ready";
-    return {
+    const row = {
       id: record?.id || record?.type || "asset",
       name: record?.name || record?.type || "asset",
       type: record?.type || null,
@@ -11873,8 +12064,21 @@ export function summariseGameReadiness(records = []) {
       fixed: readiness?.fixed ?? [],
       skipped: readiness?.skipped ?? [],
     };
+    const profile = readiness?.profile ?? record?.profile ?? null;
+    if (profile) row.profile = profile;
+    if (readiness?.budget) row.budget = readiness.budget;
+    return row;
   });
-  return {
+  const profiles = [...new Set(rows.map((row) => row.profile).filter(Boolean))];
+  const budgets = rows.map((row) => row.budget).filter(Boolean);
+  const sharedBudget =
+    budgets.length > 0 &&
+    budgets.every(
+      (entry) => JSON.stringify(entry) === JSON.stringify(budgets[0]),
+    )
+      ? budgets[0]
+      : null;
+  const summary = {
     count: rows.length,
     ready: rows.filter((row) => row.status === "ready").length,
     repaired: rows.filter((row) => row.status === "repaired").length,
@@ -11882,6 +12086,9 @@ export function summariseGameReadiness(records = []) {
     notAudited: rows.filter((row) => row.status === "not-audited").length,
     rows,
   };
+  if (profiles.length === 1) summary.profile = profiles[0];
+  if (sharedBudget) summary.budget = sharedBudget;
+  return summary;
 }
 
 /**
@@ -11902,6 +12109,7 @@ export function buildSetManifest({
   seed = null,
   items = [],
   quality = "off",
+  profile = null,
   exportedAt = null,
 }) {
   const slug = assetSlug(id || name || "asset-set");
@@ -11926,6 +12134,7 @@ export function buildSetManifest({
     engine,
     seed: seed ?? null,
     quality,
+    profile: profile || null,
     count: items.length,
     totals,
     items,
@@ -11986,6 +12195,7 @@ export function buildGamePackFiles({
       style: asset.style ?? "lowpoly",
       color: asset.color || null,
       material: asset.material || null,
+      ...(asset.profile ? { profile: asset.profile } : {}),
       texture: asset.texture || null,
       textureStrength: asset.textureStrength ?? 0.8,
       textureSize: asset.textureSize ?? 256,
@@ -12041,6 +12251,12 @@ export function buildGamePackFiles({
   )
     ? summariseGameReadiness(records)
     : null;
+  const recordProfile =
+    records.find(
+      (record) => typeof record.profile === "string" && record.profile,
+    )?.profile ?? null;
+  const packProfile =
+    set?.profile ?? readinessSummary?.profile ?? recordProfile;
 
   const files = {};
   const encoder = new TextEncoder();
@@ -12057,6 +12273,7 @@ export function buildGamePackFiles({
           scale: preset.scale,
           units: preset.units,
         },
+        profile: packProfile,
         count: records.length,
         readiness: readinessSummary
           ? {
@@ -12065,6 +12282,12 @@ export function buildGamePackFiles({
               repaired: readinessSummary.repaired,
               issues: readinessSummary.issues,
               notAudited: readinessSummary.notAudited,
+              ...(readinessSummary.profile
+                ? { profile: readinessSummary.profile }
+                : {}),
+              ...(readinessSummary.budget
+                ? { budget: readinessSummary.budget }
+                : {}),
             }
           : undefined,
         budget: records.reduce(
@@ -12097,6 +12320,7 @@ export function buildGamePackFiles({
           engine: preset.id,
           seed: set.seed ?? null,
           exportedAt: set.exportedAt ?? exportedAt,
+          profile: packProfile,
           items: set.items
             ? set.items
             : records.map((record) => ({

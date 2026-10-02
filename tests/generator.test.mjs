@@ -46,6 +46,9 @@ import {
   selectAnimations,
   getAssetTextureInfo,
   isModularType,
+  ASSET_PROFILES,
+  ASSET_PROFILE_IDS,
+  DEFAULT_ASSET_PROFILE,
 } from "../src/generator.js";
 import { createProceduralTextures } from "../src/procedural-textures.js";
 import { unzipSync } from "fflate";
@@ -2323,6 +2326,47 @@ test("game packs carry a readiness summary and game-ready.json", () => {
   );
 });
 
+test("game packs carry the target profile and its budget into both manifests", () => {
+  const budget = {
+    triangles: 4000,
+    drawCalls: 10,
+    textureSize: 256,
+    lodLevels: 3,
+    bones: 48,
+    clips: 8,
+  };
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({
+        profile: "mobile",
+        readiness: {
+          score: 90,
+          fail: 0,
+          fixed: [],
+          skipped: [],
+          profile: "mobile",
+          budget,
+        },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const gameReady = JSON.parse(
+    new TextDecoder().decode(files["game-ready.json"]),
+  );
+
+  assert.equal(manifest.profile, "mobile");
+  assert.equal(manifest.assets[0].profile, "mobile");
+  assert.equal(manifest.readiness.profile, "mobile");
+  assert.deepEqual(manifest.readiness.budget, budget);
+  assert.equal(gameReady.profile, "mobile");
+  assert.equal(gameReady.rows[0].profile, "mobile");
+  assert.deepEqual(gameReady.rows[0].budget, budget);
+});
+
 test("summariseGameReadiness tallies ready, repaired and issue records", () => {
   const summary = summariseGameReadiness([
     {
@@ -2464,6 +2508,47 @@ test("buildSetManifest carries quality and per-item readiness", () => {
     skipped: ["rig"],
   });
   assert.equal(manifest.items[2].readiness, undefined);
+});
+
+test("buildSetManifest records the target profile and shared budget", () => {
+  const budget = {
+    triangles: 4000,
+    drawCalls: 10,
+    textureSize: 256,
+    lodLevels: 3,
+    bones: 48,
+    clips: 8,
+  };
+  const manifest = buildSetManifest({
+    id: "mobile-set",
+    name: "Mobile Set",
+    style: "lowpoly",
+    units: "m",
+    engine: "unity",
+    seed: 7,
+    profile: "mobile",
+    items: [
+      {
+        id: "tree",
+        name: "Tree",
+        type: "tree",
+        stats: { triangles: 10, vertices: 8, parts: 1, drawCalls: 1 },
+        readiness: {
+          score: 100,
+          fail: 0,
+          fixed: [],
+          skipped: [],
+          profile: "mobile",
+          budget,
+        },
+      },
+    ],
+  });
+
+  assert.equal(manifest.profile, "mobile");
+  assert.equal(manifest.readiness.profile, "mobile");
+  assert.deepEqual(manifest.readiness.budget, budget);
+  assert.equal(manifest.items[0].readiness.profile, "mobile");
 });
 
 test("scene-only packs still emit a readiness summary and game-ready.json", () => {
@@ -2782,6 +2867,7 @@ test("auditGameAsset reports game readiness for a prop", () => {
     "rig",
     "material",
     "uv",
+    "texture",
     "dimensions",
     "origin",
     "mesh",
@@ -2834,6 +2920,61 @@ test("auditGameAsset blocks when there is no object", () => {
   assert.equal(report.summary.blocked, true);
   assert.equal(report.summary.fail, 1);
   assert.equal(report.readiness, 0);
+});
+
+test("asset profiles expose the shipped platform budgets", () => {
+  assert.deepEqual(ASSET_PROFILE_IDS, ["balanced", "mobile", "desktop", "vr"]);
+  assert.equal(DEFAULT_ASSET_PROFILE, "balanced");
+  assert.equal(ASSET_PROFILES[DEFAULT_ASSET_PROFILE].maxTriangles, 120000);
+  assert.equal(ASSET_PROFILES.mobile.maxTextureSize, 256);
+  assert.equal(ASSET_PROFILES.desktop.maxBones, 192);
+});
+
+test("auditGameAsset judges one model against each profile budget", () => {
+  const model = generateAsset("sword", { size: 0.12, seed: 7, segments: 24 });
+  const mobile = auditGameAsset(model, "sword", { profile: "mobile" });
+  const balanced = auditGameAsset(model, "sword", { profile: "balanced" });
+  const desktop = auditGameAsset(model, "sword", { profile: "desktop" });
+
+  assert.equal(mobile.overview.profile, "mobile");
+  assert.equal(desktop.overview.profile, "desktop");
+  assert.equal(mobile.budget.textureSize, 256);
+  assert.equal(desktop.budget.textureSize, 512);
+  assert.ok(
+    mobile.budget.triangles < balanced.budget.triangles,
+    "mobile trims the triangle budget below balanced",
+  );
+  assert.ok(
+    balanced.budget.triangles < desktop.budget.triangles,
+    "desktop raises the triangle budget above balanced",
+  );
+  const budgetCheck = mobile.checks.find((check) => check.id === "budget");
+  assert.match(budgetCheck.details[0], /Mobile budget/);
+});
+
+test("auditGameAsset defaults to balanced and ignores unknown profile names", () => {
+  const model = generateAsset("crate", { size: 0.6, seed: 3 });
+  const defaulted = auditGameAsset(model, "crate");
+  const unknown = auditGameAsset(model, "crate", { profile: "nope" });
+  assert.equal(defaulted.overview.profile, "balanced");
+  assert.equal(unknown.overview.profile, "balanced");
+  assert.deepEqual(unknown.budget, defaulted.budget);
+});
+
+test("repairGameAsset trims triangles to the chosen profile budget", () => {
+  const model = generateAsset("sword", { size: 0.12, seed: 7, segments: 32 });
+  const beforeTriangles = countTriangles(model);
+  const result = repairGameAsset(model, "sword", {
+    pivot: "center",
+    profile: "mobile",
+  });
+  assert.equal(result.report.overview.profile, "mobile");
+  assert.ok(findRepairCode(result, "budget"), "budget repair is reported");
+  assert.ok(countTriangles(model) < beforeTriangles);
+  const budgetCheck = result.report.checks.find(
+    (check) => check.id === "budget",
+  );
+  assert.ok(budgetCheck.status !== "fail");
 });
 
 test("generateLOD keeps skin attributes on rigged levels", () => {

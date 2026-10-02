@@ -76,8 +76,8 @@ the workspace.
 Inputs: `prompt` or `type` (at least one) and `output` (required), plus
 optional `kind` (`asset` by default, `scene` or `set`), `style`, `color`,
 `size`, `units`, `seed`, `engine` (unity/godot/unreal), `withLod`, `anchors`,
-`exportClips`, `collision`, `animation`, `name` and `quality`. A prompt
-resolves type, style, color, size and units from the same six-language
+`exportClips`, `collision`, `animation`, `name`, `quality` and `profile`. A
+prompt resolves type, style, color, size and units from the same six-language
 catalogue the UI uses; an explicit `type` wins over whatever the prompt
 resolves.
 
@@ -121,6 +121,16 @@ scores the repaired asset. The readiness block is written to the asset's
 set, into each item and the top-level `readiness` summary in `set.json`.
 Scenes always report their design audit as readiness, so `quality` only changes
 the reported mode there.
+
+`profile` names the target platform budget the readiness gate judges against:
+`balanced` (default), `mobile`, `desktop` or `vr`. Each profile caps triangles
+(scaled from the size band), draw calls, texture resolution, LOD levels, bones
+and animation clips, and the chosen numbers travel with the result. The
+readiness block gains a `profile` field and a `budget` block, and the same pair
+is written to `summary.json`, `set.json`, the pack `manifest.json` and
+`game-ready.json`, so a build machine reads the exact ceilings the assets were
+scored against. Scenes record the profile in the same places and use it when
+they report their readiness budget.
 
 The result writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up

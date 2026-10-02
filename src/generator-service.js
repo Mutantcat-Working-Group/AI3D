@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { unzipSync } from "fflate";
 import {
+  ASSET_PROFILE_IDS,
   auditSceneDesign,
   auditGameAsset,
   buildSetManifest,
@@ -46,6 +47,7 @@ const COLLISION_CHOICES = new Set([
   "mesh",
 ]);
 const QUALITY_MODES = new Set(["off", "audit", "repair"]);
+const ASSET_PROFILES = new Set(ASSET_PROFILE_IDS);
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const TYPE_IDS = new Set(getAssetTypes());
 const SCENE_KITS = getGameKits();
@@ -87,9 +89,26 @@ function requireHexColor(value) {
 /* Run the same audit/repair pair the workbench's game-ready export uses, so an
  * agent-generated asset reports the readiness numbers a human would see. The
  * returned block is exactly the pack readiness shape the manifest normalises. */
-function qualityGate(model, type, { mode, pivot = "center", meta } = {}) {
+function readinessBudgetFor(report) {
+  const budget = report?.budget;
+  if (!budget) return null;
+  return {
+    triangles: budget.triangles,
+    drawCalls: budget.drawCalls,
+    textureSize: budget.textureSize,
+    lodLevels: budget.lodLevels,
+    bones: budget.bones,
+    clips: budget.clips,
+  };
+}
+
+function qualityGate(
+  model,
+  type,
+  { mode, pivot = "center", meta, profile = "balanced" } = {},
+) {
   if (mode === "off") return null;
-  const options = { pivot, meta };
+  const options = { pivot, meta, profile };
   if (mode === "repair") {
     const repaired = repairGameAsset(model, type, options);
     return {
@@ -97,6 +116,8 @@ function qualityGate(model, type, { mode, pivot = "center", meta } = {}) {
       fail: repaired.report.summary.fail,
       fixed: repaired.fixed.map((record) => record.code),
       skipped: repaired.skipped.map((record) => record.detail),
+      profile: repaired.report.overview.profile,
+      budget: readinessBudgetFor(repaired.report),
     };
   }
   const report = auditGameAsset(model, type, options);
@@ -105,6 +126,8 @@ function qualityGate(model, type, { mode, pivot = "center", meta } = {}) {
     fail: report.summary.fail,
     fixed: [],
     skipped: [],
+    profile: report.overview.profile,
+    budget: readinessBudgetFor(report),
   };
 }
 
@@ -511,6 +534,7 @@ export async function generateSceneToPack({
   props = null,
   design = null,
   quality = "off",
+  profile = "balanced",
 } = {}) {
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");
@@ -541,6 +565,12 @@ export async function generateSceneToPack({
     QUALITY_MODES,
     "quality",
     "off",
+  );
+  const resolvedProfile = requireChoice(
+    profile,
+    ASSET_PROFILES,
+    "profile",
+    "balanced",
   );
 
   const scene = composeGameKit(kit, {
@@ -580,6 +610,7 @@ export async function generateSceneToPack({
     textureStrength: resolvedStrength,
     textureSize: resolvedTextureSize,
     quality: resolvedQuality,
+    profile: resolvedProfile,
     tags: ["scene", kit],
     scene: {
       quality: scene.userData.theme?.quality ?? 1,
@@ -632,6 +663,7 @@ export async function generateSceneToPack({
     seed: resolvedSeed,
     engine: resolvedEngine,
     quality: resolvedQuality,
+    profile: resolvedProfile,
     props: placedProps.map((prop) => prop.type),
     customLayout: resolvedProps != null,
     design: sceneDesign,
@@ -656,6 +688,7 @@ export async function generateSceneToPack({
       seed: resolvedSeed,
       engine: resolvedEngine,
       quality: resolvedQuality,
+      profile: resolvedProfile,
       stats,
       designAudit: audit,
       readiness,
@@ -689,6 +722,7 @@ export async function generateSetToPack({
   textureStrength = 0.8,
   textureSize = 256,
   quality = "off",
+  profile = "balanced",
 } = {}) {
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");
@@ -699,6 +733,12 @@ export async function generateSetToPack({
     QUALITY_MODES,
     "quality",
     "off",
+  );
+  const resolvedProfile = requireChoice(
+    profile,
+    ASSET_PROFILES,
+    "profile",
+    "balanced",
   );
   const setId = assetSlug(name || "asset-set");
   const baseOutput =
@@ -745,6 +785,7 @@ export async function generateSetToPack({
       textureStrength,
       textureSize,
       quality: resolvedQuality,
+      profile: resolvedProfile,
     });
     results.push({
       id: result.asset.id,
@@ -757,6 +798,7 @@ export async function generateSetToPack({
       seed: result.asset.seed,
       stats: result.asset.stats,
       readiness: result.readiness,
+      profile: resolvedProfile,
       prompt: spec.prompt || null,
       files: {
         packZip: relative(result.files.packZip),
@@ -779,6 +821,7 @@ export async function generateSetToPack({
     seed: baseSeed,
     items: results,
     quality: resolvedQuality,
+    profile: resolvedProfile,
   });
   const { totals } = manifest;
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -795,6 +838,7 @@ export async function generateSetToPack({
       seed: baseSeed,
       totals,
       quality: resolvedQuality,
+      profile: resolvedProfile,
       readiness: manifest.readiness ?? null,
     },
     items: results,
@@ -830,6 +874,7 @@ export async function generateAssetToPack({
   design = null,
   items = null,
   quality = "off",
+  profile = "balanced",
 } = {}) {
   if (kind === "scene")
     return generateSceneToPack({
@@ -852,6 +897,7 @@ export async function generateAssetToPack({
       props,
       design,
       quality,
+      profile,
     });
   if (kind === "set")
     return generateSetToPack({
@@ -873,6 +919,7 @@ export async function generateAssetToPack({
       textureStrength,
       textureSize,
       quality,
+      profile,
     });
   if (kind !== "asset")
     throw new GenerationError(
@@ -930,6 +977,12 @@ export async function generateAssetToPack({
     "quality",
     "off",
   );
+  const resolvedProfile = requireChoice(
+    profile,
+    ASSET_PROFILES,
+    "profile",
+    "balanced",
+  );
   const resolvedTextureSize = requireChoice(
     textureSize,
     TEXTURE_SIZES,
@@ -956,6 +1009,7 @@ export async function generateAssetToPack({
     mode: resolvedQuality,
     pivot: "center",
     meta: { name: name || resolvedType },
+    profile: resolvedProfile,
   });
 
   const id = assetSlug(name || resolvedType);
@@ -977,6 +1031,7 @@ export async function generateAssetToPack({
     textureStrength: resolvedStrength,
     textureSize: resolvedTextureSize,
     quality: resolvedQuality,
+    profile: resolvedProfile,
     ...(readiness ? { readiness } : {}),
   };
   const resolvedEngine = requireChoice(engine, ENGINE_IDS, "engine", "unity");
@@ -1026,6 +1081,7 @@ export async function generateAssetToPack({
     collision: resolvedCollision,
     animation,
     quality: resolvedQuality,
+    profile: resolvedProfile,
     stats,
     dimensions: model.userData?.dimensions || null,
     prompt: prompt || null,
@@ -1047,6 +1103,7 @@ export async function generateAssetToPack({
       seed: resolvedSeed,
       engine: resolvedEngine,
       quality: resolvedQuality,
+      profile: resolvedProfile,
       stats,
       readiness,
     },

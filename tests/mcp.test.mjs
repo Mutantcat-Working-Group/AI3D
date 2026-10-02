@@ -100,6 +100,12 @@ test("the tool says up front that nothing here will announce a submission", asyn
     GENERATE_TOOL.inputSchema.properties.design.properties.directives.items,
     { type: "string" },
   );
+  assert.deepEqual(GENERATE_TOOL.inputSchema.properties.profile.enum, [
+    "balanced",
+    "mobile",
+    "desktop",
+    "vr",
+  ]);
 });
 
 test("the catalog tool reports types, kits and the scene design contract", async (t) => {
@@ -578,6 +584,38 @@ test("the generate tool can gate one asset on game readiness", async (t) => {
   assert.equal(gameReady.rows[0].id, "audited-sword");
 });
 
+test("the generate tool records the target profile in the pack manifests", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 32,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets/mobile",
+        type: "sword",
+        seed: 5,
+        name: "mobile-sword",
+        quality: "audit",
+        profile: "mobile",
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.profile, "mobile");
+  assert.equal(result.readiness.profile, "mobile");
+  assert.equal(result.readiness.budget.textureSize, 256);
+
+  const summary = JSON.parse(fs.readFileSync(result.files.summary, "utf8"));
+  assert.equal(summary.profile, "mobile");
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(result.files.packDir, "manifest.json"), "utf8"),
+  );
+  assert.equal(manifest.profile, "mobile");
+  assert.equal(manifest.readiness.profile, "mobile");
+  assert.equal(manifest.assets[0].readiness.budget.textureSize, 256);
+});
+
 test("the generate tool repairs an audited asset before reporting readiness", async (t) => {
   const dir = workspace(t);
   const answer = await handlerFor(dir)({
@@ -642,6 +680,43 @@ test("the generate tool carries quality readiness through a set", async (t) => {
   );
 });
 
+test("the generate tool carries the profile through a set", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 33,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "set",
+        output: "generated-assets",
+        name: "desktop-pack",
+        seed: 7,
+        quality: "audit",
+        profile: "desktop",
+        items: [{ type: "tree" }, { type: "crate" }],
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.set.profile, "desktop");
+  assert.equal(result.set.readiness.profile, "desktop");
+  assert.equal(
+    result.items.every((item) => item.profile === "desktop"),
+    true,
+  );
+
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(dir, result.files.manifest), "utf8"),
+  );
+  assert.equal(manifest.profile, "desktop");
+  assert.equal(manifest.readiness.profile, "desktop");
+  assert.equal(
+    manifest.items.every((item) => item.readiness.profile === "desktop"),
+    true,
+  );
+});
+
 test("the generate tool rejects an unknown quality mode", async (t) => {
   const dir = workspace(t);
   const answer = await handlerFor(dir)({
@@ -662,6 +737,26 @@ test("the generate tool rejects an unknown quality mode", async (t) => {
     JSON.parse(answer.result.content[0].text).message,
     /quality must be one of/,
   );
+});
+
+test("the generate tool rejects an unknown target profile", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 34,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets/unknown-profile",
+        type: "sword",
+        profile: "switch",
+      },
+    },
+  });
+  assert.equal(answer.result.isError, true);
+  const error = JSON.parse(answer.result.content[0].text);
+  assert.equal(error.code, "BAD_PARAMETER");
+  assert.match(error.message, /profile must be one of/);
 });
 
 test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {
