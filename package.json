@@ -68,5 +68,5 @@
     "prettier": "^3.9.8",
     "vite": "^7.1.0"
   },
-  "description": "Browser-based 3D review and annotation for agent-assisted modeling."
+  "description": "Game 3D asset generator: describe a prop, character or level and export game-ready models for Unity, Godot and Unreal."
 }

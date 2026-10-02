@@ -72,6 +72,54 @@ async function canvasLuminance(page) {
   }, shot.toString("base64"));
 }
 
+/* The dock holds chat, MCP and the whole generator, so it has to be a panel
+   pinned to the viewport rather than a block in the page. It spent a release
+   with every one of its rules nested inside `prefers-reduced-motion: reduce`,
+   which left it unstyled for anyone who had never turned animations off: the
+   tabs and the generator rendered past the bottom of the window, below the
+   model, and nothing that only checked visibility could see it. */
+test("the AI dock is a fixed right-hand panel under either motion preference", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await expect(page.locator("#ai-dock")).toBeHidden();
+  await page.locator("#ai-button").click();
+  const dock = page.locator("#ai-dock");
+  await expect(dock).toBeVisible();
+  const viewport = page.viewportSize();
+
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    await page.emulateMedia({ reducedMotion });
+    const box = await dock.boundingBox();
+    const style = await dock.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return { position: computed.position, display: computed.display };
+    });
+    expect(
+      style.position,
+      `${reducedMotion}: the dock is not pinned to the viewport`,
+    ).toBe("fixed");
+    expect(style.display).toBe("flex");
+    expect(box.x).toBeGreaterThan(viewport.width * 0.5);
+    expect(Math.abs(box.x + box.width - viewport.width)).toBeLessThanOrEqual(1);
+    expect(box.y).toBeGreaterThan(0);
+    expect(box.height).toBeGreaterThan(viewport.height * 0.5);
+    // The viewer gives up the room instead of sitting under the panel.
+    const marginRight = await page.evaluate(
+      () => getComputedStyle(document.querySelector(".workspace")).marginRight,
+    );
+    expect(parseFloat(marginRight)).toBeGreaterThanOrEqual(320);
+  }
+
+  // The generator is the part that was below the fold, so ask for it directly.
+  await page.locator('[data-ai-tab="gen"]').click();
+  await expect(page.locator("#gen-prompt")).toBeInViewport();
+  // A long form scrolls inside the pane; the page behind it holds still.
+  await page.locator("#gen-generate").scrollIntoViewIfNeeded();
+  await expect(page.locator("#gen-generate")).toBeInViewport();
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test("generated assets get an animated preview with play/pause and turntable controls", async ({
   page,
 }) => {
