@@ -594,3 +594,53 @@ test("a variant batch exports as one engine pack with LOD files", async ({
   }
   await expect(page.locator("#gen-status")).toContainText(/packed/i);
 });
+
+/* A typed set is the workbench half of the agent-facing set tool: one pack,
+   one manifest and one set.json whose totals agree with the assets inside. */
+test("a typed asset set exports one pack with a set manifest", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  await page.locator("#gen-batch-name").fill("Starter Kit");
+  await page.locator("#gen-batch-input").fill("low-poly crate\nlow-poly sword");
+  await page.locator("#gen-batch-generate").click();
+  await expect(page.locator("#gen-batch-list .gen-batch-card")).toHaveCount(2, {
+    timeout: 20000,
+  });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.locator("#gen-batch-pack").click(),
+  ]);
+  const chunks = [];
+  for await (const chunk of await download.createReadStream())
+    chunks.push(chunk);
+  const files = unzipSync(Buffer.concat(chunks));
+  const manifest = JSON.parse(
+    Buffer.from(files["manifest.json"]).toString("utf8"),
+  );
+  const set = JSON.parse(Buffer.from(files["set.json"]).toString("utf8"));
+
+  expect(manifest.count).toBe(2);
+  expect(set.schema).toBe("ai3d-generated-set");
+  expect(set.id).toBe("starter-kit");
+  expect(set.name).toBe("Starter Kit");
+  expect(set.count).toBe(2);
+  expect(set.items.map((item) => item.prompt)).toEqual([
+    "low-poly crate",
+    "low-poly sword",
+  ]);
+  expect(set.totals.assets).toBe(2);
+  expect(manifest.assets.map((asset) => asset.prompt)).toEqual([
+    "low-poly crate",
+    "low-poly sword",
+  ]);
+  for (const item of set.items) {
+    expect(files[item.files.model]).toBeDefined();
+    expect(files[item.files.model].length).toBeGreaterThan(0);
+  }
+  await expect(page.locator("#gen-status")).toContainText(/set\.json/i);
+});

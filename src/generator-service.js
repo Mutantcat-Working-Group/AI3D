@@ -9,6 +9,7 @@ import path from "node:path";
 import { unzipSync } from "fflate";
 import {
   auditSceneDesign,
+  buildSetManifest,
   composeGameKit,
   generateAsset,
   exportGamePack,
@@ -710,33 +711,19 @@ export async function generateSetToPack({
     });
   }
 
-  const totals = results.reduce(
-    (sum, item) => {
-      sum.assets += 1;
-      sum.triangles += item.stats.triangles;
-      sum.vertices += item.stats.vertices;
-      sum.parts += item.stats.parts;
-      sum.drawCalls += item.stats.drawCalls;
-      return sum;
-    },
-    { assets: 0, triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
-  );
-
   const setDir = path.join(resolveOutputDir(workspace, baseOutput), setId);
   fs.mkdirSync(setDir, { recursive: true });
   const manifestPath = path.join(setDir, "set.json");
-  const manifest = {
-    schema: "ai3d-generated-set",
+  const manifest = buildSetManifest({
     id: setId,
     name: name || setId,
     style: style || "stylized",
     units: units || "m",
     engine,
     seed: baseSeed,
-    count: results.length,
-    totals,
     items: results,
-  };
+  });
+  const { totals } = manifest;
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   return {

@@ -114,8 +114,8 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 386 unit and integration tests
-npm run test:browser # 87 real-Chromium tests
+npm test             # 387 unit and integration tests
+npm run test:browser # 88 real-Chromium tests
 ```
 
 `npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。
@@ -196,6 +196,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.20（已完成）** — Agent 目录查询：新增只读工具 `ai3d_catalog`，`types` 模式返回全部资产类型的标签、碰撞体预设、动画片段、玩法角色与出生／AI 数据，`kits` 模式返回八个场景套装的可用道具与默认关卡设计，`design` 模式说明 `ai3d_generate` 的场景设计字段与审计规则；支持 `query` 与 `tags` 过滤，生成前先查同一份注册表，不再靠猜键名。
 - **2.21（已完成）** — Agent 端自定义道具排布：`ai3d_generate` 的 `kind: "scene"` 现在接受 `props` 数组，可由聊天或 MCP 逐个指定道具的类型、尺寸、位置、旋转与随机种子，直接替换场景套装的默认排布；传入后设计审计改为核对这些已放置道具，蓝图、引擎包与搭建脚本随之更新，非场景调用会拒绝该参数。
 - **2.22（已完成）** — Agent 端整套资产生成：`ai3d_generate` 新增 `kind: "set"`，可由聊天或 MCP 用 `items` 列表一次生成最多 32 件资产，共享同一套风格、引擎与导出开关，逐项可覆盖名称、尺寸、单位、颜色与种子；每件资产写入独立目录、重名自动加 `-2` 后缀，顶层产出 `set.json` 清单汇总解析后的设置与三角形／顶点／部件／绘制调用总量，套装种子按 `seed + index` 派生，同一请求可确定性重建。
+- **2.23（已完成）** — 工作台整套资产生成：生成区新增「资产套装」，每行输入一件资产即可复用同一套风格、尺寸单位、材质与导出设置生成最多 32 件模型；重名自动加 `-2` 后缀，套装种子按基础种子逐项派生。导出时整批资产写进一个目标引擎包，并附带与 Agent 端同格式的 `set.json`，逐项记录提示词、解析后的设置、统计和模型文件，供后续脚本与聊天继续引用。
 
 ### 十二、文档
 

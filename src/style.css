@@ -2297,6 +2297,78 @@ dialog .muted {
   padding: 4px 6px;
   font-size: 10px;
 }
+/* A set is a list, not a grid of takes: the line box is the input, so it gets
+   the width and the tiles stay compact underneath it. */
+.gen-batch {
+  padding: 10px 12px 10px;
+  border-top: 1px solid var(--line-1);
+}
+.gen-batch-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gen-batch-tools label {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-right: auto;
+}
+.gen-batch-tools button {
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.gen-batch-tools button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gen-batch-name {
+  width: 110px;
+  padding: 5px 6px;
+  font-size: 11px;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-batch textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  color: var(--text-1);
+}
+.gen-batch-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.gen-batch-card {
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  background: var(--bg-1);
+  overflow: hidden;
+}
+.gen-batch-card:hover {
+  border-color: var(--accent-line);
+}
+.gen-batch-card .gen-asset-preview {
+  height: 62px;
+  margin-bottom: 0;
+  border-radius: 0;
+}
 .gen-color-row {
   display: flex;
   gap: 8px;

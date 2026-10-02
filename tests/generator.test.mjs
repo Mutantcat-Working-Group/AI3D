@@ -1748,6 +1748,55 @@ test("buildGamePackFiles zips models, thumbnail and manifest for Unity", () => {
   assert.equal(manifest.assets[0].spawn, null);
 });
 
+test("game packs add a set manifest with aggregate totals", () => {
+  const zip = buildGamePackFiles({
+    assets: [
+      samplePackAsset({ prompt: "a red sword" }),
+      samplePackAsset({
+        id: "crate-1",
+        name: "Crate",
+        type: "crate",
+        prompt: "low-poly crate",
+        stats: { triangles: 80, vertices: 40, parts: 1, drawCalls: 1 },
+      }),
+    ],
+    engine: "unity",
+    exportedAt: "2026-09-29T00:00:00.000Z",
+    set: {
+      id: "Starter Kit",
+      name: "Starter Kit",
+      style: "lowpoly",
+      units: "m",
+      seed: 100,
+    },
+  });
+  const files = unzipSync(zip);
+  const manifest = JSON.parse(new TextDecoder().decode(files["manifest.json"]));
+  const set = JSON.parse(new TextDecoder().decode(files["set.json"]));
+
+  assert.ok(files["set.json"]);
+  assert.equal(set.schema, "ai3d-generated-set");
+  assert.equal(set.id, "starter-kit");
+  assert.equal(set.name, "Starter Kit");
+  assert.equal(set.engine, "unity");
+  assert.equal(set.seed, 100);
+  assert.equal(set.exportedAt, "2026-09-29T00:00:00.000Z");
+  assert.equal(set.count, 2);
+  assert.deepEqual(set.totals, {
+    assets: 2,
+    triangles: 200,
+    vertices: 100,
+    parts: 3,
+    drawCalls: 3,
+  });
+  assert.deepEqual(
+    set.items.map((item) => item.prompt),
+    ["a red sword", "low-poly crate"],
+  );
+  assert.equal(set.items[1].files.model, "models/crate-1/LOD0.glb");
+  assert.equal(manifest.assets[1].prompt, "low-poly crate");
+});
+
 test("game packs carry spawn and AI metadata for creatures", () => {
   const zip = buildGamePackFiles({
     assets: [

@@ -241,8 +241,8 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 386 unit and integration tests
-npm run test:browser # 87 real-Chromium tests
+npm test             # 387 unit and integration tests
+npm run test:browser # 88 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -436,6 +436,13 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   resolved settings and the triangle, vertex, part and draw-call totals. A set
   seed derives each asset seed as `seed + index`, so the same request rebuilds
   the same set.
+- **2.23 (done)** - workbench-authored asset set: the generator now has an
+  Asset Set field where one asset per line builds up to 32 props with the
+  panel's shared style, size unit, material and export settings. Duplicate IDs
+  get a `-2` suffix and the set seed derives each item's seed. Export writes
+  the batch into one target-engine pack with a `set.json` using the same schema
+  as the agent tool, recording each prompt, resolved setting, stats and model
+  file for later scripts and conversations.
 
 ### 12. Documentation
 

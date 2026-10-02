@@ -444,6 +444,17 @@ app.innerHTML = `${SPRITE}
       </div>
       <div id="gen-variants" class="gen-variants-grid" aria-live="polite"></div>
     </div>
+    <div class="gen-batch">
+      <div class="gen-batch-tools">
+        <label for="gen-batch-input">${T("gen.batch")}</label>
+        <input id="gen-batch-name" class="gen-batch-name" placeholder="${T("gen.batchName")}">
+        <button id="gen-batch-generate" class="quiet">${T("gen.batchGenerate")}</button>
+        <button id="gen-batch-save" class="quiet" hidden>${T("gen.batchSaveAll")}</button>
+        <button id="gen-batch-pack" class="quiet" hidden>${T("gen.batchPack")}</button>
+      </div>
+      <textarea id="gen-batch-input" rows="3" placeholder="${T("gen.batchPlaceholder")}"></textarea>
+      <div id="gen-batch-list" class="gen-batch-list" aria-live="polite"></div>
+    </div>
     <div id="gen-status" class="gen-status"></div>
     <div id="gen-layout" class="gen-layout" hidden></div>
     <div class="gen-library-header">
@@ -2565,6 +2576,8 @@ const genState = {
   lods: [],
   activeLod: 0,
   variants: [],
+  batch: [],
+  batchSeed: null,
 };
 let selectedGenKit = "dungeon";
 let selectedGenModular = null;
@@ -3289,6 +3302,265 @@ function loadVariant(index) {
   renderGenLayout();
   updateGenScenePackButton();
   showGenPreview();
+}
+
+/* A set is typed rather than clicked: one asset per line, read through the same
+   sentence parser as the description box, so "tree" and "a red sword 1.2 m"
+   both work in one list. The batch becomes a single engine pack with a set.json
+   manifest, which is the workbench half of the agent-facing set tool. */
+const BATCH_LIMIT = 32;
+
+function readBatchLines() {
+  return String($("#gen-batch-input")?.value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/* Each line names its own size and style when it says so; otherwise the panel
+   controls apply, which is what a writer who set the controls once expects. */
+function readBatchItemSettings(prompt, style, fitAxis, pivot) {
+  const parsed = parseAssetPrompt(prompt, style, promptLexicon);
+  const units = parsed.sizeUnit;
+  const size = units
+    ? Number((parsed.size / unitToMetres(units)).toFixed(4))
+    : readSizeSettings().size;
+  return {
+    type: parsed.type,
+    size,
+    units: units || readSizeSettings().units,
+    color: parsed.color,
+    segments: parsed.segments,
+    style: parsed.style,
+    fitAxis,
+    pivot,
+    prompt,
+  };
+}
+
+function nextBatchId(type, used) {
+  let id = type;
+  let suffix = 2;
+  while (used.has(id)) id = `${type}-${suffix++}`;
+  used.add(id);
+  return id;
+}
+
+function generateBatch() {
+  if (genState.generating) return;
+  const prompts = readBatchLines();
+  if (prompts.length === 0) {
+    setGenStatus(t("gen.batchEmpty"), "warn");
+    return;
+  }
+  if (prompts.length > BATCH_LIMIT) {
+    setGenStatus(t("gen.batchTooMany", { count: String(BATCH_LIMIT) }), "warn");
+    return;
+  }
+  const style = $("#gen-style").value;
+  const fitAxis = $("#gen-fit").value;
+  const pivot = $("#gen-pivot").value;
+  const material = readMaterialSettings();
+  const seedInput = $("#gen-seed").value.trim();
+  const baseSeed =
+    seedInput === ""
+      ? Math.floor(Math.random() * 1_000_000)
+      : Math.max(0, Math.floor(Number(seedInput) || 0));
+  genState.generating = true;
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const used = new Set();
+    genState.batch = prompts.map((prompt, index) => {
+      const settings = readBatchItemSettings(prompt, style, fitAxis, pivot);
+      const seed = baseSeed + index;
+      const color = settings.color || $("#gen-color").value;
+      const model = generateThreeAsset(settings.type, {
+        size: settings.size,
+        units: settings.units,
+        fitAxis: settings.fitAxis,
+        pivot: settings.pivot,
+        segments: settings.segments,
+        style: settings.style,
+        color,
+        seed,
+        material,
+        texture: material.texture,
+        textureStrength: material.textureStrength,
+        textureSize: material.textureSize,
+      });
+      return {
+        id: nextBatchId(settings.type, used),
+        kind: "asset",
+        type: settings.type,
+        name: settings.type,
+        prompt,
+        seed,
+        size: settings.size,
+        units: settings.units,
+        fitAxis: settings.fitAxis,
+        pivot: settings.pivot,
+        segments: settings.segments,
+        style: settings.style,
+        color,
+        material,
+        texture: material.texture,
+        textureStrength: material.textureStrength,
+        textureSize: material.textureSize,
+        tags: getAssetTags(settings.type),
+        stats: getAssetStats(model),
+        threeObject: model,
+      };
+    });
+    genState.batchSeed = baseSeed;
+    renderBatchList();
+    setGenStatus(
+      t("gen.batchReady", { count: String(genState.batch.length) }),
+      "ok",
+    );
+  } catch {
+    genState.batch = [];
+    renderBatchList();
+    setGenStatus(t("gen.error"), "error");
+  } finally {
+    genState.generating = false;
+  }
+}
+
+function renderBatchList() {
+  const container = $("#gen-batch-list");
+  if (!container) return;
+  const items = genState.batch || [];
+  const saveAll = $("#gen-batch-save");
+  const pack = $("#gen-batch-pack");
+  const hasItems = items.length > 0;
+  if (saveAll) saveAll.hidden = !hasItems;
+  if (pack) pack.hidden = !hasItems;
+  if (!hasItems) {
+    container.innerHTML = `<div class="gen-library-empty">${t("gen.batchEmpty")}</div>`;
+    return;
+  }
+  container.innerHTML = items
+    .map((item, index) => {
+      const label = GEN_TYPE_KEYS[item.type]
+        ? t(GEN_TYPE_KEYS[item.type])
+        : item.type;
+      return `
+    <div class="gen-batch-card" data-index="${index}" title="${esc(item.prompt)}">
+      <div class="gen-asset-preview" data-preview="batch-${index}"></div>
+      <div class="gen-variant-meta">
+        <strong>${esc(label)}</strong>
+        <small>#${esc(String(item.seed))} · ${item.stats.triangles} ${t("gen.triangles")}</small>
+      </div>
+      <div class="gen-variant-actions">
+        <button type="button" class="quiet" data-batch-save="${index}">${t("mcp.save")}</button>
+        <button type="button" class="quiet" data-batch-load="${index}">${t("gen.import")}</button>
+      </div>
+    </div>`;
+    })
+    .join("");
+  items.forEach((item, index) =>
+    renderAssetPreview({ ...item, id: `batch-${index}` }),
+  );
+}
+
+function saveBatchItem(index) {
+  const item = genState.batch[index];
+  if (!item) return;
+  assetLibrary.add({ ...item, threeObject: null });
+  renderAssetLibrary();
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+function saveAllBatchItems() {
+  if (genState.batch.length === 0) {
+    setGenStatus(t("gen.batchEmpty"), "warn");
+    return;
+  }
+  genState.batch.forEach((item) =>
+    assetLibrary.add({ ...item, threeObject: null }),
+  );
+  renderAssetLibrary();
+  setGenStatus(t("gen.applied"), "ok");
+}
+
+function loadBatchItem(index) {
+  const item = genState.batch[index];
+  if (!item) return;
+  const model = cloneModelDeep(item.threeObject);
+  genState.model = { ...item, threeObject: model };
+  genState.originalModel = cloneModelDeep(model);
+  genState.lods = [];
+  genState.activeLod = 0;
+  setGenOptimizePanel(false);
+  setGenExportPanel(false);
+  setGenAuditPanel(false);
+  setGenActions(true);
+  setGenStatus(t("gen.applied"), "ok");
+  renderGenLayout();
+  updateGenScenePackButton();
+  showGenPreview();
+}
+
+async function exportBatchPack() {
+  const items = genState.batch || [];
+  if (items.length === 0) {
+    setGenStatus(t("gen.batchEmpty"), "warn");
+    return;
+  }
+  const engine = $("#gen-engine")?.value || "unity";
+  const enginePreset = getEnginePresets().find((p) => p.id === engine) || {
+    upAxis: "Y",
+    scale: 1,
+  };
+  const collisionChoice = $("#gen-collision")?.value || "auto";
+  const animationChoice = $("#gen-animation")?.value || "auto";
+  const withLod = $("#gen-export-lod")?.checked ?? false;
+  const exportClips = $("#gen-export-clips")?.checked ?? false;
+  const name = $("#gen-batch-name")?.value.trim() || "asset-set";
+  setGenStatus(t("gen.generating"), "info");
+  try {
+    const packAssets = [];
+    for (let i = 0; i < items.length; i++) {
+      setGenStatus(
+        t("gen.batchPackRunning", {
+          current: String(i + 1),
+          total: String(items.length),
+        }),
+        "info",
+      );
+      packAssets.push(
+        await buildLibraryPackAsset(items[i], {
+          engine,
+          enginePreset,
+          collisionChoice,
+          animationChoice,
+          withLod,
+          exportClips,
+        }),
+      );
+    }
+    const pack = buildGamePackFiles({
+      assets: packAssets,
+      engine,
+      set: {
+        id: name,
+        name,
+        style: $("#gen-style")?.value || "lowpoly",
+        units: packAssets[0]?.units || "m",
+        seed: genState.batchSeed,
+      },
+    });
+    downloadBytesAsFile(
+      pack,
+      `ai3d-set-${new Date().toISOString().slice(0, 10)}.zip`,
+    );
+    setGenStatus(
+      t("gen.batchPackReady", { count: String(items.length) }),
+      "ok",
+    );
+  } catch {
+    setGenStatus(t("gen.error"), "error");
+  }
 }
 
 function readMaterialSettings() {
@@ -4583,6 +4855,21 @@ $("#gen-variants").addEventListener("click", (e) => {
   }
   const card = e.target.closest(".gen-variant-card");
   if (card) loadVariant(Number(card.dataset.index));
+});
+$("#gen-batch-generate").addEventListener("click", generateBatch);
+$("#gen-batch-save").addEventListener("click", saveAllBatchItems);
+$("#gen-batch-pack").addEventListener("click", exportBatchPack);
+$("#gen-batch-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (btn) {
+    if (btn.dataset.batchSave !== undefined)
+      saveBatchItem(Number(btn.dataset.batchSave));
+    else if (btn.dataset.batchLoad !== undefined)
+      loadBatchItem(Number(btn.dataset.batchLoad));
+    return;
+  }
+  const card = e.target.closest(".gen-batch-card");
+  if (card) loadBatchItem(Number(card.dataset.index));
 });
 $("#gen-emissive-reset").addEventListener("click", () => {
   $("#gen-emissive").value = "#000000";

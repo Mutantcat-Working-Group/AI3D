@@ -11885,6 +11885,54 @@ export function summariseGameReadiness(records = []) {
 }
 
 /**
+ * The manifest a set export writes beside its pack. The agent tool builds one
+ * from `items` and the workbench builds one from typed lines, but both ship the
+ * same `ai3d-generated-set` document so a set made in either place reads back
+ * identically downstream. The totals are counted here rather than by the
+ * caller, so the number in the manifest is always the sum of the items in it.
+ * @param {object} options
+ * @returns {object} JSON-serialisable manifest
+ */
+export function buildSetManifest({
+  id,
+  name,
+  style,
+  units,
+  engine = "unity",
+  seed = null,
+  items = [],
+  exportedAt = null,
+}) {
+  const slug = assetSlug(id || name || "asset-set");
+  const totals = items.reduce(
+    (sum, item) => {
+      const stats = item?.stats || {};
+      sum.assets += 1;
+      sum.triangles += Number(stats.triangles) || 0;
+      sum.vertices += Number(stats.vertices) || 0;
+      sum.parts += Number(stats.parts) || 0;
+      sum.drawCalls += Number(stats.drawCalls) || 0;
+      return sum;
+    },
+    { assets: 0, triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+  );
+  const manifest = {
+    schema: "ai3d-generated-set",
+    id: slug,
+    name: name || slug,
+    style: style || "stylized",
+    units: units || "m",
+    engine,
+    seed: seed ?? null,
+    count: items.length,
+    totals,
+    items,
+  };
+  if (exportedAt) manifest.exportedAt = exportedAt;
+  return manifest;
+}
+
+/**
  * Assemble a game engine import pack from already-converted files. The GLB
  * conversion is separate so tests and CLI pipelines can hand in bytes without
  * needing WebGL; callers that want thumbnails should pass PNG data URLs.
@@ -11895,6 +11943,7 @@ export function buildGamePackFiles({
   assets,
   engine = "unity",
   exportedAt = new Date().toISOString(),
+  set = null,
 }) {
   const preset = getEnginePreset(engine);
   const records = assets.map((asset) => {
@@ -11924,6 +11973,7 @@ export function buildGamePackFiles({
       units: asset.units ?? "m",
       fitAxis: asset.fitAxis ?? "max",
       pivot: asset.pivot ?? "center",
+      prompt: typeof asset.prompt === "string" ? asset.prompt : null,
       dimensions: stats.dimensions || null,
       segments: asset.segments ?? 16,
       style: asset.style ?? "lowpoly",
@@ -12026,6 +12076,42 @@ export function buildGamePackFiles({
     ),
   );
   files["README.md"] = encoder.encode(engineReadme(preset, records));
+  /* A set is the pack plus the list that built it: the same manifest the
+     agent-facing set tool writes, so a batch made by typing lines and one made
+     through MCP are the same document with the same totals. */
+  if (set) {
+    files["set.json"] = encoder.encode(
+      JSON.stringify(
+        buildSetManifest({
+          id: set.id,
+          name: set.name,
+          style: set.style,
+          units: set.units,
+          engine: preset.id,
+          seed: set.seed ?? null,
+          exportedAt: set.exportedAt ?? exportedAt,
+          items: set.items
+            ? set.items
+            : records.map((record) => ({
+                id: record.id,
+                name: record.name,
+                type: record.type,
+                kind: record.kind,
+                style: record.style,
+                color: record.color,
+                size: record.size,
+                units: record.units,
+                seed: record.seed,
+                prompt: record.prompt,
+                stats: record.stats,
+                files: { model: record.files.model },
+              })),
+        }),
+        null,
+        2,
+      ),
+    );
+  }
   if (readinessSummary) {
     files["game-ready.json"] = encoder.encode(
       JSON.stringify(readinessSummary, null, 2),
