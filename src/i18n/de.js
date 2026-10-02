@@ -55,7 +55,6 @@ export default {
   "a11y.viewer": "3D-Modellvorschau — drehen, zoomen und markieren",
 
   "model.awaiting": "Warten auf das Modell des Agenten",
-  "model.awaitingFirst": "Warten auf das erste Modell des Agenten",
   "model.triangles": "{count} Dreiecke",
   "model.summary": "{count} Dreiecke · {format} · {units}",
   "units.unspecified": "ohne Einheit",

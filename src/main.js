@@ -1731,6 +1731,7 @@ async function selectVersion(id) {
 async function loadVersion(fullState) {
   const model = fullState.model || fullState.active;
   if (!model) return;
+  document.body.classList.remove("no-model");
   viewingId = fullState.viewing || model.id;
   loadedId = model.id;
   loadedFilename = model.filename;
@@ -1899,7 +1900,8 @@ async function readState() {
         await loadFlight;
         loadFlight = null;
       } else {
-        $("#loading-text").textContent = t("model.awaitingFirst");
+        document.body.classList.add("no-model");
+        $("#loading-text").textContent = t("gen.title");
         $("#loading-hint").textContent = t("gen.firstHint");
         $("#loading .spinner").hidden = true;
         $("#loading-generate").hidden = false;
@@ -2860,6 +2862,16 @@ $("#loading-generate").addEventListener("click", () => {
   setAiTab("gen");
   setAiDock(true);
   $("#loading").hidden = true;
+  requestAnimationFrame(() => {
+    const prompt = $("#gen-prompt");
+    prompt.focus({ preventScroll: true });
+    prompt.scrollIntoView({
+      block: "center",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  });
 });
 document
   .querySelectorAll(".ai-tab")

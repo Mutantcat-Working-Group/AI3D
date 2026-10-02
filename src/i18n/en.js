@@ -51,7 +51,6 @@ export default {
   "a11y.viewer": "3D model preview — orbit, zoom and annotate",
 
   "model.awaiting": "Waiting for the Agent to deliver a model",
-  "model.awaitingFirst": "Waiting for the Agent to deliver the first model",
   "model.triangles": "{count} triangles",
   "model.summary": "{count} triangles · {format} · {units}",
   "units.unspecified": "no units",

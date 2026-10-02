@@ -45,7 +45,6 @@ export default {
   "a11y.viewer": "三维模型预览，可旋转、缩放及标注",
 
   "model.awaiting": "等候 Agent 交付模型",
-  "model.awaitingFirst": "等候 Agent 交付第一个模型",
   "model.triangles": "{count} 面",
   "model.summary": "{count} 面 · {format} · {units}",
   "units.unspecified": "单位未标",

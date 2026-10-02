@@ -31,6 +31,10 @@ test("a first-run install offers the generator from the empty review space", asy
   await expect(cta).toBeVisible();
   await expect(cta).toHaveText(/Generate the first model/);
   await expect(page.locator("#loading .spinner")).toBeHidden();
+  await expect(page.locator("#loading-text")).toHaveText("Asset Generation");
+  // The empty surface is for generation, not for marks that cannot be placed.
+  await expect(page.locator(".annotations-panel")).toBeHidden();
+  await expect(page.locator(".toolbar")).toBeHidden();
   // Opening the generator is the reader's choice, so the dock stays closed
   // until they take it and the review space keeps its full width.
   await expect(page.locator("#ai-dock")).toBeHidden();
@@ -42,5 +46,6 @@ test("a first-run install offers the generator from the empty review space", asy
     "true",
   );
   await expect(page.locator("#gen-prompt")).toBeVisible();
+  await expect(page.locator("#gen-prompt")).toBeFocused();
   await expect(page.locator("#loading")).toBeHidden();
 });

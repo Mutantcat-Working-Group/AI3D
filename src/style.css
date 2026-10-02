@@ -477,6 +477,15 @@ a {
   flex: 1;
   min-height: 0;
 }
+/* A review surface with nothing to review should not ask for marks. The
+   first-run offer is the only task on screen until a model arrives, so the
+   review rail and its tools stay out of the way. */
+body.no-model .annotations-panel,
+body.no-model .toolbar,
+body.no-model .orient,
+body.no-model .viewer-bottom {
+  display: none;
+}
 .viewer-shell {
   position: relative;
   flex: 1;

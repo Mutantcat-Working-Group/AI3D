@@ -52,7 +52,6 @@ export default {
   "a11y.viewer": "3D モデルプレビュー — 回転・ズーム・注記",
 
   "model.awaiting": "エージェントのモデル納品を待っています",
-  "model.awaitingFirst": "エージェントの最初のモデル納品を待っています",
   "model.triangles": "{count} 面",
   "model.summary": "{count} 面 · {format} · {units}",
   "units.unspecified": "単位なし",

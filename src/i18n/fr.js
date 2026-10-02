@@ -54,7 +54,6 @@ export default {
   "a11y.viewer": "Aperçu du modèle 3D — pivoter, zoomer et annoter",
 
   "model.awaiting": "En attente du modèle livré par l'Agent",
-  "model.awaitingFirst": "En attente du premier modèle livré par l'Agent",
   "model.triangles": "{count} triangles",
   "model.summary": "{count} triangles · {format} · {units}",
   "units.unspecified": "sans unité",
