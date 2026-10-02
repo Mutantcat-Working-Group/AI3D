@@ -39,6 +39,7 @@ import {
   buildColliderModel,
   buildConvexHullGeometry,
   buildGamePackFiles,
+  buildSetManifest,
   buildSceneBlueprint,
   summariseGameReadiness,
   exportGamePack,
@@ -2403,6 +2404,66 @@ test("summariseGameReadiness borrows a scene's design audit", () => {
     },
     { count: 3, ready: 1, issues: 1, notAudited: 1 },
   );
+});
+
+test("buildSetManifest carries quality and per-item readiness", () => {
+  const manifest = buildSetManifest({
+    id: "quality-set",
+    name: "Quality Set",
+    style: "lowpoly",
+    units: "m",
+    engine: "unity",
+    seed: 7,
+    quality: "audit",
+    items: [
+      {
+        id: "tree",
+        name: "Tree",
+        type: "tree",
+        stats: { triangles: 10, vertices: 8, parts: 1, drawCalls: 1 },
+        readiness: { score: 100, fail: 0, fixed: [], skipped: [] },
+      },
+      {
+        id: "crate",
+        name: "Crate",
+        type: "crate",
+        stats: { triangles: 12, vertices: 8, parts: 1, drawCalls: 1 },
+        readiness: { score: 72, fail: 1, fixed: [], skipped: ["rig"] },
+      },
+      {
+        id: "sword",
+        name: "Sword",
+        type: "sword",
+        stats: { triangles: 9, vertices: 6, parts: 1, drawCalls: 1 },
+      },
+    ],
+  });
+
+  assert.equal(manifest.quality, "audit");
+  assert.equal(manifest.count, 3);
+  assert.equal(manifest.totals.triangles, 31);
+  assert.deepEqual(
+    {
+      count: manifest.readiness.count,
+      ready: manifest.readiness.ready,
+      issues: manifest.readiness.issues,
+      notAudited: manifest.readiness.notAudited,
+    },
+    { count: 3, ready: 1, issues: 1, notAudited: 1 },
+  );
+  assert.deepEqual(manifest.items[0].readiness, {
+    score: 100,
+    fail: 0,
+    fixed: [],
+    skipped: [],
+  });
+  assert.deepEqual(manifest.items[1].readiness, {
+    score: 72,
+    fail: 1,
+    fixed: [],
+    skipped: ["rig"],
+  });
+  assert.equal(manifest.items[2].readiness, undefined);
 });
 
 test("scene-only packs still emit a readiness summary and game-ready.json", () => {

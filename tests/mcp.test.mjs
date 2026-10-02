@@ -540,6 +540,130 @@ test("the generate tool rejects malformed asset set items", async (t) => {
   );
 });
 
+test("the generate tool can gate one asset on game readiness", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 28,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets/audited",
+        type: "sword",
+        seed: 5,
+        name: "audited-sword",
+        quality: "audit",
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.quality, "audit");
+  assert.equal(typeof result.readiness.score, "number");
+  assert.deepEqual(result.readiness, result.asset.readiness);
+  assert.equal(Array.isArray(result.readiness.fixed), true);
+  assert.equal(Array.isArray(result.readiness.skipped), true);
+
+  const summary = JSON.parse(fs.readFileSync(result.files.summary, "utf8"));
+  assert.equal(summary.quality, "audit");
+  assert.deepEqual(summary.readiness, result.readiness);
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(result.files.packDir, "manifest.json"), "utf8"),
+  );
+  assert.equal(manifest.readiness.count, 1);
+  assert.deepEqual(manifest.assets[0].readiness, result.readiness);
+  const gameReady = JSON.parse(
+    fs.readFileSync(path.join(result.files.packDir, "game-ready.json"), "utf8"),
+  );
+  assert.equal(gameReady.count, 1);
+  assert.equal(gameReady.rows[0].id, "audited-sword");
+});
+
+test("the generate tool repairs an audited asset before reporting readiness", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 30,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets/repaired",
+        type: "tree",
+        seed: 2,
+        name: "repaired-tree",
+        quality: "repair",
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.quality, "repair");
+  assert.equal(typeof result.readiness.score, "number");
+  assert.equal(Array.isArray(result.readiness.fixed), true);
+  assert.equal(Array.isArray(result.readiness.skipped), true);
+  assert.deepEqual(result.readiness, result.asset.readiness);
+});
+
+test("the generate tool carries quality readiness through a set", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 29,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "set",
+        output: "generated-assets",
+        name: "audited-pack",
+        seed: 7,
+        quality: "audit",
+        items: [{ type: "tree" }, { type: "crate", color: "#8b5a2b" }],
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.set.quality, "audit");
+  assert.equal(result.set.readiness.count, 2);
+  assert.equal(
+    result.items.every((item) => item.readiness),
+    true,
+  );
+  assert.equal(
+    result.items.every((item) => item.readiness.score > 0),
+    true,
+  );
+
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(dir, result.files.manifest), "utf8"),
+  );
+  assert.equal(manifest.quality, "audit");
+  assert.equal(manifest.readiness.count, 2);
+  assert.deepEqual(
+    manifest.items.map((item) => item.readiness),
+    result.items.map((item) => item.readiness),
+  );
+});
+
+test("the generate tool rejects an unknown quality mode", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 31,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        output: "generated-assets/unknown-quality",
+        type: "sword",
+        quality: "perfect",
+      },
+    },
+  });
+  assert.equal(answer.result.isError, true);
+  assert.equal(JSON.parse(answer.result.content[0].text).code, "BAD_PARAMETER");
+  assert.match(
+    JSON.parse(answer.result.content[0].text).message,
+    /quality must be one of/,
+  );
+});
+
 test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {
   const handle = handlerFor(workspace(t));
   const call = (args) =>

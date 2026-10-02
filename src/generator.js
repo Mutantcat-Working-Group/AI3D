@@ -11901,6 +11901,7 @@ export function buildSetManifest({
   engine = "unity",
   seed = null,
   items = [],
+  quality = "off",
   exportedAt = null,
 }) {
   const slug = assetSlug(id || name || "asset-set");
@@ -11924,10 +11925,16 @@ export function buildSetManifest({
     units: units || "m",
     engine,
     seed: seed ?? null,
+    quality,
     count: items.length,
     totals,
     items,
   };
+  /* A set whose assets were audited carries the same readiness summary a game
+     pack writes, so set.json alone answers which items shipped ready. */
+  if (items.some((item) => item?.readiness || item?.scene?.designAudit)) {
+    manifest.readiness = summariseGameReadiness(items);
+  }
   if (exportedAt) manifest.exportedAt = exportedAt;
   return manifest;
 }

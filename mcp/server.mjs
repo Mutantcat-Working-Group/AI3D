@@ -110,7 +110,7 @@ export const TOOL = {
 export const GENERATE_TOOL = {
   name: "ai3d_generate",
   description:
-    'Generate a game-ready 3D asset, a whole level kit, or a batch asset set, and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. Pass kind "scene" to compose a level kit (dungeon, camp, outpost, village, temple, battle, wilderness, town) instead of a single prop; a scene pack adds the kit\'s design metadata, a design audit and an engine-space scene blueprint. Pass kind "set" with an items array to generate many props in one call, each in its own folder plus a set.json manifest summing them, sharing the set-level style, engine and export switches. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.',
+    'Generate a game-ready 3D asset, a whole level kit, or a batch asset set, and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. Pass kind "scene" to compose a level kit (dungeon, camp, outpost, village, temple, battle, wilderness, town) instead of a single prop; a scene pack adds the kit\'s design metadata, a design audit and an engine-space scene blueprint. Pass kind "set" with an items array to generate many props in one call, each in its own folder plus a set.json manifest summing them, sharing the set-level style, engine and export switches. Pass quality "audit" to record each generated prop\'s game-readiness score and issues in the pack and set manifest, or "repair" to also apply the mechanical fixes the workbench game-ready export applies. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.',
   inputSchema: {
     type: "object",
     properties: {
@@ -332,6 +332,12 @@ export const GENERATE_TOOL = {
         type: "string",
         description:
           "Asset name and output folder slug (defaults to the type).",
+      },
+      quality: {
+        type: "string",
+        enum: ["off", "audit", "repair"],
+        description:
+          'Game-readiness gate for single assets and sets: "off" (default) skips it, "audit" scores each prop and records issues, "repair" applies the workbench\'s mechanical fixes before scoring. Scenes always report their design audit instead.',
       },
     },
     required: ["output"],

@@ -190,10 +190,14 @@ objectives, loot tables, locks and directives, or a `props` array that lays the
 scene out prop by prop, pinning each prop's type, size, position, rotation and
 seed instead of taking the kit's own arrangement. The returned design audit
 validates that metadata, and the same pack carries it into the engine-space
-scene blueprint. Before generating, a read-only `ai3d_catalog` tool lists every
-asset type's tags, collider preset, animation clips, gameplay role and
-spawn/AI data, each scene kit's prop types and default level design, and the
-scene design fields and the rules the audit enforces.
+scene blueprint. Single assets and whole sets also take `quality: "audit"` or
+`"repair"` to run the game-readiness gate: the score, failures and repairs are
+recorded in each asset's summary.json, in the pack's
+manifest.json/game-ready.json and in the set's set.json, sharing the
+workbench's game-ready path. Before generating, a read-only `ai3d_catalog` tool
+lists every asset type's tags, collider preset, animation clips, gameplay role
+and spawn/AI data, each scene kit's prop types and default level design, and
+the scene design fields and the rules the audit enforces.
 
 ### 7. Three ways in, one implementation
 
@@ -443,6 +447,13 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   the batch into one target-engine pack with a `set.json` using the same schema
   as the agent tool, recording each prompt, resolved setting, stats and model
   file for later scripts and conversations.
+- **2.24 (done)** - agent generation quality gate: `ai3d_generate` takes a new
+  `quality` switch (`off`, `audit` or `repair`, default `off`), so chat and MCP
+  can audit a single asset or a whole set, or repair it first and then audit.
+  The readiness score and failures land in each asset's `summary.json`, in the
+  pack's `manifest.json`/`game-ready.json` and in the set's `set.json`, sharing
+  the workbench's game-ready audit and repair path; scenes keep their design
+  audit as the readiness source.
 
 ### 12. Documentation
 

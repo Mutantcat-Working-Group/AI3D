@@ -9,6 +9,7 @@ import path from "node:path";
 import { unzipSync } from "fflate";
 import {
   auditSceneDesign,
+  auditGameAsset,
   buildSetManifest,
   composeGameKit,
   generateAsset,
@@ -21,6 +22,7 @@ import {
   getGameKits,
   getKitCatalogue,
   getSceneDesignCatalogue,
+  repairGameAsset,
 } from "./generator.js";
 import { CATALOGUES } from "./i18n/index.js";
 import { parseAssetPrompt, buildPromptLexicon } from "./asset-prompt.js";
@@ -43,6 +45,7 @@ const COLLISION_CHOICES = new Set([
   "convex",
   "mesh",
 ]);
+const QUALITY_MODES = new Set(["off", "audit", "repair"]);
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const TYPE_IDS = new Set(getAssetTypes());
 const SCENE_KITS = getGameKits();
@@ -79,6 +82,30 @@ function requireHexColor(value) {
       "color must be a hex string such as #ff0000.",
     );
   return value.toLowerCase();
+}
+
+/* Run the same audit/repair pair the workbench's game-ready export uses, so an
+ * agent-generated asset reports the readiness numbers a human would see. The
+ * returned block is exactly the pack readiness shape the manifest normalises. */
+function qualityGate(model, type, { mode, pivot = "center", meta } = {}) {
+  if (mode === "off") return null;
+  const options = { pivot, meta };
+  if (mode === "repair") {
+    const repaired = repairGameAsset(model, type, options);
+    return {
+      score: Math.round(repaired.report.readiness * 100),
+      fail: repaired.report.summary.fail,
+      fixed: repaired.fixed.map((record) => record.code),
+      skipped: repaired.skipped.map((record) => record.detail),
+    };
+  }
+  const report = auditGameAsset(model, type, options);
+  return {
+    score: Math.round(report.readiness * 100),
+    fail: report.summary.fail,
+    fixed: [],
+    skipped: [],
+  };
 }
 
 function requireNumber(value, field, fallback) {
@@ -483,6 +510,7 @@ export async function generateSceneToPack({
   propScale,
   props = null,
   design = null,
+  quality = "off",
 } = {}) {
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");
@@ -508,6 +536,12 @@ export async function generateSceneToPack({
   const resolvedStrength = requireStrength(textureStrength);
   const resolvedDesign = requireSceneDesign(design);
   const resolvedProps = requireSceneProps(props);
+  const resolvedQuality = requireChoice(
+    quality,
+    QUALITY_MODES,
+    "quality",
+    "off",
+  );
 
   const scene = composeGameKit(kit, {
     seed: resolvedSeed ?? 1,
@@ -545,6 +579,7 @@ export async function generateSceneToPack({
     texture,
     textureStrength: resolvedStrength,
     textureSize: resolvedTextureSize,
+    quality: resolvedQuality,
     tags: ["scene", kit],
     scene: {
       quality: scene.userData.theme?.quality ?? 1,
@@ -578,6 +613,13 @@ export async function generateSceneToPack({
     engine: resolvedEngine,
   });
   const stats = getAssetStats(scene);
+  /* A composed scene's readiness is its design audit, not a per-mesh report:
+     the pack derives it from designAudit, so expose that same summary here
+     instead of re-running the mesh gate over every placed prop. */
+  const packManifest = JSON.parse(
+    fs.readFileSync(path.join(files.packDir, "manifest.json"), "utf8"),
+  );
+  const readiness = packManifest.readiness ?? null;
   const summary = {
     schema: "ai3d-generated-scene",
     id,
@@ -589,10 +631,12 @@ export async function generateSceneToPack({
     units: resolvedUnits,
     seed: resolvedSeed,
     engine: resolvedEngine,
+    quality: resolvedQuality,
     props: placedProps.map((prop) => prop.type),
     customLayout: resolvedProps != null,
     design: sceneDesign,
     designAudit: audit,
+    readiness,
     stats,
     prompt: prompt || null,
     files,
@@ -611,9 +655,12 @@ export async function generateSceneToPack({
       units: resolvedUnits,
       seed: resolvedSeed,
       engine: resolvedEngine,
+      quality: resolvedQuality,
       stats,
       designAudit: audit,
+      readiness,
     },
+    readiness,
     files,
   };
 }
@@ -641,11 +688,18 @@ export async function generateSetToPack({
   texture = "auto",
   textureStrength = 0.8,
   textureSize = 256,
+  quality = "off",
 } = {}) {
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");
   const specs = requireSetItems(items);
   const baseSeed = requireSeed(seed);
+  const resolvedQuality = requireChoice(
+    quality,
+    QUALITY_MODES,
+    "quality",
+    "off",
+  );
   const setId = assetSlug(name || "asset-set");
   const baseOutput =
     typeof output === "string" && output.trim() ? output : "generated-assets";
@@ -690,6 +744,7 @@ export async function generateSetToPack({
       texture,
       textureStrength,
       textureSize,
+      quality: resolvedQuality,
     });
     results.push({
       id: result.asset.id,
@@ -701,6 +756,7 @@ export async function generateSetToPack({
       units: result.asset.units,
       seed: result.asset.seed,
       stats: result.asset.stats,
+      readiness: result.readiness,
       prompt: spec.prompt || null,
       files: {
         packZip: relative(result.files.packZip),
@@ -722,6 +778,7 @@ export async function generateSetToPack({
     engine,
     seed: baseSeed,
     items: results,
+    quality: resolvedQuality,
   });
   const { totals } = manifest;
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -737,6 +794,8 @@ export async function generateSetToPack({
       engine,
       seed: baseSeed,
       totals,
+      quality: resolvedQuality,
+      readiness: manifest.readiness ?? null,
     },
     items: results,
     files: { setDir: relative(setDir), manifest: relative(manifestPath) },
@@ -770,6 +829,7 @@ export async function generateAssetToPack({
   props = null,
   design = null,
   items = null,
+  quality = "off",
 } = {}) {
   if (kind === "scene")
     return generateSceneToPack({
@@ -791,6 +851,7 @@ export async function generateAssetToPack({
       propScale,
       props,
       design,
+      quality,
     });
   if (kind === "set")
     return generateSetToPack({
@@ -811,6 +872,7 @@ export async function generateAssetToPack({
       texture,
       textureStrength,
       textureSize,
+      quality,
     });
   if (kind !== "asset")
     throw new GenerationError(
@@ -862,6 +924,12 @@ export async function generateAssetToPack({
   );
   const resolvedColor = requireHexColor(color || parsed?.color || null);
   const resolvedSeed = requireSeed(seed);
+  const resolvedQuality = requireChoice(
+    quality,
+    QUALITY_MODES,
+    "quality",
+    "off",
+  );
   const resolvedTextureSize = requireChoice(
     textureSize,
     TEXTURE_SIZES,
@@ -884,6 +952,11 @@ export async function generateAssetToPack({
     fitAxis: "max",
     pivot: "center",
   });
+  const readiness = qualityGate(model, resolvedType, {
+    mode: resolvedQuality,
+    pivot: "center",
+    meta: { name: name || resolvedType },
+  });
 
   const id = assetSlug(name || resolvedType);
   const asset = {
@@ -903,6 +976,8 @@ export async function generateAssetToPack({
     texture,
     textureStrength: resolvedStrength,
     textureSize: resolvedTextureSize,
+    quality: resolvedQuality,
+    ...(readiness ? { readiness } : {}),
   };
   const resolvedEngine = requireChoice(engine, ENGINE_IDS, "engine", "unity");
   const resolvedCollision = requireChoice(
@@ -950,9 +1025,11 @@ export async function generateAssetToPack({
     exportClips: Boolean(exportClips),
     collision: resolvedCollision,
     animation,
+    quality: resolvedQuality,
     stats,
     dimensions: model.userData?.dimensions || null,
     prompt: prompt || null,
+    readiness,
     files,
   };
   fs.writeFileSync(files.summary, `${JSON.stringify(summary, null, 2)}\n`);
@@ -969,8 +1046,11 @@ export async function generateAssetToPack({
       units: resolvedUnits,
       seed: resolvedSeed,
       engine: resolvedEngine,
+      quality: resolvedQuality,
       stats,
+      readiness,
     },
+    readiness,
     files: summary.files,
   };
 }

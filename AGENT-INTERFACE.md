@@ -76,9 +76,10 @@ the workspace.
 Inputs: `prompt` or `type` (at least one) and `output` (required), plus
 optional `kind` (`asset` by default, `scene` or `set`), `style`, `color`,
 `size`, `units`, `seed`, `engine` (unity/godot/unreal), `withLod`, `anchors`,
-`exportClips`, `collision`, `animation` and `name`. A prompt resolves type,
-style, color, size and units from the same six-language catalogue the UI uses;
-an explicit `type` wins over whatever the prompt resolves.
+`exportClips`, `collision`, `animation`, `name` and `quality`. A prompt
+resolves type, style, color, size and units from the same six-language
+catalogue the UI uses; an explicit `type` wins over whatever the prompt
+resolves.
 
 `kind: "scene"` composes a whole level kit instead of a single prop. The kit
 type is one of `dungeon`, `camp`, `outpost`, `village`, `temple`, `battle`,
@@ -109,6 +110,17 @@ resolved style, units, engine, seed and aggregate triangles, vertices, parts and
 draw calls, plus each asset's own summary and file paths. Passing a set seed
 derives each asset's seed as `seed + index`, so the same request rebuilds the
 same set.
+
+`quality` (`off` by default, or `audit`/`repair`) turns on the game-readiness
+gate for single assets and whole sets. `audit` scores each generated prop with
+the same audit the workbench runs and records `score`, `fail`, `fixed` and
+`skipped`; `repair` first applies the workbench's mechanical fixes (UV/normal
+data, material class, poly budget, LOD chain, pivot, collision proxy), then
+scores the repaired asset. The readiness block is written to the asset's
+`summary.json`, to the pack's `manifest.json` and `game-ready.json`, and, for a
+set, into each item and the top-level `readiness` summary in `set.json`.
+Scenes always report their design audit as readiness, so `quality` only changes
+the reported mode there.
 
 The result writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up
