@@ -157,10 +157,25 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if (-not $env:AI3D_SIGNING_THUMBPRINT) { throw 'code-signing certificate setup did not run' }
+          # The SDK ships signtool for every architecture in the same kit. Pick
+          # the build that matches the runner: on an x64 runner the arm64 exe is
+          # found first, and it refuses to start ("not a valid application").
+          $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+            'ARM64' { 'arm64'; break }
+            'x86'   { 'x86'; break }
+            default { 'x64' }
+          }
+          $kits = @(Get-ChildItem -Path 'C:\Program Files (x86)\Windows Kits\10\bin' -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)
           $signtool = $null
-          foreach ($kit in (Get-ChildItem -Path 'C:\Program Files (x86)\Windows Kits\10\bin' -Directory | Sort-Object Name -Descending)) {
-            $candidate = Get-ChildItem -Path $kit.FullName -Filter 'signtool.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($candidate) { $signtool = $candidate.FullName; break }
+          foreach ($kit in $kits) {
+            $candidate = Join-Path $kit.FullName "$arch\signtool.exe"
+            if (Test-Path -LiteralPath $candidate) { $signtool = $candidate; break }
+          }
+          if (-not $signtool) {
+            foreach ($kit in $kits) {
+              $candidate = Get-ChildItem -Path $kit.FullName -Filter 'signtool.exe' -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($candidate) { $signtool = $candidate.FullName; break }
+            }
           }
           if (-not $signtool) { throw 'signtool.exe not found in the Windows SDK' }
           $installers = @(Get-ChildItem -Path "src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -Filter '*-setup.exe' -File)
@@ -175,32 +190,42 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           set -euo pipefail
-          app_dir="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
-          app="$(find "$app_dir" -maxdepth 1 -name '*.app' -print -quit)"
-          if [ -z "$app" ]; then
-            echo "::error::no .app bundle produced under $app_dir"
+          # Tauri signs the .app ad-hoc while bundling and then removes the
+          # loose copy once the dmg is written, so the shipped .app is only
+          # reachable through the mounted image. Verify it there.
+          dmg_dir="src-tauri/target/${{ matrix.target }}/release/bundle/dmg"
+          shopt -s nullglob
+          dmgs=("$dmg_dir"/*.dmg)
+          if [ "${#dmgs[@]}" -eq 0 ]; then
+            echo "::error::no dmg produced under $dmg_dir"
             exit 1
           fi
-          codesign --verify --deep --strict --verbose=2 "$app"
-          codesign -dv "$app" 2>&1 | grep -q 'Signature=adhoc'
-          exec_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
-          file "$app/Contents/MacOS/$exec_name"
-          for dmg in src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg; do
-            codesign --force --sign - --timestamp=none "$dmg"
-            codesign --verify --strict --verbose=2 "$dmg"
-            codesign -dv "$dmg" 2>&1 | grep -q 'Signature=adhoc'
+          for dmg in "${dmgs[@]}"; do
+            # Check the image Tauri produced before touching it: signing rewrites
+            # the file and would hide a broken checksum behind a valid seal.
             hdiutil verify "$dmg"
+            codesign --force --sign - --timestamp=none "$dmg"
+            codesign --verify --verbose=2 "$dmg"
+            signature="$(codesign -dv "$dmg" 2>&1)"
+            grep -q 'Signature=adhoc' <<< "$signature"
             mount="$(mktemp -d)"
             hdiutil attach -nobrowse -readonly -mountpoint "$mount" "$dmg"
             if [ ! -L "$mount/Applications" ]; then
               echo "::error::$dmg has no /Applications shortcut"
+              hdiutil detach "$mount"
               exit 1
             fi
             mounted_app="$(find "$mount" -maxdepth 1 -name '*.app' -print -quit)"
             if [ -z "$mounted_app" ]; then
               echo "::error::$dmg contains no .app bundle"
+              hdiutil detach "$mount"
               exit 1
             fi
+            codesign --verify --deep --verbose=2 "$mounted_app"
+            signature="$(codesign -dv "$mounted_app" 2>&1)"
+            grep -q 'Signature=adhoc' <<< "$signature"
+            exec_name="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$mounted_app/Contents/Info.plist")"
+            file "$mounted_app/Contents/MacOS/$exec_name"
             hdiutil detach "$mount"
           done
       - name: attach the bundle to the release
