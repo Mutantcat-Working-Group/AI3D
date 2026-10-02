@@ -98,6 +98,13 @@ const ASSET_TYPES = {
   bow: { name: "Bow", parts: ["limb", "riser", "string"] },
   hammer: { name: "Hammer", parts: ["head", "handle", "grip"] },
   spear: { name: "Spear", parts: ["head", "shaft", "butt"] },
+  dagger: {
+    name: "Dagger",
+    parts: ["blade", "tip", "guard", "handle", "pommel"],
+  },
+  mace: { name: "Mace", parts: ["head", "spikes", "shaft", "grip"] },
+  staff: { name: "Staff", parts: ["shaft", "crystal", "bands"] },
+  halberd: { name: "Halberd", parts: ["blade", "spike", "shaft", "butt"] },
   helmet: { name: "Helmet", parts: ["dome", "visor", "crest", "neckGuard"] },
   chestplate: {
     name: "Chestplate",
@@ -140,6 +147,10 @@ const ASSET_TAGS = {
   bow: ["weapon", "ranged", "wood"],
   hammer: ["weapon", "melee", "metal"],
   spear: ["weapon", "melee", "wood"],
+  dagger: ["weapon", "melee", "metal"],
+  mace: ["weapon", "melee", "metal"],
+  staff: ["weapon", "magic", "wood"],
+  halberd: ["weapon", "polearm", "metal"],
   helmet: ["armor", "defense", "metal"],
   chestplate: ["armor", "defense", "metal"],
   gauntlets: ["armor", "defense", "metal"],
@@ -421,6 +432,10 @@ const ASSET_COLLIDERS = {
   bow: "mesh",
   hammer: "capsule",
   spear: "capsule",
+  dagger: "capsule",
+  mace: "capsule",
+  staff: "capsule",
+  halberd: "capsule",
   helmet: "sphere",
   chestplate: "box",
   gauntlets: "box",
@@ -2123,6 +2138,18 @@ export function generateAsset(
       break;
     case "spear":
       buildSpear(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "dagger":
+      buildDagger(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "mace":
+      buildMace(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "staff":
+      buildStaff(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "halberd":
+      buildHalberd(group, size, segments, matStyle, customColor, rng);
       break;
     case "helmet":
       buildHelmet(group, size, segments, matStyle, customColor, rng);
@@ -8493,6 +8520,227 @@ function buildSpear(
   group.add(butt);
 }
 
+function buildDagger(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const bladeMat = createMaterial(customColor || 0xdce4e8, style);
+  const guardMat = createMaterial(0x8b6f47, style);
+  const handleMat = createMaterial(0x3e2723, style);
+
+  const bladeGeo = new THREE.BoxGeometry(
+    0.14 * size,
+    0.78 * size,
+    0.035 * size,
+  );
+  const blade = new THREE.Mesh(bladeGeo, bladeMat);
+  blade.position.y = 0.56 * size;
+  blade.name = "blade";
+  group.add(blade);
+
+  const tipGeo = new THREE.ConeGeometry(0.1 * size, 0.28 * size, segments);
+  const tip = new THREE.Mesh(tipGeo, bladeMat);
+  tip.position.y = 1.09 * size;
+  tip.name = "tip";
+  group.add(tip);
+
+  const guardGeo = new THREE.BoxGeometry(0.42 * size, 0.08 * size, 0.11 * size);
+  const guard = new THREE.Mesh(guardGeo, guardMat);
+  guard.position.y = 0.11 * size;
+  guard.name = "guard";
+  group.add(guard);
+
+  const handleGeo = new THREE.CylinderGeometry(
+    0.055 * size,
+    0.065 * size,
+    0.38 * size,
+    segments,
+  );
+  const handle = new THREE.Mesh(handleGeo, handleMat);
+  handle.position.y = -0.12 * size;
+  handle.name = "handle";
+  group.add(handle);
+
+  const pommelGeo = new THREE.SphereGeometry(0.09 * size, segments, segments);
+  const pommel = new THREE.Mesh(pommelGeo, guardMat);
+  pommel.position.y = -0.36 * size;
+  pommel.name = "pommel";
+  group.add(pommel);
+}
+
+function buildMace(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const headMat = createMaterial(customColor || 0x90a4ae, style);
+  const shaftMat = createMaterial(0x5d4037, style);
+  const gripMat = createMaterial(0x2f211b, style);
+
+  const shaftGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.065 * size,
+    1.5 * size,
+    segments,
+  );
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.position.y = -0.08 * size;
+  shaft.name = "shaft";
+  group.add(shaft);
+
+  const headGeo = new THREE.SphereGeometry(0.28 * size, segments, segments);
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 0.9 * size;
+  head.name = "head";
+  group.add(head);
+
+  const spikeGeo = new THREE.ConeGeometry(
+    0.075 * size,
+    0.3 * size,
+    Math.max(6, Math.floor(segments / 2)),
+  );
+  const spikes = [
+    { position: [0, 1.24 * size, 0], rotation: [0, 0, 0] },
+    { position: [-0.3 * size, 0.9 * size, 0], rotation: [0, 0, Math.PI / 2] },
+    { position: [0.3 * size, 0.9 * size, 0], rotation: [0, 0, -Math.PI / 2] },
+    { position: [0, 0.9 * size, 0.3 * size], rotation: [Math.PI / 2, 0, 0] },
+    {
+      position: [0, 0.9 * size, -0.3 * size],
+      rotation: [-Math.PI / 2, 0, 0],
+    },
+  ];
+  for (const spec of spikes) {
+    const spike = new THREE.Mesh(spikeGeo, headMat);
+    spike.position.set(...spec.position);
+    spike.rotation.set(...spec.rotation);
+    spike.name = "spikes";
+    group.add(spike);
+  }
+
+  const gripGeo = new THREE.TorusGeometry(
+    0.085 * size,
+    0.035 * size,
+    segments,
+    segments,
+  );
+  const grip = new THREE.Mesh(gripGeo, gripMat);
+  grip.position.y = -0.66 * size;
+  grip.rotation.x = Math.PI / 2;
+  grip.name = "grip";
+  group.add(grip);
+}
+
+function buildStaff(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const shaftMat = createMaterial(0x7b5636, style);
+  const crystalMat = createMaterial(customColor || 0x56c8d8, style);
+  const bandMat = createMaterial(0xb08d57, style);
+
+  const shaftGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.07 * size,
+    2.2 * size,
+    segments,
+  );
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.name = "shaft";
+  group.add(shaft);
+
+  const crystalGeo = new THREE.OctahedronGeometry(0.23 * size, 0);
+  const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+  crystal.position.y = 1.34 * size;
+  crystal.scale.y = 1.35;
+  crystal.name = "crystal";
+  group.add(crystal);
+
+  const bandGeo = new THREE.TorusGeometry(
+    0.075 * size,
+    0.022 * size,
+    segments,
+    segments,
+  );
+  for (const y of [0.85, -0.85]) {
+    const band = new THREE.Mesh(bandGeo, bandMat);
+    band.position.y = y * size;
+    band.rotation.x = Math.PI / 2;
+    band.name = "bands";
+    group.add(band);
+  }
+}
+
+function buildHalberd(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const shaftMat = createMaterial(0x6d4c2f, style);
+  const steelMat = createMaterial(customColor || 0xcfd8dc, style);
+
+  const shaftGeo = new THREE.CylinderGeometry(
+    0.05 * size,
+    0.07 * size,
+    2.4 * size,
+    segments,
+  );
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.name = "shaft";
+  group.add(shaft);
+
+  const bladeGeo = new THREE.BoxGeometry(0.34 * size, 0.68 * size, 0.06 * size);
+  const blade = new THREE.Mesh(bladeGeo, steelMat);
+  blade.position.set(0.22 * size, 1.08 * size, 0);
+  blade.rotation.z = -0.14;
+  blade.name = "blade";
+  group.add(blade);
+
+  const hookGeo = new THREE.BoxGeometry(0.2 * size, 0.15 * size, 0.06 * size);
+  const hook = new THREE.Mesh(hookGeo, steelMat);
+  hook.position.set(-0.18 * size, 1.18 * size, 0);
+  hook.rotation.z = 0.34;
+  hook.name = "blade";
+  group.add(hook);
+
+  const spikeGeo = new THREE.ConeGeometry(0.12 * size, 0.58 * size, segments);
+  const spike = new THREE.Mesh(spikeGeo, steelMat);
+  spike.position.y = 1.43 * size;
+  spike.name = "spike";
+  group.add(spike);
+
+  const socketGeo = new THREE.CylinderGeometry(
+    0.075 * size,
+    0.09 * size,
+    0.24 * size,
+    segments,
+  );
+  const socket = new THREE.Mesh(socketGeo, steelMat);
+  socket.position.y = 1.03 * size;
+  socket.name = "spike";
+  group.add(socket);
+
+  const buttGeo = new THREE.ConeGeometry(0.07 * size, 0.28 * size, segments);
+  const butt = new THREE.Mesh(buttGeo, steelMat);
+  butt.position.y = -1.36 * size;
+  butt.rotation.x = Math.PI;
+  butt.name = "butt";
+  group.add(butt);
+}
+
 function buildTent(
   group,
   size,
@@ -9772,6 +10020,10 @@ const ATTACHMENT_POINTS = {
   axe: [{ name: "handle", role: "grip" }],
   hammer: [{ name: "handle", role: "grip" }],
   spear: [{ name: "shaft", role: "grip" }],
+  dagger: [{ name: "handle", role: "grip" }],
+  mace: [{ name: "shaft", role: "grip" }],
+  staff: [{ name: "shaft", role: "grip" }],
+  halberd: [{ name: "shaft", role: "grip" }],
   bow: [{ name: "riser", role: "grip" }],
   shield: [{ name: "body", role: "mount" }],
   character: [{ name: "legs", role: "foot" }],
@@ -10128,6 +10380,10 @@ const AUDIT_REQUIRED_PARTS = {
   axe: ["head", "handle"],
   hammer: ["head", "handle"],
   spear: ["head", "shaft"],
+  dagger: ["blade", "handle"],
+  mace: ["head", "shaft"],
+  staff: ["shaft", "crystal"],
+  halberd: ["blade", "shaft"],
   bow: ["riser"],
   shield: ["body"],
   helmet: ["dome", "visor"],
@@ -11254,6 +11510,10 @@ const GAMEPLAY_PRESETS = {
   axe: { interaction: "attack", role: "weapon" },
   hammer: { interaction: "attack", role: "weapon" },
   spear: { interaction: "attack", role: "weapon" },
+  dagger: { interaction: "attack", role: "weapon" },
+  mace: { interaction: "attack", role: "weapon" },
+  staff: { interaction: "attack", role: "weapon" },
+  halberd: { interaction: "attack", role: "weapon" },
   bow: { interaction: "attack", role: "weapon" },
   shield: { interaction: "use", role: "weapon" },
   helmet: { interaction: "use", role: "weapon" },

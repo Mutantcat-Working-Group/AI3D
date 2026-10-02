@@ -24,12 +24,12 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-94 built-in game asset templates, each with sensible part names, tags and
+98 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                                                                                                                                                                                                                                                                                         |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                                                                                                                                                                                                                                                                                                 |
+| Weapons   | sword, dagger, axe, mace, bow, hammer, spear, halberd, staff, shield, cannon                                                                                                                                                                                                                                                                                                                   |
 | Armor     | helmet, chestplate, gauntlets, boots                                                                                                                                                                                                                                                                                                                                                           |
 | Creatures | character, monster, dragon, skeleton, mummy                                                                                                                                                                                                                                                                                                                                                    |
 | Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain, portcullis, beehive                                                                                                                                                                                                                                                                                                   |
@@ -507,6 +507,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   boots now ship as export-ready templates with named parts, metal or leather
   PBR defaults, collider presets, gameplay metadata and quick-template labels
   in all six languages, ready for equipment and loot systems.
+- **2.31 (done)** - expanded weapon family: daggers, maces, staffs and halberds
+  now ship as export-ready templates with named parts, default PBR textures,
+  collider presets, grip attachment points, gameplay metadata and
+  quick-template labels in all six languages for melee, polearm and magic
+  weapon systems.
 
 ### 12. Documentation
 
