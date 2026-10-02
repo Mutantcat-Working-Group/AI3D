@@ -265,9 +265,21 @@ export default {
   "chat.placeholder": "メッセージを入力…",
   "chat.send": "送信",
   "chat.sending": "送信中…",
+  "chat.generating": "生成中…",
   "chat.thinking": "考え中…",
   "chat.you": "あなた",
   "chat.agent": "エージェント",
+  "chat.projectQueued": "プロジェクトを生成中：{name}。",
+  "chat.projectBusy":
+    "別のプロジェクトを生成中です。完了後にもう一度お試しください。",
+  "chat.projectThinking":
+    "プロジェクトの知識、設計図、マテリアルを読み込んでいます...",
+  "chat.projectDone":
+    "{name} の準備ができました。{assets} 個のアセットと {scenes} 個のシーンをライブラリに追加しました。「生成」タブで確認または書き出しができます。",
+  "chat.projectFailed":
+    "プロジェクトを生成できませんでした。「生成」タブで詳細を確認してください。",
+  "chat.projectNotice":
+    "ユーザーがワークベンチで {template} プロジェクト「{name}」を生成し、ライブラリに追加済みです。明示的な依頼がない限り再生成しないでください。",
   "chat.knowledgePlaceholder": "モデリング資料を検索…",
   "chat.knowledgeSearch": "ナレッジパックを検索",
   "chat.knowledgeSearching": "ナレッジパックを検索中…",

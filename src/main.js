@@ -79,7 +79,11 @@ import {
   GEN_TYPE_KEYS,
   GEN_COLOR_KEYS,
 } from "./asset-prompt.js";
-import { PROJECT_TEMPLATES, findProjectTemplate } from "./project-templates.js";
+import {
+  PROJECT_TEMPLATES,
+  findProjectTemplate,
+  matchProjectTemplate,
+} from "./project-templates.js";
 
 /* index.html ships with a fixed lang, because the language is not known until
    the reviewer's own preferences have been read. Correcting it here is what
@@ -2258,25 +2262,94 @@ async function pollChat() {
 function renderChat() {
   const box = $("#chat-messages");
   const status = $("#chat-status");
-  if (!chatConnected) {
-    box.innerHTML = `<div class="chat-empty">${T("chat.unavailable")}</div>`;
-    status.textContent = "";
-    return;
-  }
-  if (chatMessages.size === 0) {
-    box.innerHTML = `<div class="chat-empty">${T("chat.empty")}</div>`;
+  const sorted = [...chatMessages.values()].sort((a, b) => a._ts - b._ts);
+  const parts = [];
+  if (sorted.length === 0) {
+    parts.push(
+      `<div class="chat-empty">${chatConnected ? T("chat.empty") : T("chat.unavailable")}</div>`,
+    );
   } else {
-    const sorted = [...chatMessages.values()].sort((a, b) => a._ts - b._ts);
-    box.innerHTML = sorted
-      .map((m) => {
-        const role = m.role === "user" ? "chat-you" : "chat-agent";
-        const who = m.role === "user" ? T("chat.you") : T("chat.agent");
-        return `<div class="chat-msg ${role}"><span class="chat-who">${who}</span><span class="chat-text">${esc(m.text)}</span></div>`;
-      })
-      .join("");
-    box.scrollTop = box.scrollHeight;
+    parts.push(
+      sorted
+        .map((m) => {
+          const role = m.role === "user" ? "chat-you" : "chat-agent";
+          const who = m.role === "user" ? T("chat.you") : T("chat.agent");
+          return `<div class="chat-msg ${role}"><span class="chat-who">${who}</span><span class="chat-text">${esc(m.text)}</span></div>`;
+        })
+        .join(""),
+    );
   }
+  if (!chatConnected)
+    parts.push(`<div class="chat-banner">${T("chat.unavailable")}</div>`);
+  box.innerHTML = parts.join("");
+  box.scrollTop = box.scrollHeight;
   status.textContent = chatBusy ? T("chat.thinking") : "";
+}
+
+let localChatSeq = 0;
+function addLocalChatMessage(role, text) {
+  const id = `local-${(localChatSeq += 1)}`;
+  const now = Date.now();
+  chatMessages.set(id, {
+    id,
+    role,
+    text,
+    timestamp: now,
+    _ts: now,
+  });
+  renderChat();
+}
+
+/* Chat normally forwards to the connected agent, but a written brief that
+   names a project template is something the workbench can already build on its
+   own. Keep the agent in the loop when it is reachable, and let the local
+   generator answer the request instead of leaving it as prose. */
+/* The verbs stay as escapes for the same reason the template aliases do:
+   interface text belongs in the catalogue, but these are matching patterns,
+   not copy. Picking the verbs here and the template match in the shared
+   registry keeps one source of truth for template names. */
+const PROJECT_INTENT_VERBS = new RegExp(
+  [
+    "make",
+    "create",
+    "build",
+    "generate",
+    "design",
+    "produce",
+    "construct",
+    "\u751f\u6210",
+    "\u521b\u5efa",
+    "\u5236\u4f5c",
+    "\u8bbe\u8ba1",
+    "\u6b04\u7bc9",
+    "\u4f5c\u6210",
+    "\u4f5c\u3063\u3066",
+    "cr\u00e9e",
+    "cr\u00e9er",
+    "g\u00e9n\u00e9r",
+    "concevoir",
+    "construire",
+    "erstell",
+    "generier",
+    "entwirf",
+    "mach",
+    "bau",
+  ].join("|"),
+  "i",
+);
+
+function projectGenerationRequest(message) {
+  if (!PROJECT_INTENT_VERBS.test(message)) return null;
+  const template = matchProjectTemplate(message);
+  if (!template) return null;
+  const name = $("#gen-project-name")?.value.trim();
+  return {
+    template,
+    projectName:
+      name && name !== projectTemplateLabel(template)
+        ? name
+        : projectTemplateLabel(template),
+  };
 }
 
 async function sendChat() {
@@ -2290,6 +2363,51 @@ async function sendChat() {
   sendBtn.querySelector("span").textContent = T("chat.sending");
   input.value = "";
   try {
+    const request = projectGenerationRequest(text);
+    if (request) {
+      addLocalChatMessage("user", text);
+      addLocalChatMessage(
+        "agent",
+        t("chat.projectQueued", { name: request.projectName }),
+      );
+      if ($("#gen-project-template"))
+        $("#gen-project-template").value = request.template.id;
+      if ($("#gen-project-name"))
+        $("#gen-project-name").value = request.projectName;
+      if (genState.generating) {
+        addLocalChatMessage("agent", t("chat.projectBusy"));
+      } else {
+        sendBtn.querySelector("span").textContent = T("chat.generating");
+        addLocalChatMessage("agent", t("chat.projectThinking"));
+        await generateProject();
+        if (genState.project) {
+          addLocalChatMessage(
+            "agent",
+            t("chat.projectDone", {
+              name: genState.project.name,
+              assets: String(genState.project.counts.assets),
+              scenes: String(genState.project.counts.scenes),
+            }),
+          );
+        } else {
+          addLocalChatMessage("agent", t("chat.projectFailed"));
+        }
+      }
+      try {
+        /* The brief itself would ask a connected agent for the same project a
+           second time, so the conversation gets a notice instead. */
+        await api("chat", {
+          message: t("chat.projectNotice", {
+            name: genState.project?.name || request.projectName,
+            template: request.template.name,
+          }),
+        });
+      } catch {
+        /* The local project is what matters here; a missing agent route is
+           not a reason to drop the generated result. */
+      }
+      return;
+    }
     await api("chat", { message: text });
     await pollChat();
   } catch (err) {
@@ -3893,9 +4011,11 @@ function renderGenProject() {
   if (!summary || !list) return;
   if (!project) {
     summary.textContent = "";
+    list.removeAttribute("data-project-id");
     list.innerHTML = `<div class="gen-library-empty">${t("gen.projectEmpty")}</div>`;
     return;
   }
+  list.dataset.projectId = project.templateId;
   summary.innerHTML = `
     <div class="gen-project-head">
       <strong>${esc(project.name)}</strong>

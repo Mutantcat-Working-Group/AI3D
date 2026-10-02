@@ -256,7 +256,7 @@ From a clone, for the full development environment:
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 403 unit and integration tests
-npm run test:browser # 89 real-Chromium tests
+npm run test:browser # 90 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -489,6 +489,13 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   quality gate, and the export carries `project.json` and `import-order.json`
   beside the flat `manifest.json`, matching the agent-facing project schema so
   build scripts and chat read back the same plan.
+- **2.28 (done)** - projects from chat: when the built-in chat receives a brief
+  with a generation verb and a project template, such as "generate a fantasy
+  dungeon project", the workbench selects that template and runs the same
+  project pipeline, merging its asset sets and scene kits into the library.
+  Confirmation, progress and results are written back into the chat, so the
+  project still completes when the instance has no return route to an agent
+  conversation, while ordinary messages keep flowing to the connected agent.
 
 ### 12. Documentation
 

@@ -242,9 +242,18 @@ export default {
   "chat.placeholder": "輸入訊息…",
   "chat.send": "傳送",
   "chat.sending": "傳送中…",
+  "chat.generating": "生成中…",
   "chat.thinking": "正在思考…",
   "chat.you": "你",
   "chat.agent": "Agent",
+  "chat.projectQueued": "正在生成專案：{name}。",
+  "chat.projectBusy": "已有專案正在生成，請稍後再試。",
+  "chat.projectThinking": "正在裝載專案的知識、藍圖與材質…",
+  "chat.projectDone":
+    "{name} 已就緒：已向資源庫加入 {assets} 件資產、{scenes} 個場景。可在「生成」分頁查看或匯出專案包。",
+  "chat.projectFailed": "專案生成失敗，請在「生成」分頁查看詳情。",
+  "chat.projectNotice":
+    "使用者已在工作台生成{template}專案「{name}」，並已加入資源庫；如無進一步要求，請勿重複生成。",
   "chat.knowledgePlaceholder": "檢索建模知識…",
   "chat.knowledgeSearch": "檢索知識包",
   "chat.knowledgeSearching": "正在檢索知識包…",

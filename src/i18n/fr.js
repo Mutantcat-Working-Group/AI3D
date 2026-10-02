@@ -276,9 +276,21 @@ export default {
   "chat.placeholder": "Saisissez un message…",
   "chat.send": "Envoyer",
   "chat.sending": "Envoi…",
+  "chat.generating": "Génération…",
   "chat.thinking": "Réflexion…",
   "chat.you": "Vous",
   "chat.agent": "Agent",
+  "chat.projectQueued": "Génération du projet : {name}.",
+  "chat.projectBusy":
+    "Un projet est déjà en cours de génération. Réessayez une fois terminé.",
+  "chat.projectThinking":
+    "Chargement des connaissances, des plans et des matériaux du projet...",
+  "chat.projectDone":
+    "{name} est prêt : {assets} assets et {scenes} scènes ont été ajoutés à la bibliothèque. Ouvrez l'onglet « Générer » pour examiner ou exporter le projet.",
+  "chat.projectFailed":
+    "Le projet n'a pas pu être généré. Consultez l'onglet « Générer » pour plus de détails.",
+  "chat.projectNotice":
+    "L'utilisateur a généré le projet {template} « {name} » dans l'espace de travail. Il figure déjà dans la bibliothèque ; ne le régénérez pas sans demande explicite.",
   "chat.knowledgePlaceholder": "Rechercher des références de modélisation…",
   "chat.knowledgeSearch": "Rechercher dans le pack de connaissances",
   "chat.knowledgeSearching": "Recherche dans le pack de connaissances…",

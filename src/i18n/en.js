@@ -265,9 +265,21 @@ export default {
   "chat.placeholder": "Type a message…",
   "chat.send": "Send",
   "chat.sending": "Sending…",
+  "chat.generating": "Generating…",
   "chat.thinking": "Thinking…",
   "chat.you": "You",
   "chat.agent": "Agent",
+  "chat.projectQueued": "Generating project: {name}.",
+  "chat.projectBusy":
+    "A project is already being generated. Try again when it finishes.",
+  "chat.projectThinking":
+    "Loading the knowledge, blueprints and materials for the project...",
+  "chat.projectDone":
+    "{name} is ready: {assets} assets and {scenes} scenes were added to the library. Open the Generate tab to review or export the project pack.",
+  "chat.projectFailed":
+    "The project could not be generated. Check the Generate tab for details.",
+  "chat.projectNotice":
+    'The user generated the {template} project "{name}" in the workbench. It is already in the asset library, so do not generate it again unless asked.',
   "chat.knowledgePlaceholder": "Search modeling references…",
   "chat.knowledgeSearch": "Search knowledge pack",
   "chat.knowledgeSearching": "Searching the knowledge pack…",

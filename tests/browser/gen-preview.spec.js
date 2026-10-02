@@ -706,3 +706,45 @@ test("a project template expands and exports a project pack", async ({
   expect(files[scene.files.blueprint]).toBeDefined();
   await expect(page.locator("#gen-status")).toContainText(/project\.json/i);
 });
+
+/* Chat is the second door into the same project pipeline. A written brief that
+   names a template must build the project locally and land it in the library,
+   even when the page has no return route to an agent conversation. */
+test("a chat project brief generates a project without a host conversation", async ({
+  page,
+}) => {
+  test.setTimeout(150000);
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="chat"]').click();
+  await expect(page.locator("#chat-messages .chat-empty")).toBeVisible({
+    timeout: 20000,
+  });
+
+  /* A question about a template is not a request to build one: the bridge
+     needs the generation verb before it takes over the message. */
+  await page.locator("#chat-input").fill("什么是地牢");
+  await page.locator("#chat-send").click();
+  await expect(page.locator("#chat-send")).toBeEnabled({ timeout: 15000 });
+  await expect(page.locator("#chat-messages .chat-msg")).toHaveCount(0);
+
+  await page.locator("#chat-input").fill("生成一个快速原型项目");
+  await page.locator("#chat-send").click();
+
+  await expect(
+    page.locator("#chat-messages .chat-msg.chat-agent").last(),
+  ).toContainText(/就绪|ready/i, { timeout: 60000 });
+  await expect(page.locator("#gen-project-name")).not.toHaveValue("");
+  await expect(page.locator("#gen-project-summary")).toContainText(
+    /assets|资产/i,
+  );
+
+  await page.locator('[data-ai-tab="gen"]').click();
+  await expect(page.locator("#gen-project-list")).toHaveAttribute(
+    "data-project-id",
+    "prototype-starter",
+  );
+  await expect(
+    page.locator("#gen-project-list .gen-project-group"),
+  ).toHaveCount(3, { timeout: 40000 });
+});

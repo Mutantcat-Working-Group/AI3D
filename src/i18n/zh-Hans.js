@@ -242,9 +242,18 @@ export default {
   "chat.placeholder": "输入消息…",
   "chat.send": "发送",
   "chat.sending": "发送中…",
+  "chat.generating": "生成中…",
   "chat.thinking": "正在思考…",
   "chat.you": "你",
   "chat.agent": "Agent",
+  "chat.projectQueued": "正在生成项目：{name}。",
+  "chat.projectBusy": "已有项目正在生成，请稍后再试。",
+  "chat.projectThinking": "正在装载项目的知识、蓝图与材质…",
+  "chat.projectDone":
+    "{name} 已就绪：已向资源库加入 {assets} 件资产、{scenes} 个场景。可在“生成”标签页查看或导出项目包。",
+  "chat.projectFailed": "项目生成失败，请在“生成”标签页查看详情。",
+  "chat.projectNotice":
+    "用户已在工作台生成{template}项目“{name}”，并已加入资源库；如无进一步要求，请勿重复生成。",
   "chat.knowledgePlaceholder": "检索建模知识…",
   "chat.knowledgeSearch": "检索知识包",
   "chat.knowledgeSearching": "正在检索知识包…",

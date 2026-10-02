@@ -279,9 +279,21 @@ export default {
   "chat.placeholder": "Nachricht eingeben…",
   "chat.send": "Senden",
   "chat.sending": "Sende…",
+  "chat.generating": "Erzeuge…",
   "chat.thinking": "Denke nach…",
   "chat.you": "Du",
   "chat.agent": "Agent",
+  "chat.projectQueued": "Projekt wird erstellt: {name}.",
+  "chat.projectBusy":
+    "Es wird bereits ein Projekt erstellt. Versuche es nach dem Abschluss erneut.",
+  "chat.projectThinking":
+    "Wissen, Baupläne und Materialien für das Projekt werden geladen...",
+  "chat.projectDone":
+    "{name} ist fertig: {assets} Assets und {scenes} Szenen wurden zur Bibliothek hinzugefügt. Im Tab „Erzeugen“ kannst du das Projekt prüfen oder exportieren.",
+  "chat.projectFailed":
+    "Das Projekt konnte nicht erstellt werden. Details findest du im Tab „Erzeugen“.",
+  "chat.projectNotice":
+    "Der Nutzer hat das Projekt „{name}“ ({template}) im Arbeitsbereich erstellt. Es liegt bereits in der Bibliothek; bitte nicht erneut erzeugen, sofern nicht ausdrücklich gewünscht.",
   "chat.knowledgePlaceholder": "Modellierungsreferenzen suchen…",
   "chat.knowledgeSearch": "Wissenspaket durchsuchen",
   "chat.knowledgeSearching": "Wissenspaket wird durchsucht…",
