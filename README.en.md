@@ -251,7 +251,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 401 unit and integration tests
+npm test             # 403 unit and integration tests
 npm run test:browser # 88 real-Chromium tests
 ```
 
