@@ -130,6 +130,53 @@ function requireSceneDesign(value) {
 
 const CATALOGUE_MODES = new Set(["all", "types", "kits", "design"]);
 
+const PROP_PLACEMENT_FIELDS = ["size", "x", "y", "z", "rotationY", "seed"];
+
+/* A scene can be laid out prop by prop instead of taking the kit's own
+ * arrangement. The caller sends the same placement records the in-app scene
+ * editor saves, so a chat or MCP request can pin prop types, counts, sizes,
+ * positions, rotations and per-prop seeds; the type is checked here and the
+ * scene audit still checks the design that references those props. */
+function requireSceneProps(value) {
+  if (value == null || value === "") return null;
+  if (!Array.isArray(value) || value.length === 0)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      "props must be a non-empty array of placements.",
+    );
+  if (value.length > 400)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      "props cannot carry more than 400 placements.",
+    );
+  return value.map((placement, index) => {
+    if (!placement || typeof placement !== "object" || Array.isArray(placement))
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `props[${index}] must be a placement object.`,
+      );
+    if (placement.type != null && !TYPE_IDS.has(placement.type))
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `props[${index}].type is not a known asset type: ${placement.type}.`,
+      );
+    const copy = {};
+    if (placement.type != null) copy.type = placement.type;
+    for (const field of PROP_PLACEMENT_FIELDS) {
+      const raw = placement[field];
+      if (raw == null || raw === "") continue;
+      const numeric = Number(raw);
+      if (!Number.isFinite(numeric))
+        throw new GenerationError(
+          BAD_PARAMETER,
+          `props[${index}].${field} must be a number.`,
+        );
+      copy[field] = numeric;
+    }
+    return copy;
+  });
+}
+
 /* Read-only discovery for agents. Every generation tool has a large choice
  * space -- a hundred-odd asset types, eight kits, five design fields -- and a
  * model that guesses wastes a round trip. This reports what the same registry
@@ -350,6 +397,7 @@ export async function generateSceneToPack({
   spacing,
   groundPadding,
   propScale,
+  props = null,
   design = null,
 } = {}) {
   if (!workspace || typeof workspace !== "string")
@@ -375,6 +423,7 @@ export async function generateSceneToPack({
   );
   const resolvedStrength = requireStrength(textureStrength);
   const resolvedDesign = requireSceneDesign(design);
+  const resolvedProps = requireSceneProps(props);
 
   const scene = composeGameKit(kit, {
     seed: resolvedSeed ?? 1,
@@ -386,12 +435,13 @@ export async function generateSceneToPack({
     spacing,
     groundPadding,
     propScale,
+    props: resolvedProps,
     design: resolvedDesign,
   });
-  const props = scene.userData.propList || [];
+  const placedProps = scene.userData.propList || [];
   const sceneDesign = scene.userData.design || null;
   const audit = sceneDesign
-    ? auditSceneDesign(sceneDesign, { props, kind: "kit" })
+    ? auditSceneDesign(sceneDesign, { props: placedProps, kind: "kit" })
     : null;
 
   const id = assetSlug(name || kit);
@@ -419,7 +469,7 @@ export async function generateSceneToPack({
       propScale: scene.userData.theme?.propScale ?? 1,
       groundColor: scene.userData.groundColor ?? null,
       theme: scene.userData.theme ?? null,
-      props,
+      props: placedProps,
       design: sceneDesign,
     },
   };
@@ -455,7 +505,8 @@ export async function generateSceneToPack({
     units: resolvedUnits,
     seed: resolvedSeed,
     engine: resolvedEngine,
-    props: props.map((prop) => prop.type),
+    props: placedProps.map((prop) => prop.type),
+    customLayout: resolvedProps != null,
     design: sceneDesign,
     designAudit: audit,
     stats,
@@ -507,6 +558,7 @@ export async function generateAssetToPack({
   spacing,
   groundPadding,
   propScale,
+  props = null,
   design = null,
 } = {}) {
   if (kind === "scene")
@@ -527,6 +579,7 @@ export async function generateAssetToPack({
       spacing,
       groundPadding,
       propScale,
+      props,
       design,
     });
   if (kind !== "asset")
@@ -538,6 +591,11 @@ export async function generateAssetToPack({
     throw new GenerationError(
       BAD_PARAMETER,
       'design is only supported when kind is "scene".',
+    );
+  if (props != null && props !== "")
+    throw new GenerationError(
+      BAD_PARAMETER,
+      'props is only supported when kind is "scene".',
     );
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");

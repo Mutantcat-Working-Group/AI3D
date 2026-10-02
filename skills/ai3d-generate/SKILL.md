@@ -34,7 +34,11 @@ same registry the generator does and writes nothing.
 Pass `kind: "scene"` to compose a whole level kit rather than a single prop.
 Scenes take a kit `type` (dungeon, camp, outpost, village, temple, battle,
 wilderness, town) or a prompt that names one, plus the optional layout knobs
-`spacing`, `groundPadding` and `propScale`. Pass `design` to replace the kit
+`spacing`, `groundPadding` and `propScale`. Pass a `props` array to lay the
+scene out prop by prop instead of taking the kit's own arrangement: each entry
+sets a `type` (falling back to the kit's prop in that slot) with optional
+`size`, `x`, `y`, `z`, `rotationY` and `seed`, matching the records the in-app
+scene editor saves. Pass `design` to replace the kit
 defaults with custom `spawnPoints`, `objectives`, `lootTables`, `locks` and
 `directives`; the returned `designAudit` checks them against the composed
 props and the asset catalogue. A scene ignores the per-mesh settings (`size`,

@@ -184,7 +184,9 @@ Unity, Godot or Unreal engine pack into the workspace, sharing the same
 deterministic generator as the interface. Pass `kind: "scene"` and it composes a
 whole level kit instead (dungeon, camp, outpost, village, temple, battle,
 wilderness, town), with an optional `design` object for custom spawn points,
-objectives, loot tables, locks and directives. The returned design audit
+objectives, loot tables, locks and directives, or a `props` array that lays the
+scene out prop by prop, pinning each prop's type, size, position, rotation and
+seed instead of taking the kit's own arrangement. The returned design audit
 validates that metadata, and the same pack carries it into the engine-space
 scene blueprint. Before generating, a read-only `ai3d_catalog` tool lists every
 asset type's tags, collider preset, animation clips, gameplay role and
@@ -237,7 +239,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 382 unit and integration tests
+npm test             # 384 unit and integration tests
 npm run test:browser # 87 real-Chromium tests
 ```
 
@@ -418,6 +420,12 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   mode describes the scene design fields and the audit rules; `query` and
   `tags` filter the result, so a `type` or loot item key can be resolved
   against the generator's own registry before anything is written.
+- **2.21 (done)** - agent-authored prop layout: `ai3d_generate` with
+  `kind: "scene"` now accepts a `props` array, letting chat and MCP pin each
+  prop's type, size, position, rotation and seed and replace the kit's default
+  arrangement; the design audit then checks loot containers and locks against
+  those placed props, and the blueprint, engine pack and builder script follow
+  the new layout. Passing `props` for a non-scene call is rejected.
 
 ### 12. Documentation
 

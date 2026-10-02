@@ -170,6 +170,30 @@ export const GENERATE_TOOL = {
         description:
           "Scene only: global prop scale multiplier, clamped to 0.25-3 (default 1).",
       },
+      props: {
+        type: "array",
+        minItems: 1,
+        maxItems: 400,
+        description:
+          "Scene only: replace the kit layout with explicit prop placements. Each entry pins a prop type, size, position, rotation and/or seed; the design audit then checks loot containers and locks against these placed props instead of the kit defaults.",
+        items: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              description:
+                "Known AI3D asset type key; omit to fall back to the kit's prop in this slot.",
+            },
+            size: { type: "number" },
+            x: { type: "number" },
+            y: { type: "number" },
+            z: { type: "number" },
+            rotationY: { type: "number" },
+            seed: { type: "integer" },
+          },
+          additionalProperties: false,
+        },
+      },
       design: {
         type: "object",
         description:

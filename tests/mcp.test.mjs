@@ -317,6 +317,94 @@ test("the generate tool applies custom scene design metadata", async (t) => {
   assert.deepEqual(blueprint.locks, design.locks);
 });
 
+test("the generate tool accepts an explicit scene prop layout", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 24,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "scene",
+        output: "generated-assets/layouts",
+        type: "camp",
+        name: "outpost",
+        props: [
+          { type: "house", size: 1.2, x: -1, z: 0 },
+          { type: "fence", x: 1, z: 0, rotationY: 0 },
+          { type: "crate", x: 0, z: 1 },
+        ],
+        design: {
+          spawnPoints: { playerStart: 1, enemySpawn: 2 },
+          objectives: [
+            {
+              id: "clear",
+              title: "Clear the camp",
+              summary: "Defeat the guards.",
+            },
+          ],
+          lootTables: [{ container: "crate", items: ["bread", "potion"] }],
+          locks: [{ prop: "fence", state: "open", opensWith: "crate" }],
+          directives: ["Place the house to the west."],
+        },
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.kind, "scene");
+  // The design is checked against the props the caller placed, not the kit's.
+  assert.equal(result.asset.designAudit.summary.ready, true);
+
+  const summary = JSON.parse(fs.readFileSync(result.files.summary, "utf8"));
+  assert.equal(summary.customLayout, true);
+  assert.deepEqual(summary.props, ["house", "fence", "crate"]);
+
+  const blueprint = JSON.parse(
+    fs.readFileSync(
+      path.join(result.files.packDir, "blueprints/outpost.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    blueprint.props.map((prop) => prop.type),
+    ["house", "fence", "crate"],
+  );
+  assert.equal(blueprint.props[0].position.x, -1);
+  assert.equal(blueprint.props[0].position.z, 0);
+});
+
+test("the generate tool rejects props outside a scene and unknown prop types", async (t) => {
+  const dir = workspace(t);
+  const call = (args) =>
+    handlerFor(dir)({
+      id: 25,
+      method: "tools/call",
+      params: { name: "ai3d_generate", arguments: args },
+    });
+  const wrongKind = await call({
+    output: "generated-assets/wrong-kind",
+    type: "sword",
+    props: [{ type: "crate" }],
+  });
+  assert.equal(wrongKind.result.isError, true);
+  assert.equal(
+    JSON.parse(wrongKind.result.content[0].text).code,
+    "BAD_PARAMETER",
+  );
+
+  const unknownProp = await call({
+    kind: "scene",
+    output: "generated-assets/unknown-prop",
+    type: "camp",
+    props: [{ type: "not-a-real-prop" }],
+  });
+  assert.equal(unknownProp.result.isError, true);
+  assert.match(
+    JSON.parse(unknownProp.result.content[0].text).message,
+    /not a known asset type/,
+  );
+});
+
 test("the generate tool reads a scene kit out of a prompt", async (t) => {
   const dir = workspace(t);
   const call = (args) =>

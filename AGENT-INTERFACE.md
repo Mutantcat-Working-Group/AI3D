@@ -83,7 +83,11 @@ an explicit `type` wins over whatever the prompt resolves.
 `kind: "scene"` composes a whole level kit instead of a single prop. The kit
 type is one of `dungeon`, `camp`, `outpost`, `village`, `temple`, `battle`,
 `wilderness` or `town`, and the optional layout knobs `spacing`,
-`groundPadding` and `propScale` apply only here. Pass a `design` object to
+`groundPadding` and `propScale` apply only here. Pass a `props` array to lay the
+scene out prop by prop instead of taking the kit's own arrangement: each entry
+pins a `type` (falling back to the kit's prop in that slot) plus optional
+`size`, `x`, `y`, `z`, `rotationY` and `seed`, using the same records the in-app
+scene editor saves. Pass a `design` object to
 replace the kit defaults with custom `spawnPoints`, `objectives`, `lootTables`,
 `locks` and `directives`; the returned `designAudit` validates that metadata
 against the composed props and the asset catalogue. A scene pack also carries
