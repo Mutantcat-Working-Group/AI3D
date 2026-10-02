@@ -107,6 +107,24 @@ function requireSeed(value) {
   return parsed;
 }
 
+/* Scene design metadata arrives through JSON-RPC, the CLI or a local caller.
+ * Keep the contract deliberately structural: the generator's audit is the
+ * source of truth for whether the fields make sense, while this boundary only
+ * rejects values that cannot be represented in the generated summary. */
+function requireSceneDesign(value) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "object" || Array.isArray(value))
+    throw new GenerationError(BAD_PARAMETER, "design must be a JSON object.");
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    throw new GenerationError(
+      BAD_PARAMETER,
+      "design must contain only JSON-serializable values.",
+    );
+  }
+}
+
 /* Prompts may resolve a type the caller never named, but an explicit `type`
  * always wins so the tool stays deterministic about what was asked. */
 function resolveType(prompt, type, parsed) {
@@ -267,6 +285,7 @@ export async function generateSceneToPack({
   spacing,
   groundPadding,
   propScale,
+  design = null,
 } = {}) {
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");
@@ -290,6 +309,7 @@ export async function generateSceneToPack({
     256,
   );
   const resolvedStrength = requireStrength(textureStrength);
+  const resolvedDesign = requireSceneDesign(design);
 
   const scene = composeGameKit(kit, {
     seed: resolvedSeed ?? 1,
@@ -301,11 +321,12 @@ export async function generateSceneToPack({
     spacing,
     groundPadding,
     propScale,
+    design: resolvedDesign,
   });
   const props = scene.userData.propList || [];
-  const design = scene.userData.design || null;
-  const audit = design
-    ? auditSceneDesign(design, { props, kind: "kit" })
+  const sceneDesign = scene.userData.design || null;
+  const audit = sceneDesign
+    ? auditSceneDesign(sceneDesign, { props, kind: "kit" })
     : null;
 
   const id = assetSlug(name || kit);
@@ -334,7 +355,7 @@ export async function generateSceneToPack({
       groundColor: scene.userData.groundColor ?? null,
       theme: scene.userData.theme ?? null,
       props,
-      design,
+      design: sceneDesign,
     },
   };
 
@@ -370,7 +391,7 @@ export async function generateSceneToPack({
     seed: resolvedSeed,
     engine: resolvedEngine,
     props: props.map((prop) => prop.type),
-    design,
+    design: sceneDesign,
     designAudit: audit,
     stats,
     prompt: prompt || null,
@@ -421,6 +442,7 @@ export async function generateAssetToPack({
   spacing,
   groundPadding,
   propScale,
+  design = null,
 } = {}) {
   if (kind === "scene")
     return generateSceneToPack({
@@ -440,11 +462,17 @@ export async function generateAssetToPack({
       spacing,
       groundPadding,
       propScale,
+      design,
     });
   if (kind !== "asset")
     throw new GenerationError(
       BAD_PARAMETER,
       'kind must be "asset" or "scene".',
+    );
+  if (design != null && design !== "")
+    throw new GenerationError(
+      BAD_PARAMETER,
+      'design is only supported when kind is "scene".',
     );
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");

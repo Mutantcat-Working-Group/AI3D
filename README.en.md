@@ -183,8 +183,10 @@ call `ai3d_generate` to create an asset from one sentence and write a GLB plus a
 Unity, Godot or Unreal engine pack into the workspace, sharing the same
 deterministic generator as the interface. Pass `kind: "scene"` and it composes a
 whole level kit instead (dungeon, camp, outpost, village, temple, battle,
-wilderness, town), carrying the kit's design metadata, design audit and
-engine-space scene blueprint into the same pack.
+wilderness, town), with an optional `design` object for custom spawn points,
+objectives, loot tables, locks and directives. The returned design audit
+validates that metadata, and the same pack carries it into the engine-space
+scene blueprint.
 
 ### 7. Three ways in, one implementation
 
@@ -232,7 +234,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 379 unit and integration tests
+npm test             # 380 unit and integration tests
 npm run test:browser # 87 real-Chromium tests
 ```
 
@@ -402,6 +404,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   directives, and the readiness badge re-audits on every edit. Saving and
   reloading a scene restores the design metadata alongside props and theme, so
   the blueprint, audit and engine setup script all carry the edited result.
+- **2.19 (done)** - agent-authored level design: `ai3d_generate` with
+  `kind: "scene"` now accepts a `design` object, letting chat and MCP supply
+  spawn points, objectives, loot tables, locks and directives through the same
+  audit, blueprint, engine-pack and setup-script path as in-app edits.
 
 ### 12. Documentation
 

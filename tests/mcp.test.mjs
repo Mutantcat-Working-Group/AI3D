@@ -85,6 +85,14 @@ test("the tool says up front that nothing here will announce a submission", asyn
   assert.match(TOOL.description, /cannot be pushed to/);
   assert.equal(TOOL.inputSchema.required.includes("action"), true);
   assert.equal(GENERATE_TOOL.inputSchema.required.includes("output"), true);
+  assert.equal(
+    GENERATE_TOOL.inputSchema.properties.design.additionalProperties,
+    true,
+  );
+  assert.deepEqual(
+    GENERATE_TOOL.inputSchema.properties.design.properties.directives.items,
+    { type: "string" },
+  );
 });
 
 test("the generate tool writes a game pack into the workspace", async (t) => {
@@ -203,6 +211,67 @@ test("the generate tool composes a scene kit into a level pack", async (t) => {
     true,
   );
   assert.equal(parsed.readiness.count, 1);
+});
+
+test("the generate tool applies custom scene design metadata", async (t) => {
+  const dir = workspace(t);
+  const design = {
+    spawnPoints: { playerStart: 1, enemySpawn: 4 },
+    objectives: [
+      {
+        id: "hold-the-line",
+        title: "Hold the line",
+        summary: "Defend the camp from four attack waves.",
+      },
+    ],
+    lootTables: [
+      { container: "crate", items: ["bread", "potion", "rope_coil"] },
+    ],
+    locks: [{ prop: "flag", state: "open", opensWith: "crate" }],
+    directives: ["Keep the command tent clear of enemy patrols."],
+  };
+  const answer = await handlerFor(dir)({
+    id: 17,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "scene",
+        output: "generated-assets/custom-level",
+        type: "camp",
+        seed: 4,
+        name: "command-camp",
+        design,
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.asset.kind, "scene");
+  assert.equal(result.asset.designAudit.summary.ready, true);
+  assert.equal(
+    result.asset.designAudit.checks.find((check) => check.id === "objectives")
+      .details[0],
+    "1 objectives",
+  );
+
+  const summary = JSON.parse(
+    fs.readFileSync(
+      path.join(dir, "generated-assets/custom-level/command-camp/summary.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(summary.design, design);
+  const blueprint = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        dir,
+        "generated-assets/custom-level/command-camp/pack/blueprints/command-camp.json",
+      ),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(blueprint.objectives, design.objectives);
+  assert.deepEqual(blueprint.locks, design.locks);
 });
 
 test("the generate tool reads a scene kit out of a prompt", async (t) => {

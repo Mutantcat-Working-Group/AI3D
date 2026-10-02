@@ -8,11 +8,11 @@ configured.
 
 ## Three ways in, one implementation
 
-| Entry point        | Call it as                        | Who owns a review                              |
-| ------------------ | --------------------------------- | ---------------------------------------------- |
-| OpenClaw extension | the native `ai3d` tool            | derived from the host session and channel      |
-| `ai3d` CLI         | `ai3d <action> --owner <id> …`    | **stated by the caller**; it is never invented |
-| `ai3d-mcp`         | one `ai3d` tool over stdio MCP    | the workspace, or `AI3D_OWNER`                 |
+| Entry point        | Call it as                     | Who owns a review                              |
+| ------------------ | ------------------------------ | ---------------------------------------------- |
+| OpenClaw extension | the native `ai3d` tool         | derived from the host session and channel      |
+| `ai3d` CLI         | `ai3d <action> --owner <id> …` | **stated by the caller**; it is never invented |
+| `ai3d-mcp`         | one `ai3d` tool over stdio MCP | the workspace, or `AI3D_OWNER`                 |
 
 All three drive the same instance manager. Ownership decides who may change a
 draft or switch the displayed version, and it did not loosen when the entry
@@ -28,7 +28,7 @@ second and runs the `prepare` script in it.
 | Host             | Install                                                                                                                     | It worked when                                                            |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Any MCP client   | `npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"`, then `command = "ai3d-mcp"`                                 | `initialize` answers with the operating instructions, not an empty string |
-| CLI, any harness | the same install; call `ai3d <action> --owner <id>`                                                                        | `ai3d help` prints the documentation paths                                |
+| CLI, any harness | the same install; call `ai3d <action> --owner <id>`                                                                         | `ai3d help` prints the documentation paths                                |
 | OpenClaw         | from a clone: `npm run build:integration -- tmp/candidate/package`, then `openclaw plugins install ./tmp/candidate/package` | the native `ai3d` tool answers `inspect`                                  |
 
 AI3D is **not published on npm**; this repository installs as the package
@@ -83,8 +83,11 @@ an explicit `type` wins over whatever the prompt resolves.
 `kind: "scene"` composes a whole level kit instead of a single prop. The kit
 type is one of `dungeon`, `camp`, `outpost`, `village`, `temple`, `battle`,
 `wilderness` or `town`, and the optional layout knobs `spacing`,
-`groundPadding` and `propScale` apply only here. A scene pack also carries the
-kit's design metadata, a design audit, an engine-space scene blueprint and an
+`groundPadding` and `propScale` apply only here. Pass a `design` object to
+replace the kit defaults with custom `spawnPoints`, `objectives`, `lootTables`,
+`locks` and `directives`; the returned `designAudit` validates that metadata
+against the composed props and the asset catalogue. A scene pack also carries
+that design metadata, a design audit, an engine-space scene blueprint and an
 editor builder script for the target engine, so the level arrives with its
 spawn points, objectives, loot tables, locks and prop placements already
 expressed in the target engine's axes and units; the builder drops the

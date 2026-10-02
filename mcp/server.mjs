@@ -167,6 +167,79 @@ export const GENERATE_TOOL = {
         description:
           "Scene only: global prop scale multiplier, clamped to 0.25-3 (default 1).",
       },
+      design: {
+        type: "object",
+        description:
+          "Scene only: custom level design metadata that replaces the kit defaults. Supported fields are spawnPoints, objectives, lootTables, locks and directives; the returned designAudit validates them against the composed props and asset catalogue.",
+        properties: {
+          spawnPoints: {
+            type: "object",
+            description:
+              'Spawn group counts keyed by name, including playerStart, e.g. {"playerStart": 1, "enemySpawn": 3}.',
+            additionalProperties: { type: "number", minimum: 0 },
+          },
+          objectives: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+                summary: { type: "string" },
+              },
+              required: ["id", "title", "summary"],
+            },
+          },
+          lootTables: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                container: {
+                  type: "string",
+                  description:
+                    "A prop type present in the composed scene, such as crate, barrel, chest or urn.",
+                },
+                items: {
+                  type: "array",
+                  items: { type: "string" },
+                  description:
+                    "Known AI3D asset type keys, such as bread, potion, key or coin_pile.",
+                },
+              },
+              required: ["container", "items"],
+            },
+          },
+          locks: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                prop: {
+                  type: "string",
+                  description: "A prop type present in the composed scene.",
+                },
+                opensWith: {
+                  type: "string",
+                  description:
+                    "A scene prop type or an item listed in a loot table.",
+                },
+                state: {
+                  type: "string",
+                  enum: ["locked", "open", "sealed"],
+                },
+              },
+              required: ["prop", "opensWith"],
+            },
+          },
+          directives: {
+            type: "array",
+            items: { type: "string" },
+            description: "Level-builder instructions carried into the pack.",
+          },
+        },
+        additionalProperties: true,
+      },
       engine: {
         type: "string",
         enum: ["unity", "godot", "unreal"],
