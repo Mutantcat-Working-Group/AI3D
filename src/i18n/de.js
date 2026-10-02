@@ -350,6 +350,9 @@ export default {
   "ai.generate": "Generieren",
 
   "gen.title": "Asset-Generierung",
+  "gen.firstModel": "Erstes Modell generieren",
+  "gen.firstHint":
+    "Beschreibe ein Objekt, eine Figur oder ein Level – der Generator baut es hier mit LODs, Kollision und Engine-Export.",
   "gen.prompt": "Beschreibung",
   "gen.promptPlaceholder":
     "Beschreibe das gewünschte Spiel-Asset, z.B. ein Low-Poly-Schwert",

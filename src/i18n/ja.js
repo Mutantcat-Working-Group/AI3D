@@ -336,6 +336,9 @@ export default {
   "ai.generate": "生成",
 
   "gen.title": "アセット生成",
+  "gen.firstModel": "最初のモデルを生成",
+  "gen.firstHint":
+    "小道具・キャラクター・レベルを説明すると、LOD・コライダー・エンジン書き出し付きのモデルをここに生成します。",
   "gen.prompt": "説明",
   "gen.promptPlaceholder":
     "ゲームアセットを説明してください。例：低ポリゴンの剣",

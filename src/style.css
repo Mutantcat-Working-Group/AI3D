@@ -869,6 +869,12 @@ a {
   font-size: 10px;
   color: var(--ink-faint);
 }
+/* The first-run offer is a button, not a caption: the small faint span rule
+   above would otherwise repaint its label. */
+.loading-overlay .primary-button span {
+  font-size: 11px;
+  color: inherit;
+}
 .spinner {
   width: 27px;
   height: 27px;

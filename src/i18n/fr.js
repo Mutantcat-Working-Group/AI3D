@@ -347,6 +347,9 @@ export default {
   "ai.generate": "Générer",
 
   "gen.title": "Génération d'actifs",
+  "gen.firstModel": "Générer le premier modèle",
+  "gen.firstHint":
+    "Décrivez un accessoire, un personnage ou un niveau : le générateur le construit ici, avec LOD, collisions et export moteur.",
   "gen.prompt": "Description",
   "gen.promptPlaceholder":
     "Décrivez l'actif de jeu souhaité, par ex. une épée low-poly",

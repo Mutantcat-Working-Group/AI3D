@@ -336,6 +336,9 @@ export default {
   "ai.generate": "Generate",
 
   "gen.title": "Asset Generation",
+  "gen.firstModel": "Generate the first model",
+  "gen.firstHint":
+    "Describe a prop, character or level and the generator builds it here, with LODs, colliders and an engine export.",
   "gen.prompt": "Description",
   "gen.promptPlaceholder":
     "Describe the game asset you want, e.g. a low-poly sword",

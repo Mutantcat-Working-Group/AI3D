@@ -256,7 +256,7 @@ From a clone, for the full development environment:
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 403 unit and integration tests
-npm run test:browser # 93 real-Chromium tests
+npm run test:browser # 94 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites

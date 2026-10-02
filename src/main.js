@@ -222,7 +222,7 @@ app.innerHTML = `${SPRITE}
    </div>
    <div id="tool-options" class="tool-options" hidden><div class="palette" role="group" aria-label="${T("a11y.palette")}" hidden></div><label id="fill-control" hidden>${T("tool.spread")} <input id="fill-range" type="range" min="1" max="30" value="6" aria-label="${T("tool.bucketSpread")}"></label><button class="quiet-dark" id="new-region" hidden>${icon("plus")}${T("tool.newRegion")}</button></div>
    <div id="echo-dock"><div id="echo-panel" hidden><span id="echo-summary"></span><span id="echo-stale" hidden>${T("echo.stale")}</span></div><button id="echo-recall" hidden aria-expanded="false" aria-label="${T("echo.recall")}">${icon("echo")}</button></div>
-   <div id="loading" class="loading-overlay"><div class="spinner"></div><strong id="loading-text">${T("loading.preparing")}</strong><span id="loading-hint">${T("loading.hint")}</span></div>
+   <div id="loading" class="loading-overlay"><div class="spinner"></div><strong id="loading-text">${T("loading.preparing")}</strong><span id="loading-hint">${T("loading.hint")}</span><button id="loading-generate" class="primary-button" hidden>${icon("gen")}<span>${T("gen.firstModel")}</span></button></div>
    <div class="viewer-bottom"><span id="tool-hint">${T("hint.orbit")}</span><span class="scene-pill subtle" id="model-info"></span><span class="axis-label">3D SPACE</span></div>
   </div>
   </div>
@@ -710,6 +710,7 @@ async function api(path, data, method = "POST") {
         $("#loading-text").textContent = err.message;
         $("#loading-hint").textContent = t("conn.connectedNoAccess");
         $("#loading .spinner").hidden = true;
+        $("#loading-generate").hidden = true;
       }
       updateButtons();
     }
@@ -1763,6 +1764,7 @@ async function loadVersion(fullState) {
   $("#loading .spinner").hidden = false;
   $("#loading-text").textContent = t("loading.verifying");
   $("#loading-hint").textContent = t("loading.hint");
+  $("#loading-generate").hidden = true;
   $("#save-status").textContent = t("save.verifying");
   try {
     const stats = await viewer.load(
@@ -1816,6 +1818,7 @@ async function loadVersion(fullState) {
     }
     $("#loading-text").textContent = e.message;
     $("#loading .spinner").hidden = true;
+    $("#loading-generate").hidden = true;
     toast(e.message);
     updateButtons();
   }
@@ -1897,7 +1900,9 @@ async function readState() {
         loadFlight = null;
       } else {
         $("#loading-text").textContent = t("model.awaitingFirst");
+        $("#loading-hint").textContent = t("gen.firstHint");
         $("#loading .spinner").hidden = true;
+        $("#loading-generate").hidden = false;
       }
     } else state = incoming;
     if (recovered && state?.owned && editSeq > savedSeq && !recoveryBlocked)
@@ -2849,6 +2854,13 @@ function initAiDock() {
 }
 
 $("#ai-button").addEventListener("click", () => setAiDock(!aiDockOpen));
+// A fresh install has no model to review, so the first thing the empty space
+// offers is the generator rather than a spinner waiting for someone else.
+$("#loading-generate").addEventListener("click", () => {
+  setAiTab("gen");
+  setAiDock(true);
+  $("#loading").hidden = true;
+});
 document
   .querySelectorAll(".ai-tab")
   .forEach((b) => b.addEventListener("click", () => setAiTab(b.dataset.aiTab)));

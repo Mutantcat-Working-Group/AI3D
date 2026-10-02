@@ -306,6 +306,9 @@ export default {
   "ai.generate": "生成",
 
   "gen.title": "资产生成",
+  "gen.firstModel": "生成第一个模型",
+  "gen.firstHint":
+    "描述一个道具、角色或关卡，生成器会在这里给出带 LOD、碰撞体和引擎导出的模型。",
   "gen.prompt": "描述",
   "gen.promptPlaceholder": "描述你想要的游戏资产，例如：一把低多边形风格的剑",
   "gen.style": "风格",
