@@ -2876,6 +2876,11 @@ $("#loading-generate").addEventListener("click", () => {
 document
   .querySelectorAll(".ai-tab")
   .forEach((b) => b.addEventListener("click", () => setAiTab(b.dataset.aiTab)));
+// The markup ships with the generator tab already marked active but the chat
+// pane visible, so opening the dock from the toolbar used to show chat under a
+// selected "generate" tab. Apply the declared tab on boot so the pane the
+// reader asked for is the pane they get.
+setAiTab(aiActiveTab);
 $("#chat-send").addEventListener("click", sendChat);
 $("#chat-knowledge-search").addEventListener("click", searchChatKnowledge);
 $("#chat-knowledge-query").addEventListener("keydown", (e) => {

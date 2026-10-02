@@ -606,6 +606,9 @@ test("review page keeps its conversation dock hidden and does not poll until ope
   expect(calls).toEqual([]);
   await page.click("#ai-button");
   await expect(page.locator("#ai-dock")).toBeVisible();
+  // The dock opens on the generator, so reaching the conversation is one
+  // deliberate tab click rather than the pane that happens to load first.
+  await page.click('[data-ai-tab="chat"]');
   await expect(page.locator("#chat-input")).toBeVisible();
 });
 

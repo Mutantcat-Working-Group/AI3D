@@ -39,6 +39,16 @@ test("a first-run install offers the generator from the empty review space", asy
   // until they take it and the review space keeps its full width.
   await expect(page.locator("#ai-dock")).toBeHidden();
 
+  // The toolbar button opens the generator, not the chat pane that happens to
+  // be first in the markup: the tab marked active and the pane shown must
+  // agree before anyone has clicked a tab.
+  await page.locator("#ai-button").click();
+  await expect(page.locator("#ai-dock")).toBeVisible();
+  await expect(page.locator('[data-ai-pane="gen"]')).toBeVisible();
+  await expect(page.locator('[data-ai-pane="chat"]')).toBeHidden();
+  await page.locator("#ai-button").click();
+  await expect(page.locator("#ai-dock")).toBeHidden();
+
   await cta.click();
   await expect(page.locator("#ai-dock")).toBeVisible();
   await expect(page.locator('[data-ai-tab="gen"]')).toHaveAttribute(
