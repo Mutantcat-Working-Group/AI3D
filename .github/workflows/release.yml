@@ -246,7 +246,12 @@ jobs:
             echo "::error::no bundle output directory was found"
             exit 1
           fi
-          mapfile -t files < <(
+          # Read line by line: the macOS runner ships bash 3.2, which has no
+          # mapfile, and the step would fail with "command not found" there.
+          files=()
+          while IFS= read -r file; do
+            files+=("$file")
+          done < <(
             find "${roots[@]}" -maxdepth 2 -type f \
               \( -name "*.AppImage" -o -name "*.dmg" -o -name "*-setup.exe" \) |
               sort
