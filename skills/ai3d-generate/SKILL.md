@@ -23,6 +23,14 @@ template `type` directly; at least one is required. Pass a workspace-relative
 prompt resolves, and the same six-language catalogue resolves prompts as it
 does in the browser workbench.
 
+Before picking a `type`, a loot item key or a kit, call `ai3d_catalog`:
+`mode: "types"` returns every asset type with its tags, collider, animation
+clips, gameplay role and spawn stats, `mode: "kits"` returns the scene kits
+with their prop types and default design, and `mode: "design"` describes the
+scene design fields and the rules the audit enforces. `query` filters by
+substring and `tags` keeps only types carrying every named tag. It reads the
+same registry the generator does and writes nothing.
+
 Pass `kind: "scene"` to compose a whole level kit rather than a single prop.
 Scenes take a kit `type` (dungeon, camp, outpost, village, temple, battle,
 wilderness, town) or a prompt that names one, plus the optional layout knobs

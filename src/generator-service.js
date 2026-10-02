@@ -13,10 +13,13 @@ import {
   generateAsset,
   exportGamePack,
   exportGLB,
+  getAssetCatalogueEntry,
   getAssetStats,
   getAssetTypes,
   getEnginePresets,
   getGameKits,
+  getKitCatalogue,
+  getSceneDesignCatalogue,
 } from "./generator.js";
 import { CATALOGUES } from "./i18n/index.js";
 import { parseAssetPrompt, buildPromptLexicon } from "./asset-prompt.js";
@@ -123,6 +126,68 @@ function requireSceneDesign(value) {
       "design must contain only JSON-serializable values.",
     );
   }
+}
+
+const CATALOGUE_MODES = new Set(["all", "types", "kits", "design"]);
+
+/* Read-only discovery for agents. Every generation tool has a large choice
+ * space -- a hundred-odd asset types, eight kits, five design fields -- and a
+ * model that guesses wastes a round trip. This reports what the same registry
+ * the generator reads actually holds, without writing to the workspace. */
+export function describeCatalogue({ mode = "all", query, tags, limit } = {}) {
+  const resolvedMode = requireChoice(mode, CATALOGUE_MODES, "mode", "all");
+  const resolvedLimit =
+    limit == null || limit === ""
+      ? null
+      : (() => {
+          const parsed = Number(limit);
+          if (!Number.isInteger(parsed) || parsed < 1 || parsed > 500)
+            throw new GenerationError(
+              BAD_PARAMETER,
+              "limit must be a whole number between 1 and 500.",
+            );
+          return parsed;
+        })();
+  const wanted = (Array.isArray(tags) ? tags : tags == null ? [] : [tags])
+    .map((tag) => String(tag).trim().toLowerCase())
+    .filter(Boolean);
+  const needle =
+    query == null || query === "" ? "" : String(query).trim().toLowerCase();
+
+  const result = { mode: resolvedMode };
+  if (resolvedMode === "all" || resolvedMode === "types") {
+    let types = getAssetTypes().map((type) => getAssetCatalogueEntry(type));
+    if (needle)
+      types = types.filter(
+        (entry) =>
+          entry.type.toLowerCase().includes(needle) ||
+          entry.tags.some((tag) => tag.toLowerCase().includes(needle)),
+      );
+    if (wanted.length)
+      types = types.filter((entry) => {
+        const own = entry.tags.map((tag) => tag.toLowerCase());
+        return wanted.every((tag) => own.includes(tag));
+      });
+    const matched = types.length;
+    result.types =
+      resolvedLimit == null ? types : types.slice(0, resolvedLimit);
+    result.typeCount = matched;
+  }
+  if (resolvedMode === "all" || resolvedMode === "kits") {
+    let kits = getKitCatalogue();
+    if (needle)
+      kits = kits.filter(
+        (kit) =>
+          kit.id.toLowerCase().includes(needle) ||
+          String(kit.name).toLowerCase().includes(needle),
+      );
+    const matched = kits.length;
+    result.kits = resolvedLimit == null ? kits : kits.slice(0, resolvedLimit);
+    result.kitCount = matched;
+  }
+  if (resolvedMode === "all" || resolvedMode === "design")
+    result.design = getSceneDesignCatalogue();
+  return result;
 }
 
 /* Prompts may resolve a type the caller never named, but an explicit `type`

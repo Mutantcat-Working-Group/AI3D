@@ -8,6 +8,7 @@ import {
   mcpOwner,
   serve,
   TOOL,
+  CATALOG_TOOL,
   GENERATE_TOOL,
   PROTOCOL_VERSION,
 } from "../mcp/server.mjs";
@@ -80,10 +81,16 @@ test("the tool says up front that nothing here will announce a submission", asyn
   });
   assert.deepEqual(
     listed.result.tools.map((tool) => tool.name),
-    ["ai3d", "ai3d_knowledge", "ai3d_generate"],
+    ["ai3d", "ai3d_knowledge", "ai3d_catalog", "ai3d_generate"],
   );
   assert.match(TOOL.description, /cannot be pushed to/);
   assert.equal(TOOL.inputSchema.required.includes("action"), true);
+  assert.deepEqual(CATALOG_TOOL.inputSchema.properties.mode.enum, [
+    "all",
+    "types",
+    "kits",
+    "design",
+  ]);
   assert.equal(GENERATE_TOOL.inputSchema.required.includes("output"), true);
   assert.equal(
     GENERATE_TOOL.inputSchema.properties.design.additionalProperties,
@@ -93,6 +100,42 @@ test("the tool says up front that nothing here will announce a submission", asyn
     GENERATE_TOOL.inputSchema.properties.design.properties.directives.items,
     { type: "string" },
   );
+});
+
+test("the catalog tool reports types, kits and the scene design contract", async (t) => {
+  const handle = handlerFor(workspace(t));
+  const all = await handle({
+    id: 21,
+    method: "tools/call",
+    params: { name: "ai3d_catalog", arguments: {} },
+  });
+  const catalogue = all.result.structuredContent;
+  assert.equal(all.isError, undefined);
+  assert.equal(catalogue.mode, "all");
+  assert.ok(catalogue.typeCount > 50, "expected a broad asset catalogue");
+  assert.equal(catalogue.kitCount, 8);
+  const dungeon = catalogue.kits.find((kit) => kit.id === "dungeon");
+  assert.ok(dungeon.props.includes("portcullis"));
+  assert.equal(Array.isArray(dungeon.design.objectives), true);
+  assert.deepEqual(catalogue.design.lockStates, ["locked", "open", "sealed"]);
+
+  // Filters run over the same registry the generator reads, so a tag that
+  // exists cannot silently come back empty.
+  const food = await handle({
+    id: 22,
+    method: "tools/call",
+    params: {
+      name: "ai3d_catalog",
+      arguments: { mode: "types", tags: ["food"], limit: 5 },
+    },
+  });
+  const filtered = food.result.structuredContent;
+  assert.ok(filtered.types.length > 0 && filtered.types.length <= 5);
+  assert.equal(
+    filtered.types.every((entry) => entry.tags.includes("food")),
+    true,
+  );
+  assert.ok(filtered.typeCount >= filtered.types.length);
 });
 
 test("the generate tool writes a game pack into the workspace", async (t) => {
@@ -392,6 +435,6 @@ test("the transport reads whole lines and refuses a broken one without dying", a
     written.map((m) => m.id),
     [1, 2, null],
   );
-  assert.equal(written[0].result.tools.length, 3);
+  assert.equal(written[0].result.tools.length, 4);
   assert.equal(written[2].error.code, -32700);
 });

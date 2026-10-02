@@ -25,6 +25,9 @@ import {
   removeSceneProp,
   addSceneProp,
   getGameKits,
+  getKitCatalogue,
+  getAssetCatalogueEntry,
+  getSceneDesignCatalogue,
   exportGLB,
   exportGLTF,
   exportOBJ,
@@ -661,6 +664,34 @@ test("game kits compose a named, centred scene on a ground", () => {
       `${kit.id} props sit on the ground`,
     );
   }
+});
+
+test("catalogue reports kits, asset metadata and the design contract", () => {
+  const kits = getKitCatalogue();
+  assert.equal(kits.length, getGameKits().length);
+  const dungeon = kits.find((kit) => kit.id === "dungeon");
+  assert.ok(dungeon.props.includes("portcullis"));
+  assert.equal(Array.isArray(dungeon.design.objectives), true);
+
+  // The catalogue is a copy: editing what an agent read must not corrupt the
+  // registry the next call reads from.
+  dungeon.design.objectives.push({ id: "x", title: "x", summary: "x" });
+  assert.notEqual(
+    getKitCatalogue().find((kit) => kit.id === "dungeon").design.objectives
+      .length,
+    dungeon.design.objectives.length,
+  );
+
+  const sword = getAssetCatalogueEntry("sword");
+  assert.equal(sword.type, "sword");
+  assert.ok(sword.tags.includes("weapon"));
+  assert.equal(Array.isArray(sword.animations), true);
+  assert.equal(typeof sword.gameplay.role, "string");
+
+  const design = getSceneDesignCatalogue();
+  assert.deepEqual(design.lockStates, ["locked", "open", "sealed"]);
+  assert.ok(Object.keys(design.fields).includes("spawnPoints"));
+  assert.ok(design.rules.length >= 5);
 });
 
 test("game kits are deterministic per seed and vary with it", () => {

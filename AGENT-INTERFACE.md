@@ -100,6 +100,16 @@ axis), an unpacked `pack/` directory for inspection, and `summary.json`
 recording the parameters, stats and absolute paths. `ai3d_knowledge` remains
 the way to pull cited reference material before generating.
 
+`ai3d_catalog` is its read-only companion, for callers that would otherwise
+guess a key. `mode: "types"` lists every asset type with its tags, collider
+preset, animation clips, gameplay role and spawn stats; `mode: "kits"` lists
+the scene kits with the prop types they place and the default level design
+they ship; `mode: "design"` describes the scene design fields and the rules
+the audit enforces; the default `mode: "all"` returns all three. `query`
+filters by substring and `tags` keeps only the types carrying every named tag,
+so a loot table or a `type` can be resolved against the same registry the
+generator reads before anything is written.
+
 ## `status.notifier` — whether anyone will tell you
 
 ```json

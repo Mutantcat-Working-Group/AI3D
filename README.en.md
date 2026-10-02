@@ -186,7 +186,10 @@ whole level kit instead (dungeon, camp, outpost, village, temple, battle,
 wilderness, town), with an optional `design` object for custom spawn points,
 objectives, loot tables, locks and directives. The returned design audit
 validates that metadata, and the same pack carries it into the engine-space
-scene blueprint.
+scene blueprint. Before generating, a read-only `ai3d_catalog` tool lists every
+asset type's tags, collider preset, animation clips, gameplay role and
+spawn/AI data, each scene kit's prop types and default level design, and the
+scene design fields and the rules the audit enforces.
 
 ### 7. Three ways in, one implementation
 
@@ -234,7 +237,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 380 unit and integration tests
+npm test             # 382 unit and integration tests
 npm run test:browser # 87 real-Chromium tests
 ```
 
@@ -408,6 +411,13 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   `kind: "scene"` now accepts a `design` object, letting chat and MCP supply
   spawn points, objectives, loot tables, locks and directives through the same
   audit, blueprint, engine-pack and setup-script path as in-app edits.
+- **2.20 (done)** - agent catalogue lookup: a read-only `ai3d_catalog` tool
+  whose `types` mode returns every asset type's tags, collider preset,
+  animation clips, gameplay role and spawn/AI data, whose `kits` mode returns
+  each scene kit's prop types and default level design, and whose `design`
+  mode describes the scene design fields and the audit rules; `query` and
+  `tags` filter the result, so a `type` or loot item key can be resolved
+  against the generator's own registry before anything is written.
 
 ### 12. Documentation
 

@@ -19,7 +19,10 @@ import { InstanceManager, inspectInstall } from "../integration/manager.mjs";
 import { precheckModel, stepMeshFor } from "../integration/precheck.mjs";
 import { normalizeOrigin } from "../server/origin.mjs";
 import { KNOWLEDGE_TOOL, callKnowledgeTool } from "./knowledge.mjs";
-import { generateAssetToPack } from "../src/generator-service.js";
+import {
+  describeCatalogue,
+  generateAssetToPack,
+} from "../src/generator-service.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -285,6 +288,39 @@ export const GENERATE_TOOL = {
   },
 };
 
+export const CATALOG_TOOL = {
+  name: "ai3d_catalog",
+  description:
+    'Read-only discovery of what AI3D can generate, so a caller can look before it generates. mode "types" lists asset type keys with tags, collider preset, animation clips, gameplay role and spawn stats; mode "kits" lists the scene kits with their prop types and default level design; mode "design" describes the scene design fields and rules that ai3d_generate accepts when kind is "scene"; mode "all" (default) returns all three. Nothing is written to the workspace and no geometry is built.',
+  inputSchema: {
+    type: "object",
+    properties: {
+      mode: {
+        type: "string",
+        enum: ["all", "types", "kits", "design"],
+        description: "Which catalogue section to return (default all).",
+      },
+      query: {
+        type: "string",
+        description:
+          "Case-insensitive substring filter over type keys and tags, or kit ids and names.",
+      },
+      tags: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Only asset types carrying every one of these tags, such as 'food' or 'dungeon'.",
+      },
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 500,
+        description: "Cap the number of types or kits returned.",
+      },
+    },
+  },
+};
+
 export function createHandler({
   workspace = process.cwd(),
   root = ROOT,
@@ -324,7 +360,9 @@ export function createHandler({
         instructions: instructions(root),
       });
     if (method === "tools/list")
-      return reply({ tools: [TOOL, KNOWLEDGE_TOOL, GENERATE_TOOL] });
+      return reply({
+        tools: [TOOL, KNOWLEDGE_TOOL, CATALOG_TOOL, GENERATE_TOOL],
+      });
     if (method === "tools/call") {
       const input = params?.arguments || {};
       if (params?.name === GENERATE_TOOL.name) {
@@ -352,6 +390,28 @@ export function createHandler({
       if (params?.name === KNOWLEDGE_TOOL.name) {
         try {
           const result = callKnowledgeTool(input);
+          return reply({
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            structuredContent: result,
+          });
+        } catch (error) {
+          return reply({
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  code: error.code || "FAILED",
+                  message: String(error.message || error),
+                }),
+              },
+            ],
+          });
+        }
+      }
+      if (params?.name === CATALOG_TOOL.name) {
+        try {
+          const result = describeCatalogue(input);
           return reply({
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
             structuredContent: result,

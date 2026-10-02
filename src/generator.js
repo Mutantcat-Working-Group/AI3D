@@ -3511,6 +3511,20 @@ export function getGameKits() {
   }));
 }
 
+/**
+ * Metadata-only catalogue of the scene kits: the prop types each kit places
+ * and the default level design it ships with. An agent can pick a kit from
+ * this and then override any part of the design without composing geometry.
+ */
+export function getKitCatalogue() {
+  return Object.entries(GAME_KITS).map(([id, def]) => ({
+    id,
+    name: def.name,
+    props: (def.props || []).map((prop) => prop.type),
+    design: def.design ? JSON.parse(JSON.stringify(def.design)) : null,
+  }));
+}
+
 function buildSword(
   group,
   size,
@@ -10916,6 +10930,23 @@ export function getAssetTypes() {
 }
 
 /**
+ * Metadata-only catalogue entry for one asset type: tags, collider preset,
+ * animation clip names, gameplay role and spawn stats. It never builds
+ * geometry, so an agent can survey the catalogue cheaply before generating.
+ */
+export function getAssetCatalogueEntry(type) {
+  const info = getAssetTypeInfo(type);
+  return {
+    type,
+    tags: getAssetTags(type),
+    collider: info.collider,
+    animations: info.animations,
+    gameplay: info.gameplay,
+    spawn: info.spawn,
+  };
+}
+
+/**
  * Normalise an asset id/type into a filesystem-safe slug for pack paths.
  */
 function assetSlug(value) {
@@ -11522,6 +11553,33 @@ function buildSceneRecord(asset) {
    catalogue. It reports what a level designer still has to wire up before the
    scene is playable, using the same pass/warn/fail shape as the model audit. */
 const SCENE_LOCK_STATES = new Set(["locked", "open", "sealed"]);
+
+/**
+ * Describe the scene design an agent may pass to `ai3d_generate` when
+ * `kind` is `"scene"`. It is deliberately a plain description rather than a
+ * JSON Schema: the MCP tool carries the enforced schema, and this is what the
+ * runtime audit actually accepts.
+ */
+export function getSceneDesignCatalogue() {
+  return {
+    fields: {
+      spawnPoints:
+        "object of spawn group name to count; must include playerStart >= 1",
+      objectives: "array of { id, title, summary }",
+      lootTables: "array of { container, items[] }",
+      locks: "array of { prop, opensWith, state? }",
+      directives: "array of string",
+    },
+    rules: [
+      "spawnPoints must name at least one group and include playerStart >= 1",
+      "lootTables containers must be prop types present in the composed scene",
+      "lootTable items must be known AI3D asset type keys",
+      "locks.prop must be a prop type present in the composed scene",
+      "locks.opensWith must be a scene prop type or a loot item",
+    ],
+    lockStates: [...SCENE_LOCK_STATES],
+  };
+}
 
 function designStatus(score) {
   if (score >= 1) return "pass";
