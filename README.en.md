@@ -24,12 +24,13 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-90 built-in game asset templates, each with sensible part names, tags and
+94 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                                                                                                                                                                                                                                                                                         |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Weapons   | sword, axe, bow, hammer, spear, shield, cannon                                                                                                                                                                                                                                                                                                                                                 |
+| Armor     | helmet, chestplate, gauntlets, boots                                                                                                                                                                                                                                                                                                                                                           |
 | Creatures | character, monster, dragon, skeleton, mummy                                                                                                                                                                                                                                                                                                                                                    |
 | Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain, portcullis, beehive                                                                                                                                                                                                                                                                                                   |
 | Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand, bread, pie, meat leg, hay bale, rope coil, bucket, coin pile, berry bush, stone coffin, cage, bone pile, cobweb, lever, urn, wheat sheaf |
@@ -502,6 +503,10 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   the existing pipelines, while confirmation, progress and results are written
   back into the chat. Connected agents receive a notice so they do not generate
   the same result twice, and ordinary questions still flow to the agent.
+- **2.30 (done)** - character armor family: helmets, chestplates, gauntlets and
+  boots now ship as export-ready templates with named parts, metal or leather
+  PBR defaults, collider presets, gameplay metadata and quick-template labels
+  in all six languages, ready for equipment and loot systems.
 
 ### 12. Documentation
 

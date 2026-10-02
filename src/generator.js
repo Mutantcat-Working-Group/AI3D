@@ -98,6 +98,13 @@ const ASSET_TYPES = {
   bow: { name: "Bow", parts: ["limb", "riser", "string"] },
   hammer: { name: "Hammer", parts: ["head", "handle", "grip"] },
   spear: { name: "Spear", parts: ["head", "shaft", "butt"] },
+  helmet: { name: "Helmet", parts: ["dome", "visor", "crest", "neckGuard"] },
+  chestplate: {
+    name: "Chestplate",
+    parts: ["chest", "pauldrons", "straps", "collar"],
+  },
+  gauntlets: { name: "Gauntlets", parts: ["cuff", "fist", "plates"] },
+  boots: { name: "Boots", parts: ["foot", "shin", "sole", "cuff"] },
   tent: { name: "Tent", parts: ["canopy", "pole", "floor"] },
   statue: { name: "Statue", parts: ["base", "body", "head"] },
   pillar: { name: "Pillar", parts: ["column", "capital", "base"] },
@@ -133,6 +140,10 @@ const ASSET_TAGS = {
   bow: ["weapon", "ranged", "wood"],
   hammer: ["weapon", "melee", "metal"],
   spear: ["weapon", "melee", "wood"],
+  helmet: ["armor", "defense", "metal"],
+  chestplate: ["armor", "defense", "metal"],
+  gauntlets: ["armor", "defense", "metal"],
+  boots: ["armor", "defense", "leather"],
   shield: ["weapon", "defense", "metal"],
   tree: ["nature", "vegetation", "outdoor"],
   rock: ["nature", "terrain", "outdoor"],
@@ -410,6 +421,10 @@ const ASSET_COLLIDERS = {
   bow: "mesh",
   hammer: "capsule",
   spear: "capsule",
+  helmet: "sphere",
+  chestplate: "box",
+  gauntlets: "box",
+  boots: "box",
   tent: "box",
   statue: "box",
   pillar: "cylinder",
@@ -2108,6 +2123,18 @@ export function generateAsset(
       break;
     case "spear":
       buildSpear(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "helmet":
+      buildHelmet(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "chestplate":
+      buildChestplate(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "gauntlets":
+      buildGauntlets(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "boots":
+      buildBoots(group, size, segments, matStyle, customColor, rng);
       break;
     case "tent":
       buildTent(group, size, segments, matStyle, customColor, rng);
@@ -5829,6 +5856,345 @@ function buildChandelier(
     candles.add(flame);
   }
   group.add(candles);
+}
+
+function buildHelmet(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const armorMat = createMaterial(customColor || 0x9aa7b0, style);
+  const darkMat = createMaterial(0x263238, style);
+  const trimMat = createMaterial(0xd0a84c, style);
+
+  const domeGeo = new THREE.SphereGeometry(
+    0.44 * size,
+    segments,
+    Math.max(8, segments >> 1),
+  );
+  const dome = new THREE.Mesh(domeGeo, armorMat);
+  dome.position.y = 0.08 * size;
+  dome.scale.set(1, 0.9, 1.04);
+  dome.name = "dome";
+  group.add(dome);
+
+  const visor = new THREE.Group();
+  visor.name = "visor";
+  const visorGeo = new THREE.BoxGeometry(0.64 * size, 0.16 * size, 0.12 * size);
+  const visorPlate = new THREE.Mesh(visorGeo, armorMat);
+  visorPlate.position.set(0, 0.01 * size, 0.39 * size);
+  visorPlate.rotation.x = -0.12;
+  visorPlate.name = "visor-plate";
+  visor.add(visorPlate);
+
+  const slitGeo = new THREE.BoxGeometry(0.5 * size, 0.035 * size, 0.025 * size);
+  const slit = new THREE.Mesh(slitGeo, darkMat);
+  slit.position.set(0, 0.01 * size, 0.455 * size);
+  slit.name = "visor-slit";
+  visor.add(slit);
+  group.add(visor);
+
+  const crest = new THREE.Group();
+  crest.name = "crest";
+  const spineGeo = new THREE.BoxGeometry(
+    0.055 * size,
+    0.22 * size,
+    0.56 * size,
+  );
+  const spine = new THREE.Mesh(spineGeo, trimMat);
+  spine.position.y = 0.48 * size;
+  spine.name = "crest-spine";
+  crest.add(spine);
+  const plumeGeo = new THREE.ConeGeometry(0.07 * size, 0.34 * size, 6);
+  for (let i = 0; i < 3; i++) {
+    const plume = new THREE.Mesh(plumeGeo, trimMat);
+    plume.position.set(0, (0.58 - i * 0.055) * size, (i - 1) * 0.1 * size);
+    plume.rotation.x = (i - 1) * 0.08;
+    plume.name = `crest-plume-${i}`;
+    crest.add(plume);
+  }
+  group.add(crest);
+
+  const neckGuard = new THREE.Group();
+  neckGuard.name = "neckGuard";
+  const guardGeo = new THREE.BoxGeometry(
+    0.22 * size,
+    0.25 * size,
+    0.075 * size,
+  );
+  for (const [index, angle] of [-0.72, 0, 0.72].entries()) {
+    const guard = new THREE.Mesh(guardGeo, armorMat);
+    guard.position.set(
+      Math.sin(angle) * 0.37 * size,
+      -0.2 * size,
+      -Math.cos(angle) * 0.37 * size,
+    );
+    guard.rotation.y = angle;
+    guard.rotation.x = -0.12;
+    guard.name = `neck-guard-${index}`;
+    neckGuard.add(guard);
+  }
+  group.add(neckGuard);
+}
+
+function buildChestplate(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const armorMat = createMaterial(customColor || 0x8fa2ad, style);
+  const darkMat = createMaterial(0x3b2b22, style);
+  const trimMat = createMaterial(0xc9a34a, style);
+
+  const chest = new THREE.Group();
+  chest.name = "chest";
+  const chestGeo = new THREE.BoxGeometry(0.92 * size, 0.82 * size, 0.46 * size);
+  const chestPlate = new THREE.Mesh(chestGeo, armorMat);
+  chestPlate.name = "chest-plate";
+  chest.add(chestPlate);
+
+  const sideGeo = new THREE.BoxGeometry(0.26 * size, 0.68 * size, 0.34 * size);
+  for (const side of [-1, 1]) {
+    const sidePlate = new THREE.Mesh(sideGeo, armorMat);
+    sidePlate.position.set(side * 0.48 * size, -0.02 * size, 0);
+    sidePlate.scale.set(1, 1, 0.94);
+    sidePlate.rotation.z = side * -0.08;
+    sidePlate.name = side < 0 ? "left-side" : "right-side";
+    chest.add(sidePlate);
+  }
+  group.add(chest);
+
+  const pauldrons = new THREE.Group();
+  pauldrons.name = "pauldrons";
+  const pauldronGeo = new THREE.SphereGeometry(
+    0.27 * size,
+    segments,
+    Math.max(6, segments >> 1),
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI * 0.62,
+  );
+  for (const side of [-1, 1]) {
+    const pauldron = new THREE.Mesh(pauldronGeo, armorMat);
+    pauldron.position.set(side * 0.55 * size, 0.29 * size, 0);
+    pauldron.scale.set(1.2, 0.78, 1.05);
+    pauldron.rotation.z = side * -0.16;
+    pauldron.name = side < 0 ? "left-pauldron" : "right-pauldron";
+    pauldrons.add(pauldron);
+  }
+  group.add(pauldrons);
+
+  const straps = new THREE.Group();
+  straps.name = "straps";
+  const strapGeo = new THREE.BoxGeometry(0.1 * size, 0.82 * size, 0.035 * size);
+  for (const side of [-1, 1]) {
+    const shoulderStrap = new THREE.Mesh(strapGeo, darkMat);
+    shoulderStrap.position.set(side * 0.25 * size, 0.02 * size, 0.25 * size);
+    shoulderStrap.rotation.z = side * 0.22;
+    shoulderStrap.name = side < 0 ? "left-shoulder-strap" : "right-shoulder";
+    straps.add(shoulderStrap);
+  }
+  const beltGeo = new THREE.BoxGeometry(0.78 * size, 0.09 * size, 0.05 * size);
+  const belt = new THREE.Mesh(beltGeo, darkMat);
+  belt.position.set(0, -0.34 * size, 0.245 * size);
+  belt.name = "belt";
+  straps.add(belt);
+  group.add(straps);
+
+  const collarGeo = new THREE.TorusGeometry(
+    0.3 * size,
+    0.065 * size,
+    6,
+    segments,
+    Math.PI * 1.35,
+  );
+  const collar = new THREE.Mesh(collarGeo, trimMat);
+  collar.position.y = 0.52 * size;
+  collar.rotation.set(Math.PI / 2, 0, -0.18);
+  collar.name = "collar";
+  group.add(collar);
+}
+
+function buildGauntlets(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const armorMat = createMaterial(customColor || 0x9aa7b0, style);
+  const leatherMat = createMaterial(0x4e342e, style);
+  const trimMat = createMaterial(0xc7a14a, style);
+
+  const cuffs = new THREE.Group();
+  cuffs.name = "cuff";
+  const cuffGeo = new THREE.CylinderGeometry(
+    0.16 * size,
+    0.2 * size,
+    0.44 * size,
+    segments,
+    1,
+    true,
+  );
+  const cuffRimGeo = new THREE.TorusGeometry(
+    0.18 * size,
+    0.025 * size,
+    6,
+    segments,
+  );
+  for (const side of [-1, 1]) {
+    const cuff = new THREE.Mesh(cuffGeo, armorMat);
+    cuff.position.set(side * 0.27 * size, 0.18 * size, 0);
+    cuff.name = side < 0 ? "left-cuff" : "right-cuff";
+    cuffs.add(cuff);
+
+    for (const offset of [-0.18, 0.18]) {
+      const rim = new THREE.Mesh(cuffRimGeo, trimMat);
+      rim.position.set(side * 0.27 * size, (0.18 + offset) * size, 0);
+      rim.rotation.x = Math.PI / 2;
+      rim.name = `${side < 0 ? "left" : "right"}-rim-${offset}`;
+      cuffs.add(rim);
+    }
+  }
+  group.add(cuffs);
+
+  const fists = new THREE.Group();
+  fists.name = "fist";
+  const fistGeo = new THREE.BoxGeometry(0.3 * size, 0.28 * size, 0.32 * size);
+  for (const side of [-1, 1]) {
+    const fist = new THREE.Mesh(fistGeo, armorMat);
+    fist.position.set(side * 0.27 * size, -0.18 * size, 0.045 * size);
+    fist.scale.set(1, 0.95, 1.18);
+    fist.name = side < 0 ? "left-fist" : "right-fist";
+    fists.add(fist);
+  }
+  group.add(fists);
+
+  const plates = new THREE.Group();
+  plates.name = "plates";
+  const plateGeo = new THREE.BoxGeometry(0.2 * size, 0.06 * size, 0.24 * size);
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 2; i++) {
+      const plate = new THREE.Mesh(plateGeo, trimMat);
+      plate.position.set(
+        side * 0.27 * size,
+        (-0.12 - i * 0.08) * size,
+        0.17 * size,
+      );
+      plate.rotation.x = -0.12;
+      plate.name = `${side < 0 ? "left" : "right"}-plate-${i}`;
+      plates.add(plate);
+    }
+
+    const wristBand = new THREE.Mesh(
+      new THREE.BoxGeometry(0.26 * size, 0.055 * size, 0.22 * size),
+      leatherMat,
+    );
+    wristBand.position.set(side * 0.27 * size, 0.4 * size, 0);
+    wristBand.name = side < 0 ? "left-wrist-band" : "right-wrist-band";
+    plates.add(wristBand);
+  }
+  group.add(plates);
+}
+
+function buildBoots(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const bootMat = createMaterial(customColor || 0x795548, style);
+  const soleMat = createMaterial(0x211a17, style);
+  const trimMat = createMaterial(0xc3a052, style);
+
+  const feet = new THREE.Group();
+  feet.name = "foot";
+  const footGeo = new THREE.BoxGeometry(0.34 * size, 0.28 * size, 0.62 * size);
+  const toeGeo = new THREE.SphereGeometry(
+    0.18 * size,
+    segments,
+    Math.max(6, segments >> 1),
+  );
+  for (const side of [-1, 1]) {
+    const foot = new THREE.Mesh(footGeo, bootMat);
+    foot.position.set(side * 0.24 * size, -0.31 * size, 0.12 * size);
+    foot.name = side < 0 ? "left-foot" : "right-foot";
+    feet.add(foot);
+
+    const toe = new THREE.Mesh(toeGeo, bootMat);
+    toe.position.set(side * 0.24 * size, -0.34 * size, 0.43 * size);
+    toe.scale.set(0.94, 0.72, 1);
+    toe.name = side < 0 ? "left-toe" : "right-toe";
+    feet.add(toe);
+  }
+  group.add(feet);
+
+  const shins = new THREE.Group();
+  shins.name = "shin";
+  const shinGeo = new THREE.CylinderGeometry(
+    0.16 * size,
+    0.19 * size,
+    0.65 * size,
+    segments,
+  );
+  for (const side of [-1, 1]) {
+    const shin = new THREE.Mesh(shinGeo, bootMat);
+    shin.position.set(side * 0.24 * size, 0.18 * size, -0.02 * size);
+    shin.name = side < 0 ? "left-shin-mesh" : "right-shin-mesh";
+    shins.add(shin);
+  }
+  group.add(shins);
+
+  const soles = new THREE.Group();
+  soles.name = "sole";
+  const soleGeo = new THREE.BoxGeometry(0.4 * size, 0.075 * size, 0.76 * size);
+  for (const side of [-1, 1]) {
+    const sole = new THREE.Mesh(soleGeo, soleMat);
+    sole.position.set(side * 0.24 * size, -0.48 * size, 0.16 * size);
+    sole.name = side < 0 ? "left-sole" : "right-sole";
+    soles.add(sole);
+  }
+  group.add(soles);
+
+  const cuffs = new THREE.Group();
+  cuffs.name = "cuff";
+  const cuffGeo = new THREE.CylinderGeometry(
+    0.21 * size,
+    0.19 * size,
+    0.19 * size,
+    segments,
+    1,
+    true,
+  );
+  const cuffTrimGeo = new THREE.TorusGeometry(
+    0.2 * size,
+    0.025 * size,
+    6,
+    segments,
+  );
+  for (const side of [-1, 1]) {
+    const cuff = new THREE.Mesh(cuffGeo, bootMat);
+    cuff.position.set(side * 0.24 * size, 0.56 * size, -0.02 * size);
+    cuff.name = side < 0 ? "left-cuff" : "right-cuff";
+    cuffs.add(cuff);
+
+    const trim = new THREE.Mesh(cuffTrimGeo, trimMat);
+    trim.position.set(side * 0.24 * size, 0.66 * size, -0.02 * size);
+    trim.rotation.x = Math.PI / 2;
+    trim.name = side < 0 ? "left-cuff-trim" : "right-cuff-trim";
+    cuffs.add(trim);
+  }
+  group.add(cuffs);
 }
 
 function buildArmorStand(
@@ -9711,6 +10077,10 @@ const AUDIT_GROUND_TYPES = new Set([
   "chair",
   "bed",
   "armor_stand",
+  "helmet",
+  "chestplate",
+  "gauntlets",
+  "boots",
   "skeleton",
   "bread",
   "pie",
@@ -9760,6 +10130,10 @@ const AUDIT_REQUIRED_PARTS = {
   spear: ["head", "shaft"],
   bow: ["riser"],
   shield: ["body"],
+  helmet: ["dome", "visor"],
+  chestplate: ["chest", "pauldrons"],
+  gauntlets: ["cuff", "fist"],
+  boots: ["foot", "shin"],
   chest: ["body", "lid"],
   crate: ["body"],
   barrel: ["body"],
@@ -10882,6 +11256,10 @@ const GAMEPLAY_PRESETS = {
   spear: { interaction: "attack", role: "weapon" },
   bow: { interaction: "attack", role: "weapon" },
   shield: { interaction: "use", role: "weapon" },
+  helmet: { interaction: "use", role: "weapon" },
+  chestplate: { interaction: "use", role: "weapon" },
+  gauntlets: { interaction: "use", role: "weapon" },
+  boots: { interaction: "use", role: "weapon" },
   cannon: { interaction: "attack", role: "weapon" },
   turret: { interaction: "attack", role: "sentry" },
   chest: { interaction: "open", role: "container" },

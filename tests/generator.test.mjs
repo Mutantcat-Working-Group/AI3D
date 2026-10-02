@@ -1291,6 +1291,10 @@ test("new game asset types build their declared parts", () => {
     "mummy",
     "beehive",
     "wheat_sheaf",
+    "helmet",
+    "chestplate",
+    "gauntlets",
+    "boots",
   ];
   newTypes.forEach((type) => {
     const model = generateAsset(type, { seed: 42 });
@@ -1398,6 +1402,10 @@ test("gameplay metadata describes how engines should treat every prop", () => {
     coin_pile: { interaction: "collect", role: "collectible" },
     beehive: { interaction: "harvest", role: "resource" },
     sword: { interaction: "attack", role: "weapon" },
+    helmet: { interaction: "use", role: "weapon" },
+    chestplate: { interaction: "use", role: "weapon" },
+    gauntlets: { interaction: "use", role: "weapon" },
+    boots: { interaction: "use", role: "weapon" },
     minecart: { interaction: "ride", role: "mount" },
     bed: { interaction: "sleep", role: "furniture" },
   };
