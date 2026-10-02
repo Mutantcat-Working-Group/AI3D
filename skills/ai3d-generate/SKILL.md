@@ -50,6 +50,15 @@ placements already in the target engine's axes and units. The builder drops
 the composed model in and places every anchor and enemy spawn at its blueprint
 transform, with the combat stats attached to the spawn markers.
 
+Pass `kind: "set"` to build a whole asset set in one call. `items` (1-32) lists
+the assets, each with a `type` or a `prompt` plus optional `name`, `size`,
+`units`, `color` and `seed`; the set-level `style`, `engine` and export switches
+apply to every entry and the per-item fields win. Each asset lands in its own
+folder, duplicate names get a `-2` suffix, and a `set.json` manifest records the
+resolved settings plus the aggregate triangle, vertex, part and draw-call
+totals. A set `seed` derives each asset's seed as `seed + index`, so the same
+request rebuilds the same set.
+
 The tool writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up
 axis), an unpacked `pack/` directory for inspection and `summary.json` with

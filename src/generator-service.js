@@ -177,6 +177,89 @@ function requireSceneProps(value) {
   });
 }
 
+const SET_ITEM_FIELDS = new Set([
+  "type",
+  "prompt",
+  "name",
+  "size",
+  "units",
+  "color",
+  "seed",
+]);
+
+/* A set is a batch of props generated in one request, which is how a caller
+ * fills a game's asset list instead of round-tripping per prop. Each entry is
+ * the same spec a single ai3d_generate call takes; the shared style, engine and
+ * export switches come from the set call and the per-item fields override them.
+ * Validate the whole list up front so a bad spec fails before anything is
+ * written, rather than leaving a half-built set on disk. */
+function requireSetItems(value) {
+  if (!Array.isArray(value) || value.length === 0)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      "items must be a non-empty array of asset specs.",
+    );
+  if (value.length > 32)
+    throw new GenerationError(
+      BAD_PARAMETER,
+      "items cannot carry more than 32 assets.",
+    );
+  return value.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item))
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `items[${index}] must be an asset spec object.`,
+      );
+    if (!item.type && !item.prompt)
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `items[${index}] needs a type or a prompt.`,
+      );
+    for (const key of Object.keys(item))
+      if (!SET_ITEM_FIELDS.has(key))
+        throw new GenerationError(
+          BAD_PARAMETER,
+          `items[${index}] has an unsupported field: ${key}.`,
+        );
+    if (item.type && !TYPE_IDS.has(item.type))
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `items[${index}].type is not a known asset type: ${item.type}.`,
+      );
+    if (item.units != null && item.units !== "" && !UNITS.has(item.units))
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `items[${index}].units must be one of: ${[...UNITS].join(", ")}.`,
+      );
+    if (
+      item.color != null &&
+      item.color !== "" &&
+      (typeof item.color !== "string" || !HEX_COLOR.test(item.color))
+    )
+      throw new GenerationError(
+        BAD_PARAMETER,
+        `items[${index}].color must be a hex string such as #ff0000.`,
+      );
+    if (item.size != null && item.size !== "") {
+      const size = Number(item.size);
+      if (!Number.isFinite(size) || size <= 0)
+        throw new GenerationError(
+          BAD_PARAMETER,
+          `items[${index}].size must be a positive number.`,
+        );
+    }
+    if (item.seed != null && item.seed !== "") {
+      const seed = Number(item.seed);
+      if (!Number.isInteger(seed) || seed < 0)
+        throw new GenerationError(
+          BAD_PARAMETER,
+          `items[${index}].seed must be a whole number.`,
+        );
+    }
+    return { ...item };
+  });
+}
+
 /* Read-only discovery for agents. Every generation tool has a large choice
  * space -- a hundred-odd asset types, eight kits, five design fields -- and a
  * model that guesses wastes a round trip. This reports what the same registry
@@ -534,6 +617,145 @@ export async function generateSceneToPack({
   };
 }
 
+/* A whole asset set in one request: the caller hands in a list of asset specs
+ * and gets one nested pack per asset plus a set manifest summing them. This is
+ * the "fill my game's asset list" path for chat and MCP -- the shared style,
+ * engine and export switches come from the set call, the per-item fields win,
+ * and the seeds stay deterministic so the same request rebuilds the same set. */
+export async function generateSetToPack({
+  workspace,
+  output,
+  items,
+  style,
+  color,
+  units,
+  seed,
+  engine = "unity",
+  withLod = false,
+  anchors = false,
+  exportClips = false,
+  collision = "auto",
+  animation = "auto",
+  name,
+  texture = "auto",
+  textureStrength = 0.8,
+  textureSize = 256,
+} = {}) {
+  if (!workspace || typeof workspace !== "string")
+    throw new GenerationError(BAD_PARAMETER, "workspace is required.");
+  const specs = requireSetItems(items);
+  const baseSeed = requireSeed(seed);
+  const setId = assetSlug(name || "asset-set");
+  const baseOutput =
+    typeof output === "string" && output.trim() ? output : "generated-assets";
+  const setOutput = path.posix.join(baseOutput, setId);
+  const workspaceRoot = path.resolve(workspace);
+  const usedIds = new Set();
+  const relative = (absolute) =>
+    path.relative(workspaceRoot, absolute).split(path.sep).join("/");
+
+  const results = [];
+  for (let index = 0; index < specs.length; index += 1) {
+    const spec = specs[index];
+    const requestedId = assetSlug(spec.name || spec.type || "asset");
+    let itemId = requestedId;
+    let suffix = 2;
+    while (usedIds.has(itemId)) itemId = `${requestedId}-${suffix++}`;
+    usedIds.add(itemId);
+    const itemSeed =
+      spec.seed != null && spec.seed !== ""
+        ? spec.seed
+        : baseSeed != null
+          ? baseSeed + index
+          : undefined;
+    const result = await generateAssetToPack({
+      kind: "asset",
+      workspace,
+      output: setOutput,
+      prompt: spec.prompt,
+      type: spec.type,
+      name: itemId,
+      style,
+      color: spec.color ?? color,
+      size: spec.size,
+      units: spec.units ?? units,
+      seed: itemSeed,
+      engine,
+      withLod,
+      anchors,
+      exportClips,
+      collision,
+      animation,
+      texture,
+      textureStrength,
+      textureSize,
+    });
+    results.push({
+      id: result.asset.id,
+      name: result.asset.name,
+      type: result.asset.type,
+      style: result.asset.style,
+      color: result.asset.color,
+      size: result.asset.size,
+      units: result.asset.units,
+      seed: result.asset.seed,
+      stats: result.asset.stats,
+      prompt: spec.prompt || null,
+      files: {
+        packZip: relative(result.files.packZip),
+        glb: relative(result.files.glb),
+        packDir: relative(result.files.packDir),
+        summary: relative(result.files.summary),
+      },
+    });
+  }
+
+  const totals = results.reduce(
+    (sum, item) => {
+      sum.assets += 1;
+      sum.triangles += item.stats.triangles;
+      sum.vertices += item.stats.vertices;
+      sum.parts += item.stats.parts;
+      sum.drawCalls += item.stats.drawCalls;
+      return sum;
+    },
+    { assets: 0, triangles: 0, vertices: 0, parts: 0, drawCalls: 0 },
+  );
+
+  const setDir = path.join(resolveOutputDir(workspace, baseOutput), setId);
+  fs.mkdirSync(setDir, { recursive: true });
+  const manifestPath = path.join(setDir, "set.json");
+  const manifest = {
+    schema: "ai3d-generated-set",
+    id: setId,
+    name: name || setId,
+    style: style || "stylized",
+    units: units || "m",
+    engine,
+    seed: baseSeed,
+    count: results.length,
+    totals,
+    items: results,
+  };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  return {
+    ok: true,
+    set: {
+      id: setId,
+      name: manifest.name,
+      count: results.length,
+      style: manifest.style,
+      units: manifest.units,
+      engine,
+      seed: baseSeed,
+      totals,
+    },
+    items: results,
+    files: { setDir: relative(setDir), manifest: relative(manifestPath) },
+  };
+}
+
 export async function generateAssetToPack({
   kind = "asset",
   workspace,
@@ -560,6 +782,7 @@ export async function generateAssetToPack({
   propScale,
   props = null,
   design = null,
+  items = null,
 } = {}) {
   if (kind === "scene")
     return generateSceneToPack({
@@ -582,10 +805,30 @@ export async function generateAssetToPack({
       props,
       design,
     });
+  if (kind === "set")
+    return generateSetToPack({
+      workspace,
+      output,
+      items,
+      style,
+      color,
+      units,
+      seed,
+      engine,
+      withLod,
+      anchors,
+      exportClips,
+      collision,
+      animation,
+      name,
+      texture,
+      textureStrength,
+      textureSize,
+    });
   if (kind !== "asset")
     throw new GenerationError(
       BAD_PARAMETER,
-      'kind must be "asset" or "scene".',
+      'kind must be "asset", "scene" or "set".',
     );
   if (design != null && design !== "")
     throw new GenerationError(
@@ -596,6 +839,11 @@ export async function generateAssetToPack({
     throw new GenerationError(
       BAD_PARAMETER,
       'props is only supported when kind is "scene".',
+    );
+  if (items != null && items !== "")
+    throw new GenerationError(
+      BAD_PARAMETER,
+      'items is only supported when kind is "set".',
     );
   if (!workspace || typeof workspace !== "string")
     throw new GenerationError(BAD_PARAMETER, "workspace is required.");

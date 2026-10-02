@@ -110,15 +110,15 @@ export const TOOL = {
 export const GENERATE_TOOL = {
   name: "ai3d_generate",
   description:
-    'Generate a game-ready 3D asset, or a whole level kit, and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. Pass kind "scene" to compose a level kit (dungeon, camp, outpost, village, temple, battle, wilderness, town) instead of a single prop; a scene pack adds the kit\'s design metadata, a design audit and an engine-space scene blueprint. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.',
+    'Generate a game-ready 3D asset, a whole level kit, or a batch asset set, and write it into the workspace. Describe the asset in natural language (prompt), or pick a template type directly; the generator resolves type, style, color, size and units from the prompt the same way the browser workbench does. Pass kind "scene" to compose a level kit (dungeon, camp, outpost, village, temple, battle, wilderness, town) instead of a single prop; a scene pack adds the kit\'s design metadata, a design audit and an engine-space scene blueprint. Pass kind "set" with an items array to generate many props in one call, each in its own folder plus a set.json manifest summing them, sharing the set-level style, engine and export switches. The result is a standalone GLB plus an engine pack (Unity, Godot or Unreal) with LODs, colliders, optional per-clip animation GLBs, PBR textures and a manifest, written under the workspace-relative output directory.',
   inputSchema: {
     type: "object",
     properties: {
       kind: {
         type: "string",
-        enum: ["asset", "scene"],
+        enum: ["asset", "scene", "set"],
         description:
-          'What to build: "asset" (default) for a single prop or "scene" for a composed level kit.',
+          'What to build: "asset" (default) for a single prop, "scene" for a composed level kit, or "set" for a batch of props from items.',
       },
       output: {
         type: "string",
@@ -154,6 +154,32 @@ export const GENERATE_TOOL = {
         type: "integer",
         minimum: 0,
         description: "Deterministic variation seed (scenes default to 1).",
+      },
+      items: {
+        type: "array",
+        minItems: 1,
+        maxItems: 32,
+        description:
+          "Set only: the assets to build in one call. Each entry takes a type or a prompt plus optional name, size, units, color and seed; the set-level style, engine and export switches apply to every entry and per-item fields override them. Each asset gets its own folder and the set writes a set.json manifest.",
+        items: {
+          type: "object",
+          properties: {
+            type: {
+              type: "string",
+              description: "Known AI3D asset type key.",
+            },
+            prompt: {
+              type: "string",
+              description: "Natural-language description for this asset.",
+            },
+            name: { type: "string" },
+            size: { type: "number", exclusiveMinimum: 0 },
+            units: { type: "string", enum: ["m", "cm", "mm", "ft", "in"] },
+            color: { type: "string" },
+            seed: { type: "integer", minimum: 0 },
+          },
+          additionalProperties: false,
+        },
       },
       spacing: {
         type: "number",

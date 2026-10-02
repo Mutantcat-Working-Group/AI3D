@@ -181,7 +181,9 @@ structured entries with citations. The chat panel and MCP share one
 implementation, so the two surfaces cannot drift apart. An MCP agent can also
 call `ai3d_generate` to create an asset from one sentence and write a GLB plus a
 Unity, Godot or Unreal engine pack into the workspace, sharing the same
-deterministic generator as the interface. Pass `kind: "scene"` and it composes a
+deterministic generator as the interface. Pass `kind: "set"` with an `items`
+list to build a whole asset set in one call and sum it in a set.json manifest,
+or pass `kind: "scene"` and it composes a
 whole level kit instead (dungeon, camp, outpost, village, temple, battle,
 wilderness, town), with an optional `design` object for custom spawn points,
 objectives, loot tables, locks and directives, or a `props` array that lays the
@@ -239,7 +241,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 384 unit and integration tests
+npm test             # 386 unit and integration tests
 npm run test:browser # 87 real-Chromium tests
 ```
 
@@ -426,6 +428,14 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   arrangement; the design audit then checks loot containers and locks against
   those placed props, and the blueprint, engine pack and builder script follow
   the new layout. Passing `props` for a non-scene call is rejected.
+- **2.22 (done)** - agent-authored asset set: `ai3d_generate` now takes
+  `kind: "set"` with an `items` list (up to 32) to build a batch of props in
+  one call, sharing one style, engine and export switches while each item can
+  override its name, size, units, color and seed. Every asset gets its own
+  folder, duplicate names get a `-2` suffix, and a `set.json` manifest sums the
+  resolved settings and the triangle, vertex, part and draw-call totals. A set
+  seed derives each asset seed as `seed + index`, so the same request rebuilds
+  the same set.
 
 ### 12. Documentation
 

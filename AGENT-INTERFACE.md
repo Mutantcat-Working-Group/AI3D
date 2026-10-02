@@ -74,8 +74,8 @@ not a review: the files land under the workspace-relative `output` directory
 the workspace.
 
 Inputs: `prompt` or `type` (at least one) and `output` (required), plus
-optional `kind` (`asset` by default, or `scene`), `style`, `color`, `size`,
-`units`, `seed`, `engine` (unity/godot/unreal), `withLod`, `anchors`,
+optional `kind` (`asset` by default, `scene` or `set`), `style`, `color`,
+`size`, `units`, `seed`, `engine` (unity/godot/unreal), `withLod`, `anchors`,
 `exportClips`, `collision`, `animation` and `name`. A prompt resolves type,
 style, color, size and units from the same six-language catalogue the UI uses;
 an explicit `type` wins over whatever the prompt resolves.
@@ -97,6 +97,18 @@ spawn points, objectives, loot tables, locks and prop placements already
 expressed in the target engine's axes and units; the builder drops the
 composed model in and places every anchor and enemy spawn at its blueprint
 transform, with the combat stats attached to the spawn markers.
+
+`kind: "set"` builds a whole asset set in one call. Pass an `items` array (1-32
+entries) where each entry takes a `type` or a `prompt` plus optional `name`,
+`size`, `units`, `color` and `seed`; the set-level `style`, `engine`, `withLod`,
+`anchors`, `exportClips`, `collision`, `animation` and texture switches apply to
+every entry, and the per-item fields override them. Each asset is written to its
+own folder under `<output>/<name>/`, duplicate names are disambiguated with a
+`-2` suffix instead of overwriting, and a `set.json` manifest sums the set: the
+resolved style, units, engine, seed and aggregate triangles, vertices, parts and
+draw calls, plus each asset's own summary and file paths. Passing a set seed
+derives each asset's seed as `seed + index`, so the same request rebuilds the
+same set.
 
 The result writes `<output>/<name>/<name>.zip` (the curated engine pack),
 `<output>/<name>/<name>.glb` (standalone GLB at the engine's scale and up

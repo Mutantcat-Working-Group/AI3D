@@ -433,6 +433,113 @@ test("the generate tool reads a scene kit out of a prompt", async (t) => {
   assert.match(refused.message, /scene kit/);
 });
 
+test("the generate tool composes an asset set from items", async (t) => {
+  const dir = workspace(t);
+  const answer = await handlerFor(dir)({
+    id: 26,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: {
+        kind: "set",
+        output: "generated-assets",
+        name: "starter-pack",
+        style: "lowpoly",
+        engine: "godot",
+        seed: 7,
+        items: [
+          { type: "tree" },
+          { type: "tree" },
+          { prompt: "a red sword 1.2 m", name: "hero-blade" },
+          { type: "crate", color: "#8b5a2b", size: 0.8 },
+        ],
+      },
+    },
+  });
+  const result = answer.result.structuredContent;
+  assert.equal(result.ok, true);
+  assert.equal(result.set.id, "starter-pack");
+  assert.equal(result.set.count, 4);
+  assert.equal(result.set.engine, "godot");
+  // Duplicate slugs are disambiguated instead of overwriting each other, and
+  // each asset derives a deterministic seed from the set seed.
+  assert.deepEqual(
+    result.items.map((item) => item.id),
+    ["tree", "tree-2", "hero-blade", "crate"],
+  );
+  assert.deepEqual(
+    result.items.map((item) => item.seed),
+    [7, 8, 9, 10],
+  );
+  assert.equal(result.items[0].style, "lowpoly");
+  assert.equal(result.items[1].files.glb.includes("tree-2/tree-2.glb"), true);
+  assert.equal(fs.existsSync(path.join(dir, result.items[1].files.glb)), true);
+
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(dir, result.files.manifest), "utf8"),
+  );
+  assert.equal(manifest.schema, "ai3d-generated-set");
+  assert.equal(manifest.count, 4);
+  assert.equal(manifest.totals.assets, 4);
+  assert.equal(
+    manifest.totals.triangles,
+    result.items.reduce((sum, item) => sum + item.stats.triangles, 0),
+  );
+});
+
+test("the generate tool rejects malformed asset set items", async (t) => {
+  const dir = workspace(t);
+  const call = (args) =>
+    handlerFor(dir)({
+      id: 27,
+      method: "tools/call",
+      params: { name: "ai3d_generate", arguments: args },
+    });
+  const empty = await call({
+    kind: "set",
+    output: "generated-assets",
+    items: [],
+  });
+  assert.equal(empty.result.isError, true);
+  assert.match(
+    JSON.parse(empty.result.content[0].text).message,
+    /non-empty array/,
+  );
+
+  const unknownType = await call({
+    kind: "set",
+    output: "generated-assets",
+    items: [{ type: "not-a-real-asset" }],
+  });
+  assert.equal(unknownType.result.isError, true);
+  assert.match(
+    JSON.parse(unknownType.result.content[0].text).message,
+    /not a known asset type/,
+  );
+
+  const extraField = await call({
+    kind: "set",
+    output: "generated-assets",
+    items: [{ type: "tree", nope: true }],
+  });
+  assert.equal(extraField.result.isError, true);
+  assert.match(
+    JSON.parse(extraField.result.content[0].text).message,
+    /unsupported field/,
+  );
+
+  const wrongKind = await call({
+    output: "generated-assets",
+    type: "sword",
+    items: [{ type: "tree" }],
+  });
+  assert.equal(wrongKind.result.isError, true);
+  assert.match(
+    JSON.parse(wrongKind.result.content[0].text).message,
+    /only supported when kind is "set"/,
+  );
+});
+
 test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {
   const handle = handlerFor(workspace(t));
   const call = (args) =>
