@@ -3,6 +3,12 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { scopedPath, fail } from "./context.mjs";
 
+/* Relative paths are hashed as part of the release identity, so they have to be
+   the same string on every platform. Some entries below are written by hand in
+   POSIX form and some are built with `path.join`, which is backslash-separated
+   on Windows; without this a cache written on Windows can never verify itself. */
+const releaseKey = (relative) => relative.replaceAll("\\", "/");
+
 function files(root, relative = "") {
   const found = [];
   for (const name of fs.readdirSync(path.join(root, relative))) {
@@ -73,7 +79,7 @@ export function cacheRelease(installRoot, runtime) {
   for (const relative of wanted.sort()) {
     const target = scopedPath(installRoot, present(installRoot, relative));
     const data = fs.readFileSync(target);
-    hash.update(relative).update("\0").update(data);
+    hash.update(releaseKey(relative)).update("\0").update(data);
     content.push({ relative, data });
   }
   const id = hash.digest("hex");
@@ -111,7 +117,7 @@ export function cachedRelease(runtime, id) {
   const digest = crypto.createHash("sha256");
   for (const relative of files(root))
     digest
-      .update(relative)
+      .update(releaseKey(relative))
       .update("\0")
       .update(fs.readFileSync(path.join(root, relative)));
   if (digest.digest("hex") !== id)
