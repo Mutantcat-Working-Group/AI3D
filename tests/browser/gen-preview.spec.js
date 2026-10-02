@@ -748,3 +748,70 @@ test("a chat project brief generates a project without a host conversation", asy
     page.locator("#gen-project-list .gen-project-group"),
   ).toHaveCount(3, { timeout: 40000 });
 });
+
+/* Single assets use the same local bridge. A question without a generation
+   verb stays a question, even when it names an asset the parser understands. */
+test("a chat asset brief generates locally without a host conversation", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="chat"]').click();
+  await expect(page.locator("#chat-messages .chat-empty")).toBeVisible({
+    timeout: 20000,
+  });
+
+  await page.locator("#chat-input").fill("what is a sword?");
+  await page.locator("#chat-send").click();
+  await expect(page.locator("#chat-send")).toBeEnabled({ timeout: 15000 });
+  await expect(page.locator("#chat-messages .chat-msg")).toHaveCount(0);
+
+  await page.locator("#chat-input").fill("generate a low-poly sword");
+  await page.locator("#chat-send").click();
+
+  await expect(
+    page.locator("#chat-messages .chat-msg.chat-agent").last(),
+  ).toContainText(/ready|sword/i, { timeout: 40000 });
+  await page.locator('[data-ai-tab="gen"]').click();
+  await expect(page.locator("#gen-prompt")).toHaveValue(
+    "generate a low-poly sword",
+  );
+  await expect(page.locator("#gen-preview")).toBeVisible({ timeout: 40000 });
+});
+
+/* Sets and scenes already own complete workbench pipelines; chat only has to
+   choose the right one and report the same result back into the conversation. */
+test("chat asset-set and scene briefs reuse the generator pipelines", async ({
+  page,
+}) => {
+  test.setTimeout(150000);
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="chat"]').click();
+  await expect(page.locator("#chat-messages .chat-empty")).toBeVisible({
+    timeout: 20000,
+  });
+
+  await page
+    .locator("#chat-input")
+    .fill("generate an asset set: sword, shield, potion");
+  await page.locator("#chat-send").click();
+  await expect(
+    page.locator("#chat-messages .chat-msg.chat-agent").last(),
+  ).toContainText(/3|ready/i, { timeout: 60000 });
+
+  await page.locator('[data-ai-tab="gen"]').click();
+  await expect(page.locator("#gen-batch-list .gen-batch-card")).toHaveCount(3, {
+    timeout: 40000,
+  });
+
+  await page.locator('[data-ai-tab="chat"]').click();
+  await page.locator("#chat-input").fill("generate a camp scene");
+  await page.locator("#chat-send").click();
+  await expect(
+    page.locator("#chat-messages .chat-msg.chat-agent").last(),
+  ).toContainText(/camp|ready/i, { timeout: 60000 });
+
+  await page.locator('[data-ai-tab="gen"]').click();
+  await expect(page.locator("#gen-scene-pack")).toBeVisible({ timeout: 40000 });
+});

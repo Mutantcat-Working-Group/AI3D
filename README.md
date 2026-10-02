@@ -116,7 +116,7 @@ STEP 在细分前没有三角面数，所以 `precheck` 会先细分再测量；
 npm ci
 npm run samples      # 生成参数化样例模型
 npm test             # 403 unit and integration tests
-npm run test:browser # 90 real-Chromium tests
+npm run test:browser # 92 real-Chromium tests
 ```
 
 `npm run samples` 写到克隆内的 `tmp/samples`，测试套件也从这里发布。开发工作在 `dev` 分支；`main` 只发布，永远从 `dev` fast-forward 并紧接着打 tag。
@@ -203,6 +203,7 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 - **2.26（已完成）** — 游戏资产项目生成：`ai3d_generate` 新增 `kind: "project"` 与 `template`，可把快速原型、奇幻地牢、村庄冒险、科幻前哨或荒野生存模板一次展开成多个分类资产套装、完整场景套装和引擎导入顺序；项目根目录产出 `project.json` 交付清单、`import-order.json` 与 `README.md`，并汇总项目级三角形／顶点／部件／绘制调用和逐资产就绪度，模板的 `quality` 与 `profile` 默认值会贯穿全部嵌套包。`ai3d_catalog` 也新增 `projects` 模式，生成前即可读取每个模板的分组、场景、默认配置与别名。
 - **2.27（已完成）** — 工作台项目生成：生成区新增「项目」，可选快速原型、奇幻地牢、村庄冒险、科幻前哨或荒野生存模板，一次复用同一套风格、材质与导出设置生成分门别类的资产套装与完整场景套装，全部并入资产库并带质量门控；导出时项目包在扁平 `manifest.json` 之外附带 `project.json` 交付清单与 `import-order.json` 导入顺序，与 Agent 端的项目 schema 一致，故事件脚本与聊天可读回同一份计划。
 - **2.28（已完成）** — 聊天直建项目：内置聊天里写下带生成意图的项目需求（如「生成一个奇幻地牢项目」）时，工作台会识别对应模板并直接走同一套项目生成流程，把资产套装与场景套装并入资产库；确认、进度与结果都回写到聊天区，即使当前实例没有返回对话的路由也能本地完成，普通对话仍原样转发给已连接的 Agent。
+- **2.29（已完成）** — 聊天直建资产与场景：内置聊天的本地生成桥接从项目扩展到单件资产、资产套装与场景套装；带生成动词的简短需求会按项目 → 场景 → 套装 → 单件的顺序匹配现有生成管线，生成确认、进度与结果回写聊天区，并向连接的 Agent 发出避免重复生成的提示，纯问题仍转发给 Agent。
 
 ### 十二、文档
 

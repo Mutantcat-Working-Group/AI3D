@@ -2301,14 +2301,14 @@ function addLocalChatMessage(role, text) {
 }
 
 /* Chat normally forwards to the connected agent, but a written brief that
-   names a project template is something the workbench can already build on its
-   own. Keep the agent in the loop when it is reachable, and let the local
-   generator answer the request instead of leaving it as prose. */
+   names something the workbench can build is already actionable locally. Keep
+   the agent in the loop when it is reachable, and let the generator answer the
+   request instead of leaving it as prose. */
 /* The verbs stay as escapes for the same reason the template aliases do:
    interface text belongs in the catalogue, but these are matching patterns,
-   not copy. Picking the verbs here and the template match in the shared
-   registry keeps one source of truth for template names. */
-const PROJECT_INTENT_VERBS = new RegExp(
+   not copy. Picking the verbs here and the registry match keeps one source of
+   truth for every kind of generated result. */
+const GENERATION_INTENT_VERBS = new RegExp(
   [
     "make",
     "create",
@@ -2338,18 +2338,244 @@ const PROJECT_INTENT_VERBS = new RegExp(
   "i",
 );
 
-function projectGenerationRequest(message) {
-  if (!PROJECT_INTENT_VERBS.test(message)) return null;
-  const template = matchProjectTemplate(message);
-  if (!template) return null;
-  const name = $("#gen-project-name")?.value.trim();
-  return {
-    template,
-    projectName:
-      name && name !== projectTemplateLabel(template)
-        ? name
-        : projectTemplateLabel(template),
+function catalogueValues(key) {
+  if (!key) return [];
+  return Object.values(CATALOGUES)
+    .map((catalogue) => catalogue[key])
+    .filter(Boolean);
+}
+
+const escapeChatPattern = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const CHAT_SET_SPLITTER = new RegExp(
+  "[,;\\r\\n\\uFF0C\\uFF1B\\u3001]+|\\s+(?:and|und|et|y)\\s+|\\u548c|\\u4e0e|\\u8207|\\u53ca",
+  "iu",
+);
+
+let chatSceneCandidates = null;
+function getChatSceneCandidates() {
+  if (chatSceneCandidates) return chatSceneCandidates;
+  const addTerms = (candidates, bases, key, scene) => {
+    const terms = [...new Set([...bases, ...catalogueValues(key)])];
+    for (const term of terms) {
+      const text = String(term).trim();
+      if (text)
+        candidates.push({
+          ...scene,
+          term: text.toLowerCase(),
+          length: text.length,
+        });
+    }
   };
+  const candidates = [];
+  for (const kit of getGameKits()) {
+    addTerms(candidates, [kit.id, kit.name], GEN_KIT_KEYS[kit.id], {
+      sceneKind: "kit",
+      id: kit.id,
+    });
+  }
+  for (const preset of getModularScenePresets()) {
+    addTerms(
+      candidates,
+      [preset.id, preset.id.replace(/_/g, " "), preset.name],
+      MODULAR_SCENE_KEYS[preset.id],
+      { sceneKind: "modular", id: preset.id },
+    );
+  }
+  chatSceneCandidates = candidates.sort(
+    (a, b) => b.length - a.length || a.term.localeCompare(b.term),
+  );
+  return chatSceneCandidates;
+}
+
+function matchChatScene(text) {
+  return getChatSceneCandidates().find((candidate) =>
+    text.includes(candidate.term),
+  );
+}
+
+function chatSetMarker() {
+  const labels = Object.values(CATALOGUES)
+    .map((catalogue) => catalogue["gen.batch"])
+    .filter(Boolean)
+    .map(escapeChatPattern);
+  return new RegExp(
+    [...labels, "\\b(?:set|pack|collection)\\b"].join("|"),
+    "iu",
+  );
+}
+
+function chatSetRequest(text) {
+  if (!chatSetMarker().test(text)) return null;
+  const prompts = text
+    .split(CHAT_SET_SPLITTER)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, BATCH_LIMIT);
+  if (prompts.length === 0) return null;
+  const style = $("#gen-style")?.value || "lowpoly";
+  const matched = prompts.filter(
+    (prompt) => parseAssetPrompt(prompt, style, promptLexicon).matched,
+  ).length;
+  if (matched === 0) return null;
+  return { prompts, matched };
+}
+
+function resolveChatGeneration(message) {
+  const text = String(message || "").trim();
+  if (!text || !GENERATION_INTENT_VERBS.test(text)) return null;
+
+  const template = matchProjectTemplate(text);
+  if (template) {
+    const name = $("#gen-project-name")?.value.trim();
+    return {
+      kind: "project",
+      template,
+      projectName:
+        name && name !== projectTemplateLabel(template)
+          ? name
+          : projectTemplateLabel(template),
+    };
+  }
+
+  const scene = matchChatScene(text.toLowerCase());
+  if (scene) return { kind: "scene", ...scene, prompt: text };
+
+  const set = chatSetRequest(text);
+  if (set) return { kind: "set", ...set };
+
+  const style = $("#gen-style")?.value || "lowpoly";
+  const parsed = parseAssetPrompt(text, style, promptLexicon);
+  if (parsed.matched) return { kind: "asset", prompt: text, parsed };
+  return null;
+}
+
+function chatKindLabel(kind) {
+  if (kind === "set") return t("chat.kindSet");
+  if (kind === "scene") return t("chat.kindScene");
+  return t("chat.kindAsset");
+}
+
+function chatRequestName(request) {
+  if (request.kind === "set")
+    return t("chat.setName", { count: String(request.prompts.length) });
+  if (request.kind === "scene") {
+    const keys =
+      request.sceneKind === "modular" ? MODULAR_SCENE_KEYS : GEN_KIT_KEYS;
+    return t(keys[request.id]);
+  }
+  return t(GEN_TYPE_KEYS[request.parsed.type]);
+}
+
+async function notifyChatGeneration(request, name) {
+  try {
+    await api("chat", {
+      message: t("chat.generationNotice", {
+        kind: chatKindLabel(request.kind),
+        name,
+      }),
+    });
+  } catch {
+    /* The local result is what matters here; a missing agent route is not a
+       reason to drop it. */
+  }
+}
+
+async function runLocalChatGeneration(request, sendBtn) {
+  if (request.kind === "project") {
+    addLocalChatMessage(
+      "agent",
+      t("chat.projectQueued", { name: request.projectName }),
+    );
+    if ($("#gen-project-template"))
+      $("#gen-project-template").value = request.template.id;
+    if ($("#gen-project-name"))
+      $("#gen-project-name").value = request.projectName;
+    if (genState.generating) {
+      addLocalChatMessage("agent", t("chat.projectBusy"));
+      return;
+    }
+    sendBtn.querySelector("span").textContent = T("chat.generating");
+    addLocalChatMessage("agent", t("chat.projectThinking"));
+    await generateProject();
+    if (genState.project) {
+      addLocalChatMessage(
+        "agent",
+        t("chat.projectDone", {
+          name: genState.project.name,
+          assets: String(genState.project.counts.assets),
+          scenes: String(genState.project.counts.scenes),
+        }),
+      );
+      try {
+        /* The brief itself would ask a connected agent for the same project a
+           second time, so the conversation gets a notice instead. */
+        await api("chat", {
+          message: t("chat.projectNotice", {
+            name: genState.project.name,
+            template: request.template.name,
+          }),
+        });
+      } catch {
+        /* The local project is what matters here. */
+      }
+    } else {
+      addLocalChatMessage("agent", t("chat.projectFailed"));
+    }
+    return;
+  }
+
+  const kind = chatKindLabel(request.kind);
+  const requestedName = chatRequestName(request);
+  addLocalChatMessage(
+    "agent",
+    t("chat.generationQueued", { kind, name: requestedName }),
+  );
+  if (genState.generating) {
+    addLocalChatMessage("agent", t("chat.generationBusy"));
+    return;
+  }
+
+  sendBtn.querySelector("span").textContent = T("chat.generating");
+  addLocalChatMessage("agent", t("chat.generationThinking", { kind }));
+  const previousModel = genState.model;
+  let generatedName = requestedName;
+  let success = false;
+
+  if (request.kind === "asset") {
+    $("#gen-prompt").value = request.prompt;
+    await generateAsset();
+    success = Boolean(genState.model && genState.model !== previousModel);
+    if (success) generatedName = chatRequestName(request);
+  } else if (request.kind === "set") {
+    $("#gen-batch-input").value = request.prompts.join("\n");
+    $("#gen-batch-name").value = requestedName;
+    generateBatch();
+    success = genState.batch.length > 0;
+    if (success)
+      generatedName = t("chat.setName", {
+        count: String(genState.batch.length),
+      });
+  } else {
+    if (request.sceneKind === "modular") composeModularSceneScene(request.id);
+    else composeGameKitScene(request.id);
+    success = Boolean(
+      genState.model &&
+      genState.model !== previousModel &&
+      genState.model.kind === "scene",
+    );
+  }
+
+  if (success) {
+    addLocalChatMessage(
+      "agent",
+      t("chat.generationDone", { name: generatedName }),
+    );
+    await notifyChatGeneration(request, generatedName);
+  } else {
+    addLocalChatMessage("agent", t("chat.generationFailed", { kind }));
+  }
 }
 
 async function sendChat() {
@@ -2363,49 +2589,10 @@ async function sendChat() {
   sendBtn.querySelector("span").textContent = T("chat.sending");
   input.value = "";
   try {
-    const request = projectGenerationRequest(text);
+    const request = resolveChatGeneration(text);
     if (request) {
       addLocalChatMessage("user", text);
-      addLocalChatMessage(
-        "agent",
-        t("chat.projectQueued", { name: request.projectName }),
-      );
-      if ($("#gen-project-template"))
-        $("#gen-project-template").value = request.template.id;
-      if ($("#gen-project-name"))
-        $("#gen-project-name").value = request.projectName;
-      if (genState.generating) {
-        addLocalChatMessage("agent", t("chat.projectBusy"));
-      } else {
-        sendBtn.querySelector("span").textContent = T("chat.generating");
-        addLocalChatMessage("agent", t("chat.projectThinking"));
-        await generateProject();
-        if (genState.project) {
-          addLocalChatMessage(
-            "agent",
-            t("chat.projectDone", {
-              name: genState.project.name,
-              assets: String(genState.project.counts.assets),
-              scenes: String(genState.project.counts.scenes),
-            }),
-          );
-        } else {
-          addLocalChatMessage("agent", t("chat.projectFailed"));
-        }
-      }
-      try {
-        /* The brief itself would ask a connected agent for the same project a
-           second time, so the conversation gets a notice instead. */
-        await api("chat", {
-          message: t("chat.projectNotice", {
-            name: genState.project?.name || request.projectName,
-            template: request.template.name,
-          }),
-        });
-      } catch {
-        /* The local project is what matters here; a missing agent route is
-           not a reason to drop the generated result. */
-      }
+      await runLocalChatGeneration(request, sendBtn);
       return;
     }
     await api("chat", { message: text });

@@ -254,6 +254,17 @@ export default {
   "chat.projectFailed": "專案生成失敗，請在「生成」分頁查看詳情。",
   "chat.projectNotice":
     "使用者已在工作台生成{template}專案「{name}」，並已加入資源庫；如無進一步要求，請勿重複生成。",
+  "chat.kindAsset": "資產",
+  "chat.kindSet": "資產套裝",
+  "chat.kindScene": "場景",
+  "chat.setName": "{count} 件資產套裝",
+  "chat.generationQueued": "正在生成{kind}：{name}。",
+  "chat.generationBusy": "已有生成工作正在執行，請稍後再試。",
+  "chat.generationThinking": "正在本機建構{kind}…",
+  "chat.generationDone": "{name} 已就緒。可在「生成」分頁查看。",
+  "chat.generationFailed": "{kind}生成失敗，請在「生成」分頁查看詳情。",
+  "chat.generationNotice":
+    "使用者已在工作台生成{kind}「{name}」，並已加入資源庫；如無進一步要求，請勿重複生成。",
   "chat.knowledgePlaceholder": "檢索建模知識…",
   "chat.knowledgeSearch": "檢索知識包",
   "chat.knowledgeSearching": "正在檢索知識包…",

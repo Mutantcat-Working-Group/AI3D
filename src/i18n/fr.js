@@ -291,6 +291,20 @@ export default {
     "Le projet n'a pas pu être généré. Consultez l'onglet « Générer » pour plus de détails.",
   "chat.projectNotice":
     "L'utilisateur a généré le projet {template} « {name} » dans l'espace de travail. Il figure déjà dans la bibliothèque ; ne le régénérez pas sans demande explicite.",
+  "chat.kindAsset": "asset",
+  "chat.kindSet": "ensemble d’assets",
+  "chat.kindScene": "scène",
+  "chat.setName": "ensemble de {count} assets",
+  "chat.generationQueued": "Génération de {kind} : {name}.",
+  "chat.generationBusy":
+    "Une autre génération est déjà en cours. Réessayez une fois terminée.",
+  "chat.generationThinking": "Construction locale de {kind}...",
+  "chat.generationDone":
+    "{name} est prêt. Ouvrez l'onglet « Générer » pour l'examiner.",
+  "chat.generationFailed":
+    "Impossible de générer {kind}. Consultez l'onglet « Générer » pour plus de détails.",
+  "chat.generationNotice":
+    "L'utilisateur a généré {kind} « {name} » dans l'espace de travail. Il figure déjà dans la bibliothèque ; ne le régénérez pas sans demande explicite.",
   "chat.knowledgePlaceholder": "Rechercher des références de modélisation…",
   "chat.knowledgeSearch": "Rechercher dans le pack de connaissances",
   "chat.knowledgeSearching": "Recherche dans le pack de connaissances…",

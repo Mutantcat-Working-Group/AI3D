@@ -256,7 +256,7 @@ From a clone, for the full development environment:
 npm ci
 npm run samples      # generate the parametric sample models
 npm test             # 403 unit and integration tests
-npm run test:browser # 90 real-Chromium tests
+npm run test:browser # 92 real-Chromium tests
 ```
 
 `npm run samples` writes to `tmp/samples` inside the clone, where the suites
@@ -496,6 +496,12 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   Confirmation, progress and results are written back into the chat, so the
   project still completes when the instance has no return route to an agent
   conversation, while ordinary messages keep flowing to the connected agent.
+- **2.29 (done)** - assets and scenes from chat: the local generation bridge now
+  covers single assets, asset sets and scene kits as well as projects. A brief
+  with a generation verb is resolved in project, scene, set, asset order against
+  the existing pipelines, while confirmation, progress and results are written
+  back into the chat. Connected agents receive a notice so they do not generate
+  the same result twice, and ordinary questions still flow to the agent.
 
 ### 12. Documentation
 

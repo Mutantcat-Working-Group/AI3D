@@ -280,6 +280,20 @@ export default {
     "プロジェクトを生成できませんでした。「生成」タブで詳細を確認してください。",
   "chat.projectNotice":
     "ユーザーがワークベンチで {template} プロジェクト「{name}」を生成し、ライブラリに追加済みです。明示的な依頼がない限り再生成しないでください。",
+  "chat.kindAsset": "アセット",
+  "chat.kindSet": "アセットセット",
+  "chat.kindScene": "シーン",
+  "chat.setName": "{count} 点のアセットセット",
+  "chat.generationQueued": "{kind}を生成しています：{name}。",
+  "chat.generationBusy":
+    "別の生成処理が実行中です。完了後にもう一度お試しください。",
+  "chat.generationThinking": "{kind}をローカルで構築しています...",
+  "chat.generationDone":
+    "{name} の準備ができました。「生成」タブで確認してください。",
+  "chat.generationFailed":
+    "{kind}を生成できませんでした。「生成」タブで詳細を確認してください。",
+  "chat.generationNotice":
+    "ユーザーがワークベンチで {kind}「{name}」を生成し、ライブラリに追加済みです。明示的な依頼がない限り再生成しないでください。",
   "chat.knowledgePlaceholder": "モデリング資料を検索…",
   "chat.knowledgeSearch": "ナレッジパックを検索",
   "chat.knowledgeSearching": "ナレッジパックを検索中…",

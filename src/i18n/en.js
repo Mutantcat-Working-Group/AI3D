@@ -280,6 +280,19 @@ export default {
     "The project could not be generated. Check the Generate tab for details.",
   "chat.projectNotice":
     'The user generated the {template} project "{name}" in the workbench. It is already in the asset library, so do not generate it again unless asked.',
+  "chat.kindAsset": "asset",
+  "chat.kindSet": "asset set",
+  "chat.kindScene": "scene",
+  "chat.setName": "{count}-piece asset set",
+  "chat.generationQueued": "Creating {kind}: {name}.",
+  "chat.generationBusy":
+    "Another generation is already running. Try again when it finishes.",
+  "chat.generationThinking": "Building the {kind} locally...",
+  "chat.generationDone": "{name} is ready. Open the Generate tab to review it.",
+  "chat.generationFailed":
+    "The {kind} could not be generated. Check the Generate tab for details.",
+  "chat.generationNotice":
+    'The user generated the {kind} "{name}" in the workbench. It is already in the library, so do not generate it again unless asked.',
   "chat.knowledgePlaceholder": "Search modeling references…",
   "chat.knowledgeSearch": "Search knowledge pack",
   "chat.knowledgeSearching": "Searching the knowledge pack…",

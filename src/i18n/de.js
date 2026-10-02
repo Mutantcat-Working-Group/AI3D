@@ -294,6 +294,20 @@ export default {
     "Das Projekt konnte nicht erstellt werden. Details findest du im Tab „Erzeugen“.",
   "chat.projectNotice":
     "Der Nutzer hat das Projekt „{name}“ ({template}) im Arbeitsbereich erstellt. Es liegt bereits in der Bibliothek; bitte nicht erneut erzeugen, sofern nicht ausdrücklich gewünscht.",
+  "chat.kindAsset": "Asset",
+  "chat.kindSet": "Asset-Set",
+  "chat.kindScene": "Szene",
+  "chat.setName": "Asset-Set mit {count} Teilen",
+  "chat.generationQueued": "{kind} wird erstellt: {name}.",
+  "chat.generationBusy":
+    "Eine andere Generierung läuft bereits. Versuche es nach Abschluss erneut.",
+  "chat.generationThinking": "{kind} wird lokal erstellt...",
+  "chat.generationDone":
+    "{name} ist fertig. Öffne den Tab „Erzeugen“, um es zu prüfen.",
+  "chat.generationFailed":
+    "{kind} konnte nicht erstellt werden. Details findest du im Tab „Erzeugen“.",
+  "chat.generationNotice":
+    "Der Nutzer hat {kind} „{name}“ im Arbeitsbereich erstellt. Es liegt bereits in der Bibliothek; bitte nicht erneut erzeugen, sofern nicht ausdrücklich gewünscht.",
   "chat.knowledgePlaceholder": "Modellierungsreferenzen suchen…",
   "chat.knowledgeSearch": "Wissenspaket durchsuchen",
   "chat.knowledgeSearching": "Wissenspaket wird durchsucht…",
