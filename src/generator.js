@@ -130,7 +130,14 @@ const ASSET_TYPES = {
   barrel_variants: { name: "Barrel Variants", parts: ["body", "hoops", "lid"] },
   crystal: { name: "Crystal", parts: ["base", "shard", "tip"] },
   mushroom: { name: "Mushroom", parts: ["stem", "cap", "spots"] },
+  mushroom_cluster: {
+    name: "Mushroom Cluster",
+    parts: ["stems", "caps", "spots"],
+  },
   tree_stump: { name: "Tree Stump", parts: ["stump", "rings", "roots"] },
+  pine_tree: { name: "Pine Tree", parts: ["trunk", "foliage", "cones"] },
+  palm_tree: { name: "Palm Tree", parts: ["trunk", "fronds", "coconuts"] },
+  bush: { name: "Bush", parts: ["crown", "leaves", "berries"] },
   wall: { name: "Wall", parts: ["base", "body", "cap", "crenel"] },
   wall_window: { name: "Wall with Window", parts: ["wall", "frame", "glass"] },
   wall_door: { name: "Wall with Door", parts: ["wall", "frame", "threshold"] },
@@ -232,7 +239,11 @@ const ASSET_TAGS = {
   barrel_variants: ["item", "container", "outdoor"],
   crystal: ["nature", "mineral", "collectible"],
   mushroom: ["nature", "vegetation", "collectible"],
+  mushroom_cluster: ["nature", "vegetation", "collectible", "outdoor"],
   tree_stump: ["nature", "terrain", "outdoor"],
+  pine_tree: ["nature", "vegetation", "tree", "outdoor"],
+  palm_tree: ["nature", "vegetation", "tree", "outdoor"],
+  bush: ["nature", "vegetation", "shrub", "outdoor"],
   wall: ["building", "modular", "structure", "indoor"],
   wall_window: ["building", "modular", "structure", "indoor"],
   wall_door: ["building", "modular", "structure", "indoor"],
@@ -454,7 +465,11 @@ const ASSET_COLLIDERS = {
   barrel_variants: "cylinder",
   crystal: "sphere",
   mushroom: "capsule",
+  mushroom_cluster: "box",
   tree_stump: "cylinder",
+  pine_tree: "cylinder",
+  palm_tree: "cylinder",
+  bush: "sphere",
   wall: "box",
   wall_window: "box",
   wall_door: "box",
@@ -2202,8 +2217,20 @@ export function generateAsset(
     case "mushroom":
       buildMushroom(group, size, segments, matStyle, customColor, rng);
       break;
+    case "mushroom_cluster":
+      buildMushroomCluster(group, size, segments, matStyle, customColor, rng);
+      break;
     case "tree_stump":
       buildTreeStump(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "pine_tree":
+      buildPineTree(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "palm_tree":
+      buildPalmTree(group, size, segments, matStyle, customColor, rng);
+      break;
+    case "bush":
+      buildBush(group, size, segments, matStyle, customColor, rng);
       break;
     case "barrel_variants":
       buildBarrelVariants(group, size, segments, matStyle, customColor, rng);
@@ -4531,6 +4558,285 @@ function buildTreeStump(
     rootGroup.add(root);
   }
   group.add(rootGroup);
+}
+
+function buildMushroomCluster(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const stemMat = createMaterial(0xf1e3c8, style);
+  const capMat = createMaterial(customColor || 0xb03a2e, style);
+  const spotMat = createMaterial(0xf5f0e1, style);
+
+  const mushrooms = [
+    { x: 0, z: 0, scale: 1, lean: 0 },
+    { x: 0.42, z: 0.18, scale: 0.7, lean: 0.16 },
+    { x: -0.34, z: 0.28, scale: 0.6, lean: -0.12 },
+    { x: 0.12, z: -0.42, scale: 0.52, lean: 0.08 },
+    { x: -0.28, z: -0.26, scale: 0.44, lean: -0.2 },
+  ];
+
+  const stemGeo = new THREE.CylinderGeometry(
+    0.08 * size,
+    0.11 * size,
+    0.52 * size,
+    segments,
+  );
+  const capGeo = new THREE.SphereGeometry(
+    0.24 * size,
+    segments,
+    segments,
+    0,
+    Math.PI * 2,
+    0,
+    Math.PI / 2,
+  );
+  const spotGeo = new THREE.SphereGeometry(0.04 * size, 8, 8);
+
+  const stems = new THREE.Group();
+  stems.name = "stems";
+  const caps = new THREE.Group();
+  caps.name = "caps";
+  const spots = new THREE.Group();
+  spots.name = "spots";
+
+  mushrooms.forEach((spec, index) => {
+    const x = spec.x * size;
+    const z = spec.z * size;
+    const scale = spec.scale;
+
+    const stem = new THREE.Mesh(stemGeo, stemMat);
+    stem.position.set(x, 0.26 * size * scale, z);
+    stem.rotation.z = spec.lean;
+    stem.scale.setScalar(scale);
+    stem.name = `stem-${index}`;
+    stems.add(stem);
+
+    const cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.set(x, 0.52 * size * scale, z);
+    cap.scale.setScalar(scale);
+    cap.name = `cap-${index}`;
+    caps.add(cap);
+
+    for (let spotIndex = 0; spotIndex < 4; spotIndex++) {
+      const angle = (spotIndex / 4) * Math.PI * 2 + index;
+      const spot = new THREE.Mesh(spotGeo, spotMat);
+      spot.position.set(
+        x + Math.cos(angle) * 0.13 * size * scale,
+        0.6 * size * scale,
+        z + Math.sin(angle) * 0.13 * size * scale,
+      );
+      spot.scale.setScalar(scale);
+      spot.name = `spot-${index}-${spotIndex}`;
+      spots.add(spot);
+    }
+  });
+
+  group.add(stems);
+  group.add(caps);
+  group.add(spots);
+}
+
+function buildPineTree(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const trunkMat = createMaterial(0x6b4423, style);
+  const foliageMat = createMaterial(customColor || 0x1f5f36, style);
+  const coneMat = createMaterial(0x5a3d1d, style);
+
+  const trunkGeo = new THREE.CylinderGeometry(
+    0.14 * size,
+    0.26 * size,
+    2.6 * size,
+    segments,
+  );
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = 1.1 * size;
+  trunk.name = "trunk";
+  group.add(trunk);
+
+  const foliage = new THREE.Group();
+  foliage.name = "foliage";
+  const layers = [
+    { y: 1.5, radius: 1.0, height: 1.0 },
+    { y: 2.15, radius: 0.82, height: 0.92 },
+    { y: 2.72, radius: 0.62, height: 0.82 },
+    { y: 3.2, radius: 0.4, height: 0.68 },
+  ];
+  layers.forEach((layer, index) => {
+    const canopyGeo = new THREE.ConeGeometry(
+      layer.radius * size,
+      layer.height * size,
+      segments,
+    );
+    const canopy = new THREE.Mesh(canopyGeo, foliageMat);
+    canopy.position.y = layer.y * size;
+    canopy.name = `foliage-${index}`;
+    foliage.add(canopy);
+  });
+  group.add(foliage);
+
+  const coneGeo = new THREE.ConeGeometry(0.07 * size, 0.16 * size, 8);
+  const pineCones = new THREE.Group();
+  pineCones.name = "cones";
+  for (let index = 0; index < 3; index++) {
+    const angle = (index / 3) * Math.PI * 2;
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.position.set(
+      Math.cos(angle) * 0.72 * size,
+      1.18 * size,
+      Math.sin(angle) * 0.72 * size,
+    );
+    cone.rotation.x = Math.PI;
+    cone.name = `cone-${index}`;
+    pineCones.add(cone);
+  }
+  group.add(pineCones);
+}
+
+function buildPalmTree(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const trunkMat = createMaterial(0x9b7653, style);
+  const frondMat = createMaterial(customColor || 0x2f8f4e, style);
+  const coconutMat = createMaterial(0x4a2f1c, style);
+
+  const trunk = new THREE.Group();
+  trunk.name = "trunk";
+  const trunkGeo = new THREE.CylinderGeometry(
+    0.13 * size,
+    0.2 * size,
+    0.9 * size,
+    segments,
+  );
+  for (let index = 0; index < 3; index++) {
+    const segment = new THREE.Mesh(trunkGeo, trunkMat);
+    segment.position.set(
+      index * 0.12 * size,
+      0.45 * size + index * 0.86 * size,
+      0,
+    );
+    segment.rotation.z = -0.05 * index;
+    segment.name = `trunk-${index}`;
+    trunk.add(segment);
+  }
+  group.add(trunk);
+
+  const fronds = new THREE.Group();
+  fronds.name = "fronds";
+  const frondGeo = new THREE.BoxGeometry(0.12 * size, 0.05 * size, 1.5 * size);
+  const crownY = 2.95 * size;
+  const crownX = 0.28 * size;
+  for (let index = 0; index < 7; index++) {
+    const angle = (index / 7) * Math.PI * 2;
+    const frond = new THREE.Mesh(frondGeo, frondMat);
+    frond.position.set(
+      crownX + Math.cos(angle) * 0.62 * size,
+      crownY + 0.06 * size,
+      Math.sin(angle) * 0.62 * size,
+    );
+    frond.rotation.y = -angle;
+    frond.rotation.x = -0.42;
+    frond.name = `frond-${index}`;
+    fronds.add(frond);
+  }
+  group.add(fronds);
+
+  const coconutGeo = new THREE.SphereGeometry(0.11 * size, 10, 10);
+  const coconuts = new THREE.Group();
+  coconuts.name = "coconuts";
+  for (let index = 0; index < 3; index++) {
+    const angle = (index / 3) * Math.PI * 2;
+    const coconut = new THREE.Mesh(coconutGeo, coconutMat);
+    coconut.position.set(
+      crownX + Math.cos(angle) * 0.16 * size,
+      crownY - 0.16 * size,
+      Math.sin(angle) * 0.16 * size,
+    );
+    coconut.name = `coconut-${index}`;
+    coconuts.add(coconut);
+  }
+  group.add(coconuts);
+}
+
+function buildBush(
+  group,
+  size,
+  segments,
+  style,
+  customColor = null,
+  rng = Math.random,
+) {
+  const crownMat = createMaterial(customColor || 0x2f6b3a, style);
+  const leafMat = createMaterial(0x3f8b4c, style);
+  const berryMat = createMaterial(0xc62828, style);
+
+  const crown = new THREE.Group();
+  crown.name = "crown";
+  const crownSpheres = [
+    { x: 0, y: 0.45, z: 0, radius: 0.52 },
+    { x: -0.42, y: 0.36, z: 0.1, radius: 0.38 },
+    { x: 0.4, y: 0.38, z: -0.12, radius: 0.4 },
+    { x: 0.05, y: 0.7, z: 0.22, radius: 0.34 },
+  ];
+  crownSpheres.forEach((spec, index) => {
+    const sphereGeo = new THREE.SphereGeometry(
+      spec.radius * size,
+      segments,
+      segments,
+    );
+    const sphere = new THREE.Mesh(sphereGeo, crownMat);
+    sphere.position.set(spec.x * size, spec.y * size, spec.z * size);
+    sphere.name = `crown-${index}`;
+    crown.add(sphere);
+  });
+  group.add(crown);
+
+  const leaves = new THREE.Group();
+  leaves.name = "leaves";
+  const leafGeo = new THREE.SphereGeometry(0.16 * size, 8, 8);
+  for (let index = 0; index < 6; index++) {
+    const angle = (index / 6) * Math.PI * 2;
+    const leaf = new THREE.Mesh(leafGeo, leafMat);
+    leaf.position.set(
+      Math.cos(angle) * 0.5 * size,
+      (0.5 + Math.sin(index) * 0.12) * size,
+      Math.sin(angle) * 0.5 * size,
+    );
+    leaf.name = `leaf-${index}`;
+    leaves.add(leaf);
+  }
+  group.add(leaves);
+
+  const berries = new THREE.Group();
+  berries.name = "berries";
+  const berryGeo = new THREE.SphereGeometry(0.07 * size, 8, 8);
+  for (let index = 0; index < 5; index++) {
+    const angle = (index / 5) * Math.PI * 2 + 0.4;
+    const berry = new THREE.Mesh(berryGeo, berryMat);
+    berry.position.set(
+      Math.cos(angle) * 0.42 * size,
+      0.58 * size + Math.sin(index * 1.7) * 0.1 * size,
+      Math.sin(angle) * 0.42 * size,
+    );
+    berry.name = `berry-${index}`;
+    berries.add(berry);
+  }
+  group.add(berries);
 }
 
 function buildBarrelVariants(
@@ -10369,6 +10675,10 @@ const AUDIT_GROUND_TYPES = new Set([
   "arch",
   "tree_stump",
   "mushroom",
+  "mushroom_cluster",
+  "pine_tree",
+  "palm_tree",
+  "bush",
   "campfire",
 ]);
 
@@ -10441,6 +10751,10 @@ const AUDIT_REQUIRED_PARTS = {
   drone: ["body", "rotors"],
   turret: ["base", "body"],
   tower: ["shaft"],
+  mushroom_cluster: ["stems", "caps"],
+  pine_tree: ["trunk", "foliage"],
+  palm_tree: ["trunk", "fronds"],
+  bush: ["crown", "berries"],
 };
 
 /* Every rigged asset is expected to ship the clips a game character needs.
@@ -11554,6 +11868,10 @@ const GAMEPLAY_PRESETS = {
   berry_bush: { interaction: "harvest", role: "resource" },
   crystal: { interaction: "mine", role: "resource" },
   mushroom: { interaction: "collect", role: "resource" },
+  mushroom_cluster: { interaction: "collect", role: "resource" },
+  pine_tree: { interaction: "chop", role: "resource" },
+  palm_tree: { interaction: "chop", role: "resource" },
+  bush: { interaction: "harvest", role: "resource" },
   table: { interaction: "use", role: "furniture" },
   bookshelf: { interaction: "use", role: "furniture" },
   armor_stand: { interaction: "use", role: "furniture" },

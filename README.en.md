@@ -24,7 +24,7 @@ instead of staying a preview image.
 
 ### 2. What it generates
 
-98 built-in game asset templates, each with sensible part names, tags and
+102 built-in game asset templates, each with sensible part names, tags and
 collider presets:
 
 | Category  | Assets                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -37,6 +37,7 @@ collider presets:
 | Vehicles  | car, boat, plane, bike, wagon, minecart                                                                                                                                                                                                                                                                                                                                                        |
 | Sci-fi    | turret, drone, comm antenna                                                                                                                                                                                                                                                                                                                                                                    |
 | Village   | windmill                                                                                                                                                                                                                                                                                                                                                                                       |
+| Nature    | mushroom cluster, pine tree, palm tree, bush                                                                                                                                                                                                                                                                                                                                                   |
 
 Beyond the quick templates you can describe an asset in natural language and
 choose a style (low-poly / realistic / stylized), then tune color, roughness,
@@ -512,6 +513,11 @@ are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/dis
   collider presets, grip attachment points, gameplay metadata and
   quick-template labels in all six languages for melee, polearm and magic
   weapon systems.
+- **2.32 (done)** - nature asset family: mushroom clusters, pine trees, palm
+  trees and bushes now ship as export-ready templates with named parts (stems
+  and caps, trunks and foliage, trunks and fronds, crowns and berries),
+  default PBR textures, collider presets, gameplay metadata and quick-template
+  labels in all six languages for wilderness, forest and village scenes.
 
 ### 12. Documentation
 

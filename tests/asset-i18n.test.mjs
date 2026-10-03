@@ -4,8 +4,7 @@ import { getAssetTypes } from "../src/generator.js";
 import { CATALOGUES } from "../src/i18n/index.js";
 
 /* Quick-template chips and prompt aliases share one catalogue naming scheme:
- * the asset key is the suffix, except tree_stump and barrel_variants, whose
- * suffixes use camelCase in the keys. */
+ * snake_case asset keys become camelCase suffixes in the catalogue. */
 const KEY_SUFFIXES = {
   tree_stump: "treeStump",
   barrel_variants: "barrelVariants",
@@ -18,16 +17,24 @@ const KEY_SUFFIXES = {
   stone_coffin: "stoneCoffin",
   bone_pile: "bonePile",
   wheat_sheaf: "wheatSheaf",
+  mushroom_cluster: "mushroomCluster",
   wall_window: "wallWindow",
   wall_door: "wallDoor",
   wall_corner: "wallCorner",
 };
 
+function toCatalogueSuffix(type) {
+  return (
+    KEY_SUFFIXES[type] ||
+    type.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase())
+  );
+}
+
 test("every asset template ships a label and aliases in every language", () => {
   const types = getAssetTypes();
   assert.ok(types.length >= 45, "expected the full game asset catalogue");
   for (const type of types) {
-    const suffix = KEY_SUFFIXES[type] || type;
+    const suffix = toCatalogueSuffix(type);
     for (const [locale, table] of Object.entries(CATALOGUES)) {
       const label = table[`gen.type.${suffix}`];
       assert.ok(
