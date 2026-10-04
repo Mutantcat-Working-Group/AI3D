@@ -6,8 +6,9 @@ on:
   push:
     tags: ["v*"]
 
-# The only job in this repository that writes anything. CI stays read-only —
-# this one needs to create a release object, and that is the whole list.
+# These are the only jobs in this repository that write anything. CI stays
+# read-only — creating the release object and attaching the bundles and their
+# checksums to it is the whole list.
 permissions:
   contents: write
 
@@ -52,6 +53,7 @@ jobs:
           {
             printf '%s\n\n' "$notes"
             printf 'This release is commit %s.\n' "$commit"
+            printf 'Checksums for every attached asset are in checksums-sha1.txt and checksums-md5.txt.\n'
           } > "$RUNNER_TEMP/notes.md"
           gh release create "$tag" \
             --title "AI3D ${tag#v}" \
@@ -261,3 +263,57 @@ jobs:
             exit 1
           fi
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+
+  # A release is only checkable if its reader can see what arrived. This runs
+  # after every platform has finished and reads the assets back out of the
+  # release the package jobs wrote, rather than trusting a path on one runner.
+  checksums:
+    name: attach checksums for the released assets
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: download the released assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/assets"
+          # Patterns, not everything: the two files this job itself writes live
+          # on the release too, and a rerun must hash installers rather than its
+          # own previous output.
+          gh release download "$GITHUB_REF_NAME" \
+            --dir "$RUNNER_TEMP/assets" \
+            --pattern '*.AppImage' \
+            --pattern '*.dmg' \
+            --pattern '*-setup.exe'
+      - name: write, verify and attach the checksum files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/assets"
+          # Read line by line: bash 3.2 has no mapfile.
+          files=()
+          while IFS= read -r file; do
+            files+=("$file")
+          done < <(
+            find . -maxdepth 1 -type f \
+              \( -name '*.AppImage' -o -name '*.dmg' -o -name '*-setup.exe' \) \
+              -printf '%f\n' | sort
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::the release carries no assets to checksum"
+            exit 1
+          fi
+          # Plain `sha1sum`/`md5sum` output, so the reader checks a download with
+          # `sha1sum -c checksums-sha1.txt` and nothing has to be decoded first.
+          sha1sum "${files[@]}" > checksums-sha1.txt
+          md5sum "${files[@]}" > checksums-md5.txt
+          # Prove the files a reader will run actually verify; a digest nobody
+          # checked is the failure these files exist to prevent.
+          sha1sum -c checksums-sha1.txt
+          md5sum -c checksums-md5.txt
+          gh release upload "$GITHUB_REF_NAME" \
+            checksums-sha1.txt \
+            checksums-md5.txt \
+            --clobber

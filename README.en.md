@@ -318,7 +318,9 @@ Installer output lands in `src-tauri/target/release/bundle/nsis/`. Pushing a
 release: a Linux x64 AppImage, Intel and Apple Silicon macOS DMGs (ad-hoc
 signed, with an Applications drag link), and x64 and ARM64 Windows NSIS
 installers (self-signed, with Simplified Chinese, Traditional Chinese and
-English installer UI). The application identifier is `org.mutantcat.ai3d`; the
+English installer UI). Every release also carries `checksums-sha1.txt` and
+`checksums-md5.txt`, one line per installer, which `sha1sum -c` and `md5sum -c`
+verify as they stand. The application identifier is `org.mutantcat.ai3d`; the
 window title is AI3D and the icon is the repository's `icon.png`. Desktop data
 (the asset library, review state and published models) lives in the OS
 application data directory, and the bundled service only listens on the local
