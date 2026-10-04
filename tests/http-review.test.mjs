@@ -798,6 +798,57 @@ test("chat API returns unavailable when no origin is configured", async (t) => {
   assert.equal(send.body.code, "CHAT_UNAVAILABLE");
 });
 
+test("chat config stores a key server-side and never returns it", async (t) => {
+  const f = await startReview(t, {});
+  const initial = await f.api("chat/config");
+  assert.equal(initial.status, 200);
+  assert.deepEqual(initial.body.config, {
+    baseUrl: "",
+    hasKey: false,
+    keyHint: "",
+    models: [],
+    model: "",
+    available: false,
+  });
+
+  const saved = await f.api("chat/config", {
+    method: "POST",
+    body: {
+      baseUrl: "https://example.test/v1/",
+      apiKey: "sk-secret-1234",
+      models: ["one", "two"],
+      model: "two",
+    },
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.config.baseUrl, "https://example.test/v1");
+  assert.equal(saved.body.config.hasKey, true);
+  assert.equal(saved.body.config.keyHint, "1234");
+  assert.equal(saved.body.config.model, "two");
+  assert.equal(saved.body.config.available, true);
+  assert.equal("apiKey" in saved.body.config, false);
+
+  // An empty key keeps the stored one; only a new value replaces it.
+  const kept = await f.api("chat/config", {
+    method: "POST",
+    body: { baseUrl: "https://example.test/v1", apiKey: "" },
+  });
+  assert.equal(kept.body.config.hasKey, true);
+
+  const rejected = await f.api("chat/config", {
+    method: "POST",
+    body: { baseUrl: "file:///etc/passwd" },
+  });
+  assert.equal(rejected.status, 400);
+  assert.equal(rejected.body.code, "CHAT_CONFIG");
+});
+
+test("built-in MCP connect reports whether this installation carries the server", async (t) => {
+  const f = await startReview(t, {});
+  const config = await f.api("chat/config");
+  assert.equal(config.body.builtinMcp, true);
+});
+
 test("MCP connections API lifecycle", async (t) => {
   const f = await startReview(t, { origin });
 

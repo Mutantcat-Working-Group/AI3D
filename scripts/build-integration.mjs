@@ -54,6 +54,18 @@ await build({
   target: "node22",
   banner,
 });
+/* AI3D is an MCP server as well as a client, so the package carries its own
+   stdio server. Bundled beside the review server, which resolves it before
+   the repository copy and can therefore launch it with the same Node. */
+await build({
+  entryPoints: [path.join(repo, "mcp/server.mjs")],
+  outfile: path.join(out, "runtime/mcp-server.mjs"),
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  banner,
+});
 await build({
   entryPoints: [path.join(repo, "scripts/reviewctl.mjs")],
   outfile: path.join(out, "scripts/reviewctl.mjs"),

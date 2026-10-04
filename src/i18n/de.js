@@ -236,6 +236,24 @@ export default {
   "settings.themeLight": "Hell",
   "settings.themeDark": "Dunkel",
   "settings.about": "Info",
+
+  "settings.api": "API-Konfiguration",
+  "settings.apiEyebrow": "EINSTELLUNGEN · API",
+  "settings.apiTitle": "Dein Modell-Endpunkt",
+  "settings.baseUrl": "API-Basis-URL",
+  "settings.baseUrlPlaceholder": "https://api.example.com/v1",
+  "settings.apiKey": "API-Schlüssel",
+  "settings.apiKeyPlaceholder":
+    "Schlüssel einfügen; er wird nur auf diesem Rechner gespeichert.",
+  "settings.loadModels": "Modelle laden",
+  "settings.defaultModel": "Standardmodell",
+  "settings.save": "Speichern",
+  "settings.saved": "Gespeichert.",
+  "settings.loadingModels": "Modelle werden geladen…",
+  "settings.modelsLoaded": "Modelle geladen: {count}.",
+  "settings.modelsFailed": "Modelle konnten nicht geladen werden.",
+  "settings.saveFailed": "Einstellungen konnten nicht gespeichert werden.",
+  "settings.apiKeyStored": "Schlüssel gespeichert, endet auf {hint}.",
   "settings.aboutEyebrow": "EINSTELLUNGEN · INFO",
   "settings.aboutTitle": "AI3D",
   "settings.aboutProduct": "Generatoren für 3D-Game-Assets",
@@ -274,6 +292,9 @@ export default {
   "chat.connecting": "Verbinde…",
   "chat.unavailable":
     "Der Chat ist nicht verfügbar, da diese Instanz keinen Rückweg zu einer Konversation hat.",
+  "chat.model": "Modell",
+  "chat.modelNone": "Kein Modell ausgewählt",
+  "chat.modelReady": "Der Modell-Endpunkt ist bereit. Sende eine Nachricht.",
   "chat.empty": "Noch keine Nachrichten. Sag Hallo, um zu beginnen.",
   "chat.placeholder": "Nachricht eingeben…",
   "chat.send": "Senden",
@@ -346,6 +367,14 @@ export default {
   "mcp.error": "Fehler",
   "mcp.commandRequired": "Ein Befehl ist erforderlich.",
   "mcp.loading": "Lade…",
+
+  "mcp.builtinConnect": "AI3D-MCP-Server verbinden",
+  "mcp.builtinConnecting": "Verbinde…",
+  "mcp.builtinHint":
+    "In dieser Installation enthalten. Ein Klick startet ihn für deinen Client.",
+  "mcp.builtinUnavailable":
+    "Dieser Build enthält keinen mitgelieferten MCP-Server.",
+  "mcp.custom": "Eigenen Server hinzufügen",
   "ai.generate": "Generieren",
 
   "gen.title": "Asset-Generierung",

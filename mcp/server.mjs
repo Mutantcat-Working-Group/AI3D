@@ -578,10 +578,20 @@ export function serve(input, output, options) {
   });
 }
 
-const invoked =
-  process.argv[1] &&
-  fs.realpathSync(process.argv[1]) ===
-    fs.realpathSync(path.join(HERE, "server.mjs"));
+function launchedDirectly() {
+  if (!process.argv[1]) return false;
+  try {
+    return (
+      fs.realpathSync(process.argv[1]) ===
+      fs.realpathSync(path.join(HERE, "server.mjs"))
+    );
+  } catch {
+    // A bundle has no server.mjs beside it; the guard is only for the clone.
+    return false;
+  }
+}
+
+const invoked = launchedDirectly();
 if (invoked) {
   process.stdin.setEncoding("utf8");
   serve(process.stdin, process.stdout);

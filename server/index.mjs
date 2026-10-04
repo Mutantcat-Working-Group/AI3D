@@ -12,6 +12,13 @@ import { importModel, MAX_TRIANGLES } from "./models.mjs";
 import { MAX_ROUND_BYTES, MARK_WHOLE_FACE_BYTES } from "./budget.mjs";
 import { notifierFor, notifierSummary } from "./notify.mjs";
 import { McpConnections } from "./mcp-client.mjs";
+import { ChatConfig } from "./chat-config.mjs";
+import {
+  listModels,
+  chatCompletion,
+  SYSTEM_PROMPT,
+  CHAT_TIMEOUT_MS,
+} from "./chat.mjs";
 import { IdleWatch, viewerUse, agentUse, idleMsFrom } from "./idle.mjs";
 import { originInput, normalizeOrigin } from "./origin.mjs";
 import { listenerConfig, privateIPv4 } from "./network.mjs";
@@ -603,6 +610,22 @@ const mcpConnections = new McpConnections(runtime, {
   clientName: "ai3d",
   clientVersion: version,
 });
+/* The built-in chat is a model the reader configures, not a second product:
+   one key, one endpoint, and the model list the endpoint reports. It lives
+   beside review state rather than inside it so it survives a new round. */
+const chatConfig = new ChatConfig(runtime);
+/* AI3D is itself an MCP server, so the connection the workbench offers first
+   is this installation rather than a command the reader has to look up. The
+   same file is spawned by the CLI and by the MCP launcher; only its location
+   differs between a clone and a package. */
+function builtinMcpServerFile() {
+  for (const candidate of [
+    path.join(repo, "runtime", "mcp-server.mjs"),
+    path.join(repo, "mcp", "server.mjs"),
+  ])
+    if (fs.existsSync(candidate)) return candidate;
+  return null;
+}
 /* Compared against what is installed, not against what is running. Those are
    two different questions and the other one already has an answer: an instance
    still serving an older build is what `serving` reports to the agent, and only
@@ -988,24 +1011,115 @@ app.get("/api/download/:filename", (req, res) => {
     root: mediaDir,
   });
 });
-// The workbench now carries its own chat surface. It is still the same
-// conversation the review came from: history is read from the origin session
-// and input is pushed into it through the same bridge the outbox uses, so
-// nothing here becomes a second, disconnected channel.
+// The workbench carries its own chat surface. It is still the same
+// conversation the review came from when the host can be reached: history is
+// read from the origin session and input is pushed into it through the same
+// bridge the outbox uses. When there is no host -- the desktop app, a page
+// opened on its own -- the same surface talks to the endpoint the reader
+// configured in Settings, so it is never a second, disconnected channel.
+//
+// Local replies are kept in memory only: they are a view of this session, and
+// a credential never reaches state.json or the page.
+const localChat = [];
+const LOCAL_CHAT_LIMIT = 200;
+const CHAT_CONTEXT_MESSAGES = 20;
+let localChatSeq = 0;
+
+function appendLocalChat(role, text) {
+  const message = {
+    id: `local-${crypto.randomUUID()}`,
+    role,
+    text,
+    timestamp: Date.now(),
+    local: true,
+  };
+  localChat.push(message);
+  if (localChat.length > LOCAL_CHAT_LIMIT)
+    localChat.splice(0, localChat.length - LOCAL_CHAT_LIMIT);
+  return message;
+}
+
+function localChatSince(since) {
+  return localChat.filter((message) => Number(message.timestamp) > since);
+}
+
+function chatContext() {
+  return [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...localChat
+      .slice(-CHAT_CONTEXT_MESSAGES)
+      .filter((message) => message.role === "user" || message.role === "agent")
+      .map((message) => ({
+        role: message.role === "user" ? "user" : "assistant",
+        content: message.text,
+      })),
+  ];
+}
+
 app.get("/api/chat", async (req, res) => {
-  const notifier = notifierCached(store.state.reviewOrigin);
-  if (!notifier?.observe)
-    return res.json({ connected: false, busy: false, messages: [] });
   const since = Number(req.query.since) || 0;
+  const notifier = notifierCached(store.state.reviewOrigin);
+  if (!notifier?.observe) {
+    return res.json({
+      connected: chatConfig.view().available,
+      mode: chatConfig.view().available ? "model" : "offline",
+      busy: false,
+      messages: localChatSince(Number.isFinite(since) ? since : 0),
+    });
+  }
   try {
     const result = await notifier.observe(Number.isFinite(since) ? since : 0);
-    res.json({ ...result, connected: true });
+    res.json({ ...result, connected: true, mode: "origin" });
   } catch {
     // The host is unreachable or refused the call. Report the chat as
     // disconnected rather than surfacing a 500: the workbench polls this
-    // endpoint, and a transient host failure should not break the UI.
-    res.json({ connected: false, busy: false, messages: [] });
+    // endpoint, and a transient host failure should not break the UI. The
+    // local model, if one is configured, is still an answer.
+    res.json({
+      connected: chatConfig.view().available,
+      mode: chatConfig.view().available ? "model" : "offline",
+      busy: false,
+      messages: localChatSince(Number.isFinite(since) ? since : 0),
+    });
   }
+});
+
+app.get("/api/chat/config", (req, res) => {
+  res.json({ config: chatConfig.view(), builtinMcp: !!builtinMcpServerFile() });
+});
+app.post("/api/chat/config", (req, res) => {
+  const p = z
+    .object({
+      baseUrl: z.string().trim().max(500).optional(),
+      apiKey: z.string().max(400).optional(),
+      models: z.array(z.string().trim().min(1).max(200)).max(60).optional(),
+      model: z.string().trim().max(200).optional(),
+    })
+    .strict()
+    .parse(req.body);
+  res.json({ config: chatConfig.update(p) });
+});
+app.post("/api/chat/config/models", async (req, res) => {
+  const p = z
+    .object({
+      baseUrl: z.string().trim().max(500).optional(),
+      apiKey: z.string().max(400).optional(),
+    })
+    .strict()
+    .parse(req.body);
+  const target = chatConfig.target();
+  const baseUrl = p.baseUrl || target.baseUrl;
+  const apiKey = p.apiKey || target.apiKey;
+  /* A model list is the endpoint's answer, not a promise this service made,
+     so an unreachable endpoint reports the failure instead of a stale list. */
+  const models = await listModels({ baseUrl, apiKey });
+  chatConfig.update({
+    baseUrl,
+    ...(p.apiKey ? { apiKey: p.apiKey } : {}),
+    models,
+    ...(models.includes(target.model) ? { model: target.model } : {}),
+  });
+  res.json({ models, config: chatConfig.view() });
 });
 
 // The built-in knowledge pack is local and deterministic, so the workbench can
@@ -1034,32 +1148,60 @@ app.post("/api/chat", async (req, res) => {
     .object({
       message: z.string().trim().min(1).max(8000),
       idempotencyKey: z.string().min(1).max(200).optional(),
+      model: z.string().trim().max(200).optional(),
     })
     .strict()
     .parse(req.body);
   const notifier = notifierCached(store.state.reviewOrigin);
-  if (!notifier?.send)
-    throw new ReviewError(
-      "Chat is unavailable because this instance has no return route to a conversation.",
-      409,
-      "CHAT_UNAVAILABLE",
-    );
-  try {
-    const sent = await notifier.send(
-      p.message,
-      p.idempotencyKey || `chat-${crypto.randomUUID()}`,
-    );
-    res.json({ sent: true, runId: sent?.runId || null });
-  } catch {
-    // The host refused or could not reach the conversation. Report the chat
-    // as unavailable rather than surfacing a 500: the workbench polls this
-    // endpoint, and a transient host failure should not break the UI.
-    throw new ReviewError(
-      "Chat is unavailable because this instance has no return route to a conversation.",
-      409,
-      "CHAT_UNAVAILABLE",
-    );
+  if (notifier?.send) {
+    try {
+      const sent = await notifier.send(
+        p.message,
+        p.idempotencyKey || `chat-${crypto.randomUUID()}`,
+      );
+      return res.json({
+        sent: true,
+        runId: sent?.runId || null,
+        mode: "origin",
+      });
+    } catch {
+      // The host refused or could not reach the conversation. Fall through to
+      // the configured model rather than failing the reader's message.
+    }
   }
+  const target = chatConfig.target();
+  const model = p.model || target.model;
+  if (target.baseUrl && model) {
+    appendLocalChat("user", p.message);
+    try {
+      const text = await chatCompletion({
+        baseUrl: target.baseUrl,
+        apiKey: target.apiKey,
+        model,
+        messages: chatContext(),
+      });
+      const reply = appendLocalChat("agent", text);
+      return res.json({
+        sent: true,
+        mode: "model",
+        model,
+        reply: { id: reply.id, text: reply.text, timestamp: reply.timestamp },
+      });
+    } catch (error) {
+      /* The reader's own message stays in the transcript so a retry or a
+         corrected key does not lose what they wrote. */
+      throw new ReviewError(
+        String(error.message || error).slice(0, 300),
+        502,
+        "CHAT_MODEL_FAILED",
+      );
+    }
+  }
+  throw new ReviewError(
+    "Chat is unavailable because this instance has no return route to a conversation and no model is configured.",
+    409,
+    "CHAT_UNAVAILABLE",
+  );
 });
 
 const mcpId = z
@@ -1090,6 +1232,26 @@ app.get("/api/mcp/connections", (req, res) => {
 app.post("/api/mcp/connections", (req, res) => {
   const p = mcpConnectionInput.parse(req.body);
   res.json({ connection: mcpConnections.upsert(p) });
+});
+/* One button for the server this product is. The command is resolved here,
+   never sent from the page, and a fixed id makes a second click reconnect
+   rather than pile up duplicate entries. */
+app.post("/api/mcp/builtin/connect", async (req, res) => {
+  const entry = builtinMcpServerFile();
+  if (!entry)
+    throw new ReviewError(
+      "The bundled AI3D MCP server is not present in this installation.",
+      404,
+      "MCP_BUILTIN_MISSING",
+    );
+  mcpConnections.upsert({
+    id: "ai3d-builtin",
+    name: "AI3D",
+    command: process.execPath,
+    args: [entry],
+  });
+  const connection = await mcpConnections.connect("ai3d-builtin");
+  res.json({ connection });
 });
 app.post("/api/mcp/connections/remove", (req, res) => {
   const { id } = z.object({ id: mcpId }).strict().parse(req.body);

@@ -540,8 +540,8 @@ body.no-model .viewer-bottom {
 .toolbar {
   position: absolute;
   bottom: 44px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: auto;
+  right: 34px;
   display: flex;
   gap: 3px;
   padding: 6px;
@@ -595,8 +595,8 @@ body.no-model .viewer-bottom {
 .tool-options {
   position: absolute;
   bottom: 114px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: auto;
+  right: 34px;
   background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 11px;
@@ -1084,6 +1084,53 @@ dialog .muted {
   background: none;
   color: var(--ink-faint);
 }
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-field > span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.settings-field input,
+.settings-field select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+.settings-field input:focus,
+.settings-field select:focus {
+  outline: 2px solid var(--accent-line);
+  border-color: var(--accent);
+}
+.settings-form .muted:empty {
+  display: none;
+  margin: 0;
+}
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+.settings-status {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1297,6 +1344,7 @@ dialog .muted {
   gap: 1px;
   border-radius: 9px;
   bottom: 34px;
+  right: 12px;
 }
 .tool {
   min-width: 44px;
@@ -1421,6 +1469,7 @@ dialog .muted {
 }
 .tool-options {
   bottom: 92px;
+  right: 12px;
   max-width: calc(100% - 18px);
   padding: 7px 9px;
   gap: 10px;
@@ -1627,6 +1676,42 @@ body.ai-dock-open .workspace {
   color: var(--ink-faint);
   font-style: italic;
 }
+.chat-model-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
+}
+.chat-model-row label {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.chat-model-row select {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 7px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+.chat-banner {
+  align-self: center;
+  max-width: 92%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--ink-faint);
+  font-size: 10px;
+  text-align: center;
+}
 .chat-composer {
   flex: none;
   display: flex;
@@ -1803,6 +1888,34 @@ body.ai-dock-open .workspace {
   background: var(--surface);
   color: var(--ink);
 }
+.mcp-builtin {
+  width: 100%;
+  justify-content: center;
+}
+.mcp-builtin-status {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+.mcp-custom {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 9px;
+  background: var(--surface-sunken);
+}
+.mcp-custom summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.mcp-custom[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mcp-custom[open] summary {
+  margin-bottom: 2px;
+}
 .mcp-tools {
   flex: none;
   padding: 10px 12px;
@@ -1840,7 +1953,7 @@ body.ai-dock-open .workspace {
 
 @media (max-width: 1100px) {
   #ai-dock {
-    top: 0;
+    top: 38px;
     width: min(92vw, 400px);
     z-index: 60;
   }

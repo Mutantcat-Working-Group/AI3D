@@ -222,6 +222,24 @@ export default {
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
   "settings.about": "About",
+
+  "settings.api": "API configuration",
+  "settings.apiEyebrow": "SETTINGS · API",
+  "settings.apiTitle": "Your model endpoint",
+  "settings.baseUrl": "API base URL",
+  "settings.baseUrlPlaceholder": "https://api.example.com/v1",
+  "settings.apiKey": "API key",
+  "settings.apiKeyPlaceholder":
+    "Paste a key; it is stored on this computer only.",
+  "settings.loadModels": "Load models",
+  "settings.defaultModel": "Default model",
+  "settings.save": "Save",
+  "settings.saved": "Saved.",
+  "settings.loadingModels": "Loading models…",
+  "settings.modelsLoaded": "Models loaded: {count}.",
+  "settings.modelsFailed": "Could not load the models.",
+  "settings.saveFailed": "Could not save the settings.",
+  "settings.apiKeyStored": "Key stored ending in {hint}.",
   "settings.aboutEyebrow": "SETTINGS · ABOUT",
   "settings.aboutTitle": "AI3D",
   "settings.aboutProduct": "Game 3D asset generator",
@@ -260,6 +278,9 @@ export default {
   "chat.connecting": "Connecting…",
   "chat.unavailable":
     "Chat is unavailable because this instance has no return route to a conversation.",
+  "chat.model": "Model",
+  "chat.modelNone": "No model selected",
+  "chat.modelReady": "Model endpoint is ready. Send a message to start.",
   "chat.empty": "No messages yet. Say hello to start.",
   "chat.placeholder": "Type a message…",
   "chat.send": "Send",
@@ -331,6 +352,13 @@ export default {
   "mcp.error": "Error",
   "mcp.commandRequired": "A command is required.",
   "mcp.loading": "Loading…",
+
+  "mcp.builtinConnect": "Connect the AI3D MCP server",
+  "mcp.builtinConnecting": "Connecting…",
+  "mcp.builtinHint":
+    "Bundled with this installation. One click starts it for your client.",
+  "mcp.builtinUnavailable": "This build does not carry the bundled MCP server.",
+  "mcp.custom": "Add a custom server",
 
   "ai.generate": "Generate",
 

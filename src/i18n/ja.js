@@ -222,6 +222,24 @@ export default {
   "settings.themeLight": "ライト",
   "settings.themeDark": "ダーク",
   "settings.about": "情報",
+
+  "settings.api": "API 設定",
+  "settings.apiEyebrow": "設定 · API",
+  "settings.apiTitle": "モデルエンドポイント",
+  "settings.baseUrl": "API ベース URL",
+  "settings.baseUrlPlaceholder": "https://api.example.com/v1",
+  "settings.apiKey": "API キー",
+  "settings.apiKeyPlaceholder":
+    "キーを貼り付けてください。この端末にのみ保存されます。",
+  "settings.loadModels": "モデルを読み込む",
+  "settings.defaultModel": "既定のモデル",
+  "settings.save": "保存",
+  "settings.saved": "保存しました。",
+  "settings.loadingModels": "モデルを読み込み中…",
+  "settings.modelsLoaded": "モデルを {count} 件読み込みました。",
+  "settings.modelsFailed": "モデルを読み込めませんでした。",
+  "settings.saveFailed": "設定を保存できませんでした。",
+  "settings.apiKeyStored": "キーを保存しました（末尾 {hint}）。",
   "settings.aboutEyebrow": "設定 · 情報",
   "settings.aboutTitle": "AI3D",
   "settings.aboutProduct": "ゲーム向け3Dアセット生成ツール",
@@ -260,6 +278,10 @@ export default {
   "chat.connecting": "接続中…",
   "chat.unavailable":
     "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
+  "chat.model": "モデル",
+  "chat.modelNone": "モデル未選択",
+  "chat.modelReady":
+    "モデルエンドポイントの準備ができました。メッセージを送信してください。",
   "chat.empty": "まだメッセージがありません。挨拶して始めましょう。",
   "chat.placeholder": "メッセージを入力…",
   "chat.send": "送信",
@@ -332,6 +354,13 @@ export default {
   "mcp.error": "エラー",
   "mcp.commandRequired": "コマンドは必須です。",
   "mcp.loading": "読み込み中…",
+
+  "mcp.builtinConnect": "AI3D MCP サーバーに接続",
+  "mcp.builtinConnecting": "接続中…",
+  "mcp.builtinHint":
+    "このインストールに同梱されています。ワンクリックでクライアント用に起動します。",
+  "mcp.builtinUnavailable": "このビルドには同梱の MCP サーバーがありません。",
+  "mcp.custom": "カスタムサーバーを追加",
   "ai.generate": "生成",
 
   "gen.title": "アセット生成",

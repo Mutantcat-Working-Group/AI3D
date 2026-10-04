@@ -233,6 +233,24 @@ export default {
   "settings.themeLight": "Clair",
   "settings.themeDark": "Sombre",
   "settings.about": "À propos",
+
+  "settings.api": "Configuration de l’API",
+  "settings.apiEyebrow": "RÉGLAGES · API",
+  "settings.apiTitle": "Votre point d’accès modèle",
+  "settings.baseUrl": "URL de base de l’API",
+  "settings.baseUrlPlaceholder": "https://api.example.com/v1",
+  "settings.apiKey": "Clé API",
+  "settings.apiKeyPlaceholder":
+    "Collez une clé ; elle reste sur cet ordinateur.",
+  "settings.loadModels": "Charger les modèles",
+  "settings.defaultModel": "Modèle par défaut",
+  "settings.save": "Enregistrer",
+  "settings.saved": "Enregistré.",
+  "settings.loadingModels": "Chargement des modèles…",
+  "settings.modelsLoaded": "Modèles chargés : {count}.",
+  "settings.modelsFailed": "Impossible de charger les modèles.",
+  "settings.saveFailed": "Impossible d’enregistrer les réglages.",
+  "settings.apiKeyStored": "Clé enregistrée, finissant par {hint}.",
   "settings.aboutEyebrow": "RÉGLAGES · À PROPOS",
   "settings.aboutTitle": "AI3D",
   "settings.aboutProduct": "Générateur d'assets 3D de jeu",
@@ -271,6 +289,9 @@ export default {
   "chat.connecting": "Connexion…",
   "chat.unavailable":
     "La discussion est indisponible car cette instance n'a aucune voie de retour vers une conversation.",
+  "chat.model": "Modèle",
+  "chat.modelNone": "Aucun modèle sélectionné",
+  "chat.modelReady": "Le point d’accès est prêt. Envoyez un message.",
   "chat.empty": "Aucun message pour le moment. Dites bonjour pour commencer.",
   "chat.placeholder": "Saisissez un message…",
   "chat.send": "Envoyer",
@@ -343,6 +364,14 @@ export default {
   "mcp.error": "Erreur",
   "mcp.commandRequired": "Une commande est requise.",
   "mcp.loading": "Chargement…",
+
+  "mcp.builtinConnect": "Connecter le serveur MCP AI3D",
+  "mcp.builtinConnecting": "Connexion…",
+  "mcp.builtinHint":
+    "Fourni avec cette installation. Un clic le lance pour votre client.",
+  "mcp.builtinUnavailable":
+    "Cette version ne contient pas le serveur MCP fourni.",
+  "mcp.custom": "Ajouter un serveur personnalisé",
   "ai.generate": "Générer",
 
   "gen.title": "Génération d'actifs",

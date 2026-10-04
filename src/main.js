@@ -143,6 +143,7 @@ const SPRITE = `<svg class="sprite" aria-hidden="true" focusable="false"><defs>
 <g id="mc-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.8 2.5 5.1 5.7.8-4.1 4 .9 5.7-5-2.7-5 2.7.9-5.7-4.1-4 5.7-.8z"/></g>
 <g id="mc-copy" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6.4 15H6a1.8 1.8 0 0 1-1.8-1.8V6A1.8 1.8 0 0 1 6 4.2h7.2A1.8 1.8 0 0 1 15 6v.4"/></g>
 <g id="mc-search" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.4 15.4 4.6 4.6"/></g>
+<g id="mc-settings" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.5 12a7.6 7.6 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7.7 7.7 0 0 0-2-1.2L14.6 3h-4l-.4 2.6a7.7 7.7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7.7 7.7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></g>
 </defs></svg>`;
 const icon = (name) =>
   `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#mc-${name}"/></svg>`;
@@ -194,7 +195,7 @@ const serverMessage = (json) =>
   json?.error ||
   t("conn.actionFailed");
 app.innerHTML = `${SPRITE}
-<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="about-button" aria-label="${T("settings.about")}" title="${T("settings.about")}">${icon("info")}</button><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button><button class="quiet icon-only" id="ai-button" aria-label="${T("ai.open")}" aria-expanded="false" title="${T("ai.open")}">${icon("gen")}</button></div></header>
+<header class="app-header"><div class="brand-mark"><img class="brand-icon" src="${brandIcon}" alt="" draggable="false"></div><div class="brand"><div class="brand-title"><strong>AI3D</strong><span class="app-version" id="app-version" title="${T("app.version")}">${__AI3D_VERSION__}</span><a class="app-update" id="app-update" target="_blank" rel="noreferrer noopener" hidden></a></div><span>${T("app.tagline")}</span></div><div class="header-right"><span class="connection-dot"></span><span id="connection-status">${T("conn.connecting")}</span><label class="setting">${icon("language")}<select class="quiet" id="locale-choice" aria-label="${T("settings.language")}"></select></label><label class="setting">${icon("theme")}<select class="quiet" id="theme-choice" aria-label="${T("settings.theme")}"><option value="system">${T("settings.themeSystem")}</option><option value="light">${T("settings.themeLight")}</option><option value="dark">${T("settings.themeDark")}</option></select></label><button class="quiet icon-only" id="settings-button" aria-label="${T("settings.api")}" title="${T("settings.api")}">${icon("settings")}</button><button class="quiet icon-only" id="about-button" aria-label="${T("settings.about")}" title="${T("settings.about")}">${icon("info")}</button><button class="quiet icon-only" id="help-button" aria-label="${T("help.open")}">${icon("help")}</button><button class="quiet icon-only" id="ai-button" aria-label="${T("ai.open")}" aria-expanded="false" title="${T("ai.open")}">${icon("gen")}</button></div></header>
 <main class="workspace">
  <section class="review-panel" aria-label="${T("a11y.reviewPanel")}">
   <!-- The name arrived with the link, the tab strip carries the version, and a
@@ -247,7 +248,7 @@ app.innerHTML = `${SPRITE}
       </div>
       <div id="chat-knowledge-results" class="chat-knowledge-results" hidden></div>
     </div>
-    <div id="chat-status" class="chat-status"></div>
+    <div class="chat-model-row"><label for="chat-model">${T("chat.model")}</label><select id="chat-model" aria-label="${T("chat.model")}"></select></div><div id="chat-status" class="chat-status"></div>
     <div class="chat-composer">
       <textarea id="chat-input" placeholder="${T("chat.placeholder")}" rows="2"></textarea>
       <button id="chat-send" class="primary-button">${icon("send")}<span>${T("chat.send")}</span></button>
@@ -589,11 +590,11 @@ app.innerHTML = `${SPRITE}
     <div class="mcp-header"><strong>${T("mcp.title")}</strong></div>
     <div id="mcp-connections" class="mcp-connections"></div>
     <div class="mcp-add">
-      <input id="mcp-name" placeholder="${T("mcp.namePlaceholder")}">
+      <button id="mcp-builtin" class="primary-button mcp-builtin" type="button">${icon("plug")}<span>${T("mcp.builtinConnect")}</span></button><div id="mcp-builtin-status" class="mcp-builtin-status"></div><details class="mcp-custom"><summary>${T("mcp.custom")}</summary><input id="mcp-name" placeholder="${T("mcp.namePlaceholder")}">
       <input id="mcp-command" placeholder="${T("mcp.commandPlaceholder")}">
       <input id="mcp-args" placeholder="${T("mcp.argsPlaceholder")}">
       <button id="mcp-save" class="primary-button">${T("mcp.save")}</button>
-    </div>
+    </details></div>
     <div class="mcp-tools" id="mcp-tools" hidden>
       <select id="mcp-server"></select>
       <select id="mcp-tool"></select>
@@ -604,7 +605,7 @@ app.innerHTML = `${SPRITE}
   </div>
 </aside><div id="toast" role="status" hidden></div>
 <dialog id="help-dialog"><button id="close-help" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("help.eyebrow")}</span><h2>${T("help.title")}</h2><p>${T("help.p1")}</p><p>${T("help.p2")}</p><p>${T("help.p3")}</p><p>${T("help.p4")}</p><p>${T("help.p5")}</p><p>${T("help.p6")}</p><p>${T("help.p7")}</p><p>${T("help.p8")}</p><p class="muted">${T("help.p9")}</p></dialog>
-<dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><p class="about-product">${T("settings.aboutProduct")}</p><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog>`;
+<dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><p class="about-product">${T("settings.aboutProduct")}</p><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog><dialog id="settings-dialog"><button id="close-settings" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.apiEyebrow")}</span><h2>${T("settings.apiTitle")}</h2><div class="settings-form"><label class="settings-field"><span>${T("settings.baseUrl")}</span><input id="settings-base-url" type="text" spellcheck="false"></label><label class="settings-field"><span>${T("settings.apiKey")}</span><input id="settings-api-key" type="password" spellcheck="false" autocomplete="off" placeholder="${T("settings.apiKeyPlaceholder")}"></label><p id="settings-key-hint" class="muted"></p><label class="settings-field"><span>${T("settings.defaultModel")}</span><select id="settings-model"></select></label><div class="settings-actions"><button id="settings-load-models" class="quiet" type="button">${T("settings.loadModels")}</button><button id="settings-save" class="primary-button" type="button">${T("settings.save")}</button></div><p id="settings-status" class="settings-status" hidden></p></div></dialog>`;
 
 const base = new URL("./", location.href);
 const endpoint = (path) => new URL(path, base).href;
@@ -2192,6 +2193,129 @@ let mcpCalling = false;
 let aiDockOpen = false;
 let aiActiveTab = "gen";
 
+/* The model endpoint belongs to the installation, not to a review round, so
+   the page reads it from the service on boot and keeps only the shape it needs
+   to render. The stored key never comes back over the wire; `hasKey` and
+   `keyHint` are all the page is given. */
+let chatConfig = {
+  baseUrl: "",
+  hasKey: false,
+  keyHint: "",
+  models: [],
+  model: "",
+  available: false,
+};
+let chatMode = "offline";
+let chatBuiltinMcp = false;
+
+function fillModelSelect(select, models, selected) {
+  select.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = t("chat.modelNone");
+  select.appendChild(empty);
+  for (const name of models) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  }
+  select.value = models.includes(selected) ? selected : "";
+}
+
+function applyChatConfig(config, builtinMcp) {
+  if (config) chatConfig = config;
+  if (builtinMcp !== undefined) chatBuiltinMcp = builtinMcp;
+  fillModelSelect($("#chat-model"), chatConfig.models, chatConfig.model);
+  fillModelSelect($("#settings-model"), chatConfig.models, chatConfig.model);
+  $("#settings-base-url").value = chatConfig.baseUrl;
+  $("#settings-key-hint").textContent = chatConfig.hasKey
+    ? t("settings.apiKeyStored", { hint: chatConfig.keyHint })
+    : "";
+  $("#mcp-builtin-status").textContent = chatBuiltinMcp
+    ? t("mcp.builtinHint")
+    : t("mcp.builtinUnavailable");
+}
+
+async function loadChatConfig() {
+  try {
+    const data = await api("chat/config", undefined, "GET");
+    applyChatConfig(data.config, data.builtinMcp);
+  } catch {
+    applyChatConfig(null, false);
+  }
+}
+
+function setSettingsStatus(key, params) {
+  const status = $("#settings-status");
+  if (!key) {
+    status.hidden = true;
+    status.textContent = "";
+    return;
+  }
+  status.hidden = false;
+  status.textContent = t(key, params);
+}
+
+async function loadChatModels() {
+  const baseUrl = $("#settings-base-url").value.trim();
+  const apiKey = $("#settings-api-key").value;
+  setSettingsStatus("settings.loadingModels");
+  const button = $("#settings-load-models");
+  button.disabled = true;
+  try {
+    const data = await api("chat/config/models", { baseUrl, apiKey });
+    applyChatConfig(data.config);
+    setSettingsStatus("settings.modelsLoaded", {
+      count: data.models.length,
+    });
+  } catch (err) {
+    setSettingsStatus("settings.modelsFailed");
+    toast(err.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function saveChatSettings() {
+  const button = $("#settings-save");
+  button.disabled = true;
+  try {
+    const data = await api("chat/config", {
+      baseUrl: $("#settings-base-url").value.trim(),
+      apiKey: $("#settings-api-key").value,
+      models: chatConfig.models,
+      model: $("#settings-model").value,
+    });
+    $("#settings-api-key").value = "";
+    applyChatConfig(data.config);
+    setSettingsStatus("settings.saved");
+  } catch (err) {
+    setSettingsStatus("settings.saveFailed");
+    toast(err.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function connectBuiltinMcp() {
+  const button = $("#mcp-builtin");
+  button.disabled = true;
+  const label = button.querySelector("span");
+  const previous = label.textContent;
+  label.textContent = T("mcp.builtinConnecting");
+  try {
+    await api("mcp/builtin/connect", {});
+    await loadMcpConnections();
+    setAiTab("mcp");
+  } catch (err) {
+    toast(err.message);
+  } finally {
+    button.disabled = false;
+    label.textContent = previous;
+  }
+}
+
 function setAiDock(open) {
   aiDockOpen = open;
   const dock = $("#ai-dock");
@@ -2199,8 +2323,10 @@ function setAiDock(open) {
   document.body.classList.toggle("ai-dock-open", open);
   $("#ai-button").setAttribute("aria-expanded", String(open));
   if (open) {
+    loadChatConfig();
     if (aiActiveTab === "chat") startChatPoll();
     else stopChatPoll();
+    if (aiActiveTab === "mcp") loadMcpConnections();
   } else {
     stopChatPoll();
   }
@@ -2219,6 +2345,7 @@ function setAiTab(tab) {
   if (aiDockOpen) {
     if (tab === "chat") startChatPoll();
     else stopChatPoll();
+    if (tab === "mcp") loadMcpConnections();
   }
 }
 
@@ -2250,6 +2377,7 @@ async function pollChat() {
     if (!res.ok) throw new Error(serverMessage(json));
     chatConnected = !!json.connected;
     chatBusy = !!json.busy;
+    chatMode = json.mode || (chatConnected ? "origin" : "offline");
     if (json.messages) {
       let maxTs = chatSince;
       for (const m of json.messages) {
@@ -2286,7 +2414,9 @@ function renderChat() {
         .join(""),
     );
   }
-  if (!chatConnected)
+  if (!chatConnected && chatMode === "model")
+    parts.push(`<div class="chat-banner">${T("chat.modelReady")}</div>`);
+  else if (!chatConnected)
     parts.push(`<div class="chat-banner">${T("chat.unavailable")}</div>`);
   box.innerHTML = parts.join("");
   box.scrollTop = box.scrollHeight;
@@ -2602,7 +2732,22 @@ async function sendChat() {
       await runLocalChatGeneration(request, sendBtn);
       return;
     }
-    await api("chat", { message: text });
+    const chosen = $("#chat-model").value;
+    const config = await api("chat", {
+      message: text,
+      ...(chosen ? { model: chosen } : {}),
+    });
+    if (config?.reply?.id != null) {
+      const ts = Number(config.reply.timestamp) || Date.now();
+      chatMessages.set(config.reply.id, {
+        id: config.reply.id,
+        role: "agent",
+        text: config.reply.text,
+        timestamp: config.reply.timestamp,
+        _ts: ts,
+      });
+      renderChat();
+    }
     await pollChat();
   } catch (err) {
     toast(err.message || t("error.chatUnavailable"));
@@ -2837,6 +2982,31 @@ async function mcpCallTool() {
 }
 
 function initAiDock() {
+  const settingsDialog = $("#settings-dialog");
+  $("#settings-api-key").setAttribute(
+    "placeholder",
+    t("settings.apiKeyPlaceholder"),
+  );
+  $("#settings-base-url").setAttribute(
+    "placeholder",
+    t("settings.baseUrlPlaceholder"),
+  );
+  $("#settings-button").addEventListener("click", async () => {
+    setSettingsStatus(null);
+    $("#settings-api-key").value = "";
+    await loadChatConfig();
+    settingsDialog.showModal();
+  });
+  $("#close-settings").addEventListener("click", () => settingsDialog.close());
+  settingsDialog.addEventListener("close", () => {
+    if (settingsDialog.open === false) setSettingsStatus(null);
+  });
+  $("#settings-load-models").addEventListener("click", loadChatModels);
+  $("#settings-save").addEventListener("click", saveChatSettings);
+  $("#chat-model").addEventListener("change", () => {
+    $("#settings-model").value = $("#chat-model").value;
+  });
+  $("#mcp-builtin").addEventListener("click", connectBuiltinMcp);
   $("#mcp-server").setAttribute("aria-label", t("mcp.chooseServer"));
   $("#mcp-tool").setAttribute("aria-label", t("mcp.chooseTool"));
   $("#mcp-args-json").setAttribute("aria-label", t("mcp.argsJson"));
@@ -2853,6 +3023,7 @@ function initAiDock() {
   toolsTitle.className = "mcp-section-title";
   toolsTitle.textContent = t("mcp.tools");
   $("#mcp-tools").before(toolsTitle);
+  loadChatConfig();
 }
 
 $("#ai-button").addEventListener("click", () => setAiDock(!aiDockOpen));
