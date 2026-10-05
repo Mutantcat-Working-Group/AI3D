@@ -1037,3 +1037,32 @@ test("the transport reads whole lines and refuses a broken one without dying", a
   assert.equal(written[0].result.tools.length, 4);
   assert.equal(written[2].error.code, -32700);
 });
+
+test("a handler that throws answers instead of leaving the host waiting", async (t) => {
+  const dir = workspace(t);
+  const written = [];
+  const input = new (await import("node:events")).EventEmitter();
+  serve(
+    input,
+    { write: (line) => written.push(JSON.parse(line)) },
+    {
+      workspace: dir,
+      // A root with no package.json in it. `initialize` reads that file to name
+      // the server version, so asking it here throws for a reason that has
+      // nothing to do with the request, which is the shape a broken
+      // installation would produce.
+      root: dir,
+      environment: { AI3D_OWNER: "mcp-session-one" },
+    },
+  );
+  input.emit("data", '{"id":7,"method":"initialize"}\n');
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  // The host sent a request carrying this id and is waiting for an answer.
+  // Silence is a hang it cannot time out of; an error it can report is the
+  // only other answer there is.
+  assert.equal(written.length, 1);
+  assert.equal(written[0].jsonrpc, "2.0");
+  assert.equal(written[0].id, 7);
+  assert.equal(written[0].error.code, -32603);
+  assert.match(written[0].error.message, /initialize/);
+});

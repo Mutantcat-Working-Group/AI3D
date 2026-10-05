@@ -571,7 +571,26 @@ export function serve(input, output, options) {
         );
         continue;
       }
-      const answer = await handle(message);
+      let answer;
+      try {
+        answer = await handle(message);
+      } catch (error) {
+        /* A handler that throws is a fault of this server, not of the client.
+           Without this the rejection escapes an async `data` listener, nothing
+           is written back, and the host waits forever for an answer it was
+           told was coming. Answer with the protocol's own error instead. */
+        output.write(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: "id" in message ? message.id : null,
+            error: {
+              code: -32603,
+              message: `The request ${message.method || "(unnamed)"} could not be answered: ${String(error?.message || error).slice(0, 200)}`,
+            },
+          }) + "\n",
+        );
+        continue;
+      }
       if (answer)
         output.write(JSON.stringify({ jsonrpc: "2.0", ...answer }) + "\n");
     }
