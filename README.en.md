@@ -257,7 +257,7 @@ From a clone, for the full development environment:
 ```sh
 npm ci
 npm run samples      # generate the parametric sample models
-npm test             # 403 unit and integration tests
+npm test             # 410 unit and integration tests
 npm run test:browser # 94 real-Chromium tests
 ```
 
@@ -324,8 +324,6 @@ verify as they stand. The application identifier is `org.mutantcat.ai3d`; the
 window title is AI3D and the icon is the repository's `icon.png`. Desktop data
 (the asset library, review state and published models) lives in the OS
 application data directory, and the bundled service only listens on the local
-loopback address.
-
 ### 11. Roadmap
 
 Plans, not promises: the order can change as people use it. Ideas and requests

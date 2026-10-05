@@ -880,6 +880,7 @@ export function buildProceduralRig(model, type) {
 
   model.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(Array.from(bones.values()));
+  skeleton.calculateInverses();
   const bindByPart = new Map();
   for (const def of defs) {
     if (!def.part) continue;
@@ -903,15 +904,17 @@ export function buildProceduralRig(model, type) {
     mesh.parent.add(skinned);
     mesh.parent.remove(mesh);
     mesh.geometry.dispose();
+    skinned.updateMatrixWorld(true);
     skinned.bind(skeleton, skinned.matrixWorld.clone());
     // SkinnedMesh.computeBoundingBox resolves the skin immediately, so every
     // mesh needs a valid default skin before any measurement runs. The orphan
     // and chain passes below replace these weights where they apply.
     const defaultPos = skinned.geometry.attributes.position;
+    const defaultJointIndex = joint ? skeleton.bones.indexOf(joint) : 0;
     const defaultIndex = new Uint16Array(defaultPos.count * 4);
     const defaultWeight = new Float32Array(defaultPos.count * 4);
     for (let i = 0; i < defaultPos.count; i++) {
-      defaultIndex[i * 4] = 0;
+      defaultIndex[i * 4] = defaultJointIndex;
       defaultWeight[i * 4] = 1;
     }
     skinned.geometry.setAttribute(
@@ -958,7 +961,6 @@ export function buildProceduralRig(model, type) {
       );
     }
   }
-
   // Bind every skinned mesh, then grade weights for the limb chains that
   // declared weightTo joints. Meshes without a bind keep their full-weight
   // nearest-joint skin from the pass above.

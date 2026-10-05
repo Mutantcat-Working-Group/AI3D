@@ -596,6 +596,58 @@ test("riggable assets export a real skinned glTF skeleton", async () => {
   }
 });
 
+test("rigged meshes stay at bind pose until bones move", () => {
+  const model = generateAsset("character", {
+    size: 1.2,
+    seed: 7,
+    segments: 10,
+  });
+  model.updateMatrixWorld(true);
+  const skinned = [];
+  model.traverse((node) => {
+    if (node.isSkinnedMesh) skinned.push(node);
+  });
+  assert.ok(skinned.length >= 5, "character converts its parts");
+
+  for (const mesh of skinned) {
+    const bind = mesh.bindMatrix;
+    assert.notDeepEqual(
+      Array.from(bind.elements),
+      [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      `${mesh.name} binds with its real world matrix`,
+    );
+    for (let i = 0; i < bind.elements.length; i++) {
+      assert.ok(
+        Math.abs(bind.elements[i] - mesh.matrixWorld.elements[i]) < 1e-6,
+        `${mesh.name} bind matrix matches the mesh world matrix`,
+      );
+    }
+    const position = mesh.geometry.attributes.position;
+    for (const index of [
+      0,
+      Math.floor(position.count / 2),
+      position.count - 1,
+    ]) {
+      const original = new THREE.Vector3().fromBufferAttribute(position, index);
+      const skinnedPosition = original.clone();
+      mesh.applyBoneTransform(index, skinnedPosition);
+      assert.ok(
+        skinnedPosition.distanceTo(original) < 1e-5,
+        `${mesh.name} vertex ${index} stays at its bind position`,
+      );
+    }
+  }
+
+  const head = model.getObjectByName("head");
+  const neck = model.getObjectByName("neck");
+  assert.ok(head?.isSkinnedMesh && neck?.isBone, "head and neck exist");
+  const neckIndex = head.skeleton.bones.indexOf(neck);
+  const weights = head.geometry.attributes.skinIndex;
+  for (let i = 0; i < weights.count; i++) {
+    assert.equal(weights.getX(i), neckIndex, "head follows the neck joint");
+  }
+});
+
 test("custom color lands on every asset type", () => {
   for (const type of getAssetTypes()) {
     const model = generateAsset(type, {
