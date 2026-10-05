@@ -3473,7 +3473,11 @@ export function removeSceneProp(scene, propIndex) {
     const suffix = `-${propIndexValue + 1}`;
     const oldName = prop.name;
     if (!oldName) return;
-    const baseName = oldName.slice(0, oldName.lastIndexOf("-"));
+    /* The trailing number is renumbered after the removal, so the name is cut
+       at its last dash. A name the reader typed without one has nothing to cut
+       at, and `slice(0, -1)` would silently eat its last letter. */
+    const lastDash = oldName.lastIndexOf("-");
+    const baseName = lastDash < 0 ? oldName : oldName.slice(0, lastDash);
     prop.name = `${baseName}${suffix}`;
     const propModel = scene.children.find((child) => child.name === oldName);
     if (!propModel) return;

@@ -1010,6 +1010,28 @@ test("removeSceneProp removes a model and compacts placement names", () => {
   });
 });
 
+test("removeSceneProp renumbers a prop the reader renamed without a dash", () => {
+  // The trailing number is renumbered after a removal, so the name is cut at
+  // its last dash. A name typed without one used to lose its last letter,
+  // which left the placement and its model disagreeing about their identity.
+  const scene = composeGameKit("town", { seed: 16 });
+  const index = 4;
+  const prop = scene.userData.propList[index];
+  const model = scene.children.find((child) => child.name === prop.name);
+  assert.ok(model, "the prop's model should be findable by its name");
+  const part = model.children[0];
+  prop.name = "lantern";
+  model.name = "lantern";
+  if (part) part.name = "lantern-shade";
+
+  assert.ok(removeSceneProp(scene, 0));
+  // Removing an earlier prop moves this one from fifth to fourth place.
+  assert.equal(prop.name, "lantern-4");
+  const renamed = scene.children.find((child) => child.name === "lantern-4");
+  assert.ok(renamed, "the model is renamed with its placement");
+  if (part) assert.equal(part.name, "lantern-4-shade", "and so is its part");
+});
+
 test("addSceneProp appends a model and export metadata", () => {
   const scene = composeGameKit("camp", { seed: 21, propScale: 1.5 });
   const before = scene.userData.propList.length;
