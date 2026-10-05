@@ -12,7 +12,7 @@ import { importModel, MAX_TRIANGLES } from "./models.mjs";
 import { MAX_ROUND_BYTES, MARK_WHOLE_FACE_BYTES } from "./budget.mjs";
 import { notifierFor, notifierSummary } from "./notify.mjs";
 import { McpConnections } from "./mcp-client.mjs";
-import { ChatConfig } from "./chat-config.mjs";
+import { ChatConfig, MAX_PROVIDERS } from "./chat-config.mjs";
 import {
   listModels,
   chatCompletion,
@@ -1059,33 +1059,53 @@ function chatContext() {
 app.get("/api/chat", async (req, res) => {
   const since = Number(req.query.since) || 0;
   const notifier = notifierCached(store.state.reviewOrigin);
+  const view = chatConfig.view();
+  /* Which channels can answer right now. Both are reported rather than one
+     being chosen here, because the reader is the one who knows whether this
+     message belongs in the conversation or on their own endpoint. */
+  const channels = {
+    origin: Boolean(notifier?.observe),
+    /* The model channel answers the provider the reader picks in the composer,
+       not only the default one, so any configured endpoint makes it usable. */
+    model: view.providers.some((provider) => provider.available),
+  };
   if (!notifier?.observe) {
     return res.json({
-      connected: chatConfig.view().available,
-      mode: chatConfig.view().available ? "model" : "offline",
+      connected: view.available,
+      mode: view.available ? "model" : "offline",
       busy: false,
       messages: localChatSince(Number.isFinite(since) ? since : 0),
+      channels,
     });
   }
   try {
     const result = await notifier.observe(Number.isFinite(since) ? since : 0);
-    res.json({ ...result, connected: true, mode: "origin" });
+    res.json({ ...result, connected: true, mode: "origin", channels });
   } catch {
     // The host is unreachable or refused the call. Report the chat as
     // disconnected rather than surfacing a 500: the workbench polls this
     // endpoint, and a transient host failure should not break the UI. The
     // local model, if one is configured, is still an answer.
     res.json({
-      connected: chatConfig.view().available,
-      mode: chatConfig.view().available ? "model" : "offline",
+      connected: view.available,
+      mode: view.available ? "model" : "offline",
       busy: false,
       messages: localChatSince(Number.isFinite(since) ? since : 0),
+      channels,
     });
   }
 });
 
 app.get("/api/chat/config", (req, res) => {
   res.json({ config: chatConfig.view(), builtinMcp: !!builtinMcpServerFile() });
+});
+const chatProviderInput = z.object({
+  id: z.string().trim().max(60).optional(),
+  name: z.string().trim().max(80).optional(),
+  baseUrl: z.string().trim().max(500).optional(),
+  apiKey: z.string().max(400).optional(),
+  models: z.array(z.string().trim().min(1).max(200)).max(60).optional(),
+  model: z.string().trim().max(200).optional(),
 });
 app.post("/api/chat/config", (req, res) => {
   const p = z
@@ -1094,6 +1114,11 @@ app.post("/api/chat/config", (req, res) => {
       apiKey: z.string().max(400).optional(),
       models: z.array(z.string().trim().min(1).max(200)).max(60).optional(),
       model: z.string().trim().max(200).optional(),
+      activeId: z.string().trim().max(60).optional(),
+      providers: z
+        .array(chatProviderInput.strict())
+        .max(MAX_PROVIDERS)
+        .optional(),
     })
     .strict()
     .parse(req.body);
@@ -1102,24 +1127,31 @@ app.post("/api/chat/config", (req, res) => {
 app.post("/api/chat/config/models", async (req, res) => {
   const p = z
     .object({
+      providerId: z.string().trim().max(60).optional(),
       baseUrl: z.string().trim().max(500).optional(),
       apiKey: z.string().max(400).optional(),
     })
     .strict()
     .parse(req.body);
-  const target = chatConfig.target();
-  const baseUrl = p.baseUrl || target.baseUrl;
-  const apiKey = p.apiKey || target.apiKey;
+  const target = chatConfig.target(p.providerId) || {};
+  const baseUrl = p.baseUrl || target.baseUrl || "";
+  const apiKey = p.apiKey || target.apiKey || "";
+  if (!baseUrl)
+    throw new ReviewError(
+      "A base URL is needed before its models can be listed.",
+      400,
+      "CHAT_CONFIG",
+    );
   /* A model list is the endpoint's answer, not a promise this service made,
      so an unreachable endpoint reports the failure instead of a stale list. */
   const models = await listModels({ baseUrl, apiKey });
-  chatConfig.update({
+  const config = chatConfig.saveProbe({
+    id: target.id || p.providerId,
     baseUrl,
-    ...(p.apiKey ? { apiKey: p.apiKey } : {}),
+    apiKey: p.apiKey,
     models,
-    ...(models.includes(target.model) ? { model: target.model } : {}),
   });
-  res.json({ models, config: chatConfig.view() });
+  res.json({ models, config });
 });
 
 // The built-in knowledge pack is local and deterministic, so the workbench can
@@ -1149,10 +1181,17 @@ app.post("/api/chat", async (req, res) => {
       message: z.string().trim().min(1).max(8000),
       idempotencyKey: z.string().min(1).max(200).optional(),
       model: z.string().trim().max(200).optional(),
+      providerId: z.string().trim().max(60).optional(),
+      /* Both channels stay configured at once; this says which one this
+         message goes to. "auto" keeps the old preference: the conversation
+         when there is one, the reader's own endpoint when there is not. */
+      channel: z.enum(["auto", "origin", "model"]).optional(),
     })
     .strict()
     .parse(req.body);
-  const notifier = notifierCached(store.state.reviewOrigin);
+  const channel = p.channel || "auto";
+  const notifier =
+    channel === "model" ? null : notifierCached(store.state.reviewOrigin);
   if (notifier?.send) {
     try {
       const sent = await notifier.send(
@@ -1169,8 +1208,14 @@ app.post("/api/chat", async (req, res) => {
       // the configured model rather than failing the reader's message.
     }
   }
-  const target = chatConfig.target();
-  const model = p.model || target.model;
+  if (channel === "origin")
+    throw new ReviewError(
+      "This instance has no return route to a conversation to send to.",
+      409,
+      "CHAT_ORIGIN_UNAVAILABLE",
+    );
+  const target = chatConfig.target(p.providerId) || {};
+  const model = p.model || target.model || "";
   if (target.baseUrl && model) {
     appendLocalChat("user", p.message);
     try {

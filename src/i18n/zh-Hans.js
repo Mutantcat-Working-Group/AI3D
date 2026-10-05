@@ -204,6 +204,16 @@ export default {
   "settings.api": "API 配置",
   "settings.apiEyebrow": "设置 · API",
   "settings.apiTitle": "你的模型接口",
+  "settings.providersHint":
+    "可保存多个兼容 OpenAI 的接口，并选择聊天默认使用哪一个。",
+  "settings.addProvider": "添加接口",
+  "settings.removeProvider": "移除",
+  "settings.providerName": "名称",
+  "settings.providerNamePlaceholder": "云端模型、本地运行时…",
+  "settings.providerUnnamed": "模型接口",
+  "settings.setActive": "设为默认",
+  "settings.noProviders": "尚未配置模型接口。",
+  "settings.maxProviders": "最多可保存 12 个接口。",
   "settings.baseUrl": "API 基础地址",
   "settings.baseUrlPlaceholder": "https://api.example.com/v1",
   "settings.apiKey": "API 密钥",
@@ -254,6 +264,10 @@ export default {
 
   "chat.connecting": "连接中…",
   "chat.unavailable": "此实例没有返回对话的路由，聊天不可用。",
+  "chat.channel": "通道",
+  "chat.channelAuto": "自动",
+  "chat.channelOrigin": "MCP / 原对话",
+  "chat.channelModel": "直接调用模型",
 
   "chat.model": "模型",
   "chat.modelNone": "未选择模型",

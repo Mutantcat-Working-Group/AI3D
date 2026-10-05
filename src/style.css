@@ -354,7 +354,10 @@ a {
 }
 .header-right > .quiet,
 .header-right > .setting {
-  margin-left: 16px;
+  /* The row is already right-aligned by the flex `gap`; this only keeps the two
+     choosers slightly clear of the status text and of the icon buttons, which
+     would otherwise read as one run of eight identical slots. */
+  margin-left: 4px;
 }
 .workspace {
   height: calc(100dvh - 78px);
@@ -1084,11 +1087,6 @@ dialog .muted {
   background: none;
   color: var(--ink-faint);
 }
-.settings-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 .settings-field {
   display: flex;
   flex-direction: column;
@@ -1116,11 +1114,8 @@ dialog .muted {
   outline: 2px solid var(--accent-line);
   border-color: var(--accent);
 }
-.settings-form .muted:empty {
-  display: none;
-  margin: 0;
-}
 .settings-actions {
+  flex: none;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -1130,6 +1125,96 @@ dialog .muted {
   margin: 0;
   font-size: 11px;
   color: var(--ink-muted);
+}
+/* The settings dialog grows with the endpoint list, which can reach a dozen
+   entries. The list scrolls inside a fixed-height dialog so the title and the
+   save button stay where the reader last saw them. */
+#settings-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: min(88vh, 780px);
+  overflow: hidden;
+}
+.settings-note {
+  margin: 0 0 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+.settings-providers {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.settings-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink-faint);
+}
+.provider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+}
+.provider-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.provider-row-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.provider-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.provider-active input {
+  margin: 0;
+}
+.provider-remove {
+  flex: none;
+}
+.provider-key-hint {
+  margin: 0;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.provider-key-hint:empty {
+  display: none;
+}
+.provider-model-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.provider-model-field {
+  flex: 1;
+  min-width: 0;
+}
+.provider-load {
+  flex: none;
 }
 .sr-only {
   position: absolute;
@@ -1679,6 +1764,7 @@ body.ai-dock-open .workspace {
 .chat-model-row {
   flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 12px 0;

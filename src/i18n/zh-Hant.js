@@ -204,6 +204,16 @@ export default {
   "settings.api": "API 設定",
   "settings.apiEyebrow": "設定 · API",
   "settings.apiTitle": "你的模型介面",
+  "settings.providersHint":
+    "可保存多個相容 OpenAI 的介面，並選擇聊天預設使用哪一個。",
+  "settings.addProvider": "新增介面",
+  "settings.removeProvider": "移除",
+  "settings.providerName": "名稱",
+  "settings.providerNamePlaceholder": "雲端模型、本機執行環境…",
+  "settings.providerUnnamed": "模型介面",
+  "settings.setActive": "設為預設",
+  "settings.noProviders": "尚未設定模型介面。",
+  "settings.maxProviders": "最多可儲存 12 個介面。",
   "settings.baseUrl": "API 基礎位址",
   "settings.baseUrlPlaceholder": "https://api.example.com/v1",
   "settings.apiKey": "API 金鑰",
@@ -254,6 +264,10 @@ export default {
 
   "chat.connecting": "連線中…",
   "chat.unavailable": "此實例沒有返回對話的路由，聊天不可用。",
+  "chat.channel": "通道",
+  "chat.channelAuto": "自動",
+  "chat.channelOrigin": "MCP / 原對話",
+  "chat.channelModel": "直接呼叫模型",
 
   "chat.model": "模型",
   "chat.modelNone": "未選擇模型",

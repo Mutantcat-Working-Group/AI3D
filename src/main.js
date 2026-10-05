@@ -248,7 +248,7 @@ app.innerHTML = `${SPRITE}
       </div>
       <div id="chat-knowledge-results" class="chat-knowledge-results" hidden></div>
     </div>
-    <div class="chat-model-row"><label for="chat-model">${T("chat.model")}</label><select id="chat-model" aria-label="${T("chat.model")}"></select></div><div id="chat-status" class="chat-status"></div>
+    <div class="chat-model-row"><label for="chat-channel">${T("chat.channel")}</label><select id="chat-channel" aria-label="${T("chat.channel")}"></select><label for="chat-model">${T("chat.model")}</label><select id="chat-model" aria-label="${T("chat.model")}"></select></div><div id="chat-status" class="chat-status"></div>
     <div class="chat-composer">
       <textarea id="chat-input" placeholder="${T("chat.placeholder")}" rows="2"></textarea>
       <button id="chat-send" class="primary-button">${icon("send")}<span>${T("chat.send")}</span></button>
@@ -605,7 +605,8 @@ app.innerHTML = `${SPRITE}
   </div>
 </aside><div id="toast" role="status" hidden></div>
 <dialog id="help-dialog"><button id="close-help" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("help.eyebrow")}</span><h2>${T("help.title")}</h2><p>${T("help.p1")}</p><p>${T("help.p2")}</p><p>${T("help.p3")}</p><p>${T("help.p4")}</p><p>${T("help.p5")}</p><p>${T("help.p6")}</p><p>${T("help.p7")}</p><p>${T("help.p8")}</p><p class="muted">${T("help.p9")}</p></dialog>
-<dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><p class="about-product">${T("settings.aboutProduct")}</p><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog><dialog id="settings-dialog"><button id="close-settings" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.apiEyebrow")}</span><h2>${T("settings.apiTitle")}</h2><div class="settings-form"><label class="settings-field"><span>${T("settings.baseUrl")}</span><input id="settings-base-url" type="text" spellcheck="false"></label><label class="settings-field"><span>${T("settings.apiKey")}</span><input id="settings-api-key" type="password" spellcheck="false" autocomplete="off" placeholder="${T("settings.apiKeyPlaceholder")}"></label><p id="settings-key-hint" class="muted"></p><label class="settings-field"><span>${T("settings.defaultModel")}</span><select id="settings-model"></select></label><div class="settings-actions"><button id="settings-load-models" class="quiet" type="button">${T("settings.loadModels")}</button><button id="settings-save" class="primary-button" type="button">${T("settings.save")}</button></div><p id="settings-status" class="settings-status" hidden></p></div></dialog>`;
+<dialog id="about-dialog"><button id="close-about" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.aboutEyebrow")}</span><h2>${T("settings.aboutTitle")}</h2><p class="about-product">${T("settings.aboutProduct")}</p><dl class="about-list"><div><dt>${T("common.version")}</dt><dd id="about-version">${__AI3D_VERSION__}</dd></div><div><dt>${T("settings.publisher")}</dt><dd>${T("settings.publisherName")}</dd></div></dl><a class="about-homepage" href="https://mutantcat.org/" target="_blank" rel="noreferrer noopener">${T("settings.homepage")}</a></dialog>
+<dialog id="settings-dialog"><button id="close-settings" class="dialog-close icon-only" aria-label="${T("common.close")}">${icon("close")}</button><span class="eyebrow">${T("settings.apiEyebrow")}</span><h2>${T("settings.apiTitle")}</h2><p class="settings-note">${T("settings.providersHint")}</p><div id="settings-providers" class="settings-providers"></div><div class="settings-actions"><button id="settings-add-provider" class="quiet" type="button">${T("settings.addProvider")}</button><button id="settings-save" class="primary-button" type="button">${T("settings.save")}</button></div><p id="settings-status" class="settings-status" hidden></p></dialog>`;
 
 const base = new URL("./", location.href);
 const endpoint = (path) => new URL(path, base).href;
@@ -2197,16 +2198,39 @@ let aiActiveTab = "gen";
    the page reads it from the service on boot and keeps only the shape it needs
    to render. The stored key never comes back over the wire; `hasKey` and
    `keyHint` are all the page is given. */
-let chatConfig = {
-  baseUrl: "",
-  hasKey: false,
-  keyHint: "",
-  models: [],
-  model: "",
-  available: false,
-};
+let chatConfig = { providers: [], activeId: "", available: false };
+let chatChannels = { origin: false, model: false };
+let chatChannelChoice = readChatPreference("ai3d-chat-channel", "auto");
 let chatMode = "offline";
 let chatBuiltinMcp = false;
+const MAX_CHAT_PROVIDERS = 12;
+
+function readChatPreference(key, fallback) {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function storeChatPreference(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* a page with no storage still keeps the choice for this visit */
+  }
+}
+
+function providerLabel(provider) {
+  return provider.name || t("settings.providerUnnamed");
+}
+
+/* The composer can send to any configured endpoint it lists, so the "direct
+   model" channel is usable as soon as one of them is complete, not only when
+   the default happens to be the complete one. */
+function anyChatProviderAvailable(config) {
+  return (config?.providers || []).some((provider) => provider.available);
+}
 
 function fillModelSelect(select, models, selected) {
   select.innerHTML = "";
@@ -2223,15 +2247,284 @@ function fillModelSelect(select, models, selected) {
   select.value = models.includes(selected) ? selected : "";
 }
 
-function applyChatConfig(config, builtinMcp) {
-  if (config) chatConfig = config;
-  if (builtinMcp !== undefined) chatBuiltinMcp = builtinMcp;
-  fillModelSelect($("#chat-model"), chatConfig.models, chatConfig.model);
-  fillModelSelect($("#settings-model"), chatConfig.models, chatConfig.model);
-  $("#settings-base-url").value = chatConfig.baseUrl;
-  $("#settings-key-hint").textContent = chatConfig.hasKey
-    ? t("settings.apiKeyStored", { hint: chatConfig.keyHint })
+function renderChatModels() {
+  const select = $("#chat-model");
+  if (!select) return;
+  select.innerHTML = "";
+  const wantedProvider = readChatPreference("ai3d-chat-provider", "");
+  const wantedModel = readChatPreference("ai3d-chat-model", "");
+  const active =
+    chatConfig.providers.find((p) => p.id === chatConfig.activeId) ||
+    chatConfig.providers[0];
+  let wanted = "";
+  for (const provider of chatConfig.providers) {
+    for (const model of provider.models) {
+      const option = document.createElement("option");
+      option.value = JSON.stringify([provider.id, model]);
+      option.dataset.providerId = provider.id;
+      option.dataset.model = model;
+      option.textContent = `${providerLabel(provider)} - ${model}`;
+      select.appendChild(option);
+      if (provider.id === wantedProvider && model === wantedModel)
+        wanted = option.value;
+      else if (
+        !wanted &&
+        active?.id === provider.id &&
+        provider.model === model
+      )
+        wanted = option.value;
+    }
+  }
+  if (!select.options.length) {
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = t("chat.modelNone");
+    select.appendChild(empty);
+    select.disabled = true;
+    return;
+  }
+  select.disabled = false;
+  select.value = wanted || select.options[0].value;
+}
+
+function renderChatChannels() {
+  const select = $("#chat-channel");
+  if (!select) return;
+  select.innerHTML = "";
+  for (const [value, key] of [
+    ["auto", "chat.channelAuto"],
+    ["origin", "chat.channelOrigin"],
+    ["model", "chat.channelModel"],
+  ]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = t(key);
+    select.appendChild(option);
+  }
+  syncChatChannels();
+}
+
+function syncChatChannels() {
+  const select = $("#chat-channel");
+  if (!select) return;
+  /* The remembered choice comes from storage and is used to pick an option, so
+     it is narrowed to the three channels before it can reach a selector. */
+  if (!["auto", "origin", "model"].includes(chatChannelChoice))
+    chatChannelChoice = "auto";
+  const available = { origin: chatChannels.origin, model: chatChannels.model };
+  for (const option of select.options)
+    option.disabled = option.value !== "auto" && !available[option.value];
+  const current = [...select.options].find(
+    (option) => option.value === chatChannelChoice && !option.disabled,
+  );
+  if (!current) chatChannelChoice = "auto";
+  select.value = chatChannelChoice;
+}
+
+function providerField(labelKey, control, className) {
+  const label = document.createElement("label");
+  label.className = `settings-field ${className || ""}`.trim();
+  const span = document.createElement("span");
+  span.textContent = t(labelKey);
+  label.append(span, control);
+  return label;
+}
+
+function createProviderRow(provider) {
+  const row = document.createElement("div");
+  row.className = "provider-row";
+  row.dataset.providerId = provider.id;
+
+  const head = document.createElement("div");
+  head.className = "provider-row-head";
+  const title = document.createElement("strong");
+  title.textContent = providerLabel(provider);
+  const activeLabel = document.createElement("label");
+  activeLabel.className = "provider-active";
+  const activeRadio = document.createElement("input");
+  activeRadio.type = "radio";
+  activeRadio.name = "provider-active";
+  activeRadio.value = provider.id;
+  activeRadio.checked = provider.active === true;
+  activeRadio.setAttribute("aria-label", t("settings.setActive"));
+  const activeText = document.createElement("span");
+  activeText.textContent = t("settings.setActive");
+  activeLabel.append(activeRadio, activeText);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "quiet provider-remove";
+  remove.textContent = t("settings.removeProvider");
+  head.append(title, activeLabel, remove);
+
+  const name = document.createElement("input");
+  name.className = "provider-name";
+  name.type = "text";
+  name.spellcheck = false;
+  name.autocomplete = "off";
+  name.placeholder = t("settings.providerNamePlaceholder");
+  name.value = provider.name || "";
+  name.addEventListener("input", () => {
+    title.textContent = name.value.trim() || t("settings.providerUnnamed");
+  });
+
+  const baseUrl = document.createElement("input");
+  baseUrl.className = "provider-base-url";
+  baseUrl.type = "text";
+  baseUrl.spellcheck = false;
+  baseUrl.autocomplete = "off";
+  baseUrl.placeholder = t("settings.baseUrlPlaceholder");
+  baseUrl.value = provider.baseUrl || "";
+
+  const apiKey = document.createElement("input");
+  apiKey.className = "provider-api-key";
+  apiKey.type = "password";
+  apiKey.spellcheck = false;
+  apiKey.autocomplete = "off";
+  apiKey.placeholder = t("settings.apiKeyPlaceholder");
+
+  const keyHint = document.createElement("p");
+  keyHint.className = "provider-key-hint";
+  keyHint.textContent = provider.hasKey
+    ? t("settings.apiKeyStored", { hint: provider.keyHint })
     : "";
+
+  const models = document.createElement("select");
+  models.className = "provider-model";
+  fillModelSelect(models, provider.models || [], provider.model);
+  const load = document.createElement("button");
+  load.type = "button";
+  load.className = "quiet provider-load";
+  load.textContent = t("settings.loadModels");
+  const modelRow = document.createElement("div");
+  modelRow.className = "provider-model-row";
+  modelRow.append(
+    providerField("settings.defaultModel", models, "provider-model-field"),
+    load,
+  );
+
+  load.addEventListener("click", () => loadChatModels(row));
+  remove.addEventListener("click", () => removeProviderRow(row));
+  activeRadio.addEventListener("change", () => {
+    if (activeRadio.checked) {
+      chatConfig.activeId = provider.id;
+      renderChatModels();
+    }
+  });
+
+  row.append(
+    head,
+    providerField("settings.providerName", name, "provider-name-field"),
+    providerField("settings.baseUrl", baseUrl, "provider-url-field"),
+    providerField("settings.apiKey", apiKey, "provider-key-field"),
+    keyHint,
+    modelRow,
+  );
+  return row;
+}
+
+function renderProviderRows() {
+  const box = $("#settings-providers");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!chatConfig.providers.length) {
+    const empty = document.createElement("p");
+    empty.className = "settings-empty";
+    empty.textContent = t("settings.noProviders");
+    box.appendChild(empty);
+  } else {
+    chatConfig.providers.forEach((provider, index) => {
+      box.appendChild(
+        createProviderRow({
+          ...provider,
+          active:
+            provider.id === chatConfig.activeId ||
+            (!chatConfig.activeId && index === 0),
+        }),
+      );
+    });
+  }
+  const add = $("#settings-add-provider");
+  if (add) add.disabled = chatConfig.providers.length >= MAX_CHAT_PROVIDERS;
+}
+
+function providerValuesFromRows() {
+  return [...$("#settings-providers").querySelectorAll(".provider-row")].map(
+    (row) => {
+      const model = row.querySelector(".provider-model");
+      return {
+        id: row.dataset.providerId,
+        name: row.querySelector(".provider-name").value.trim(),
+        baseUrl: row.querySelector(".provider-base-url").value.trim(),
+        apiKey: row.querySelector(".provider-api-key").value,
+        models: [...model.options]
+          .map((option) => option.value)
+          .filter(Boolean),
+        model: model.value,
+      };
+    },
+  );
+}
+
+function syncProviderRows() {
+  const rows = [...$("#settings-providers").querySelectorAll(".provider-row")];
+  const add = $("#settings-add-provider");
+  if (add) add.disabled = rows.length >= MAX_CHAT_PROVIDERS;
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "settings-empty";
+    empty.textContent = t("settings.noProviders");
+    $("#settings-providers").appendChild(empty);
+  }
+}
+
+function addProviderRow() {
+  const box = $("#settings-providers");
+  if (box.querySelectorAll(".provider-row").length >= MAX_CHAT_PROVIDERS) {
+    toast(t("settings.maxProviders"));
+    return;
+  }
+  box.querySelector(".settings-empty")?.remove();
+  const row = createProviderRow({
+    id: `p-${newId().slice(0, 8)}`,
+    name: "",
+    baseUrl: "",
+    hasKey: false,
+    keyHint: "",
+    models: [],
+    model: "",
+    active: !$("#settings-providers").querySelector(".provider-row"),
+  });
+  box.appendChild(row);
+  syncProviderRows();
+  row.querySelector(".provider-name").focus();
+}
+
+function removeProviderRow(row) {
+  const wasActive = row.querySelector('input[name="provider-active"]').checked;
+  row.remove();
+  syncProviderRows();
+  if (wasActive) {
+    const next = $("#settings-providers").querySelector(
+      'input[name="provider-active"]',
+    );
+    if (next) next.checked = true;
+    chatConfig.activeId = next?.value || "";
+    renderChatModels();
+  }
+}
+
+function applyChatConfig(config, builtinMcp) {
+  if (config)
+    chatConfig = {
+      providers: Array.isArray(config.providers) ? config.providers : [],
+      activeId: config.activeId || "",
+      available: Boolean(config.available),
+    };
+  if (builtinMcp !== undefined) chatBuiltinMcp = builtinMcp;
+  chatChannels.model = anyChatProviderAvailable(chatConfig);
+  renderProviderRows();
+  renderChatModels();
+  renderChatChannels();
   $("#mcp-builtin-status").textContent = chatBuiltinMcp
     ? t("mcp.builtinHint")
     : t("mcp.builtinUnavailable");
@@ -2257,15 +2550,41 @@ function setSettingsStatus(key, params) {
   status.textContent = t(key, params);
 }
 
-async function loadChatModels() {
-  const baseUrl = $("#settings-base-url").value.trim();
-  const apiKey = $("#settings-api-key").value;
+async function loadChatModels(row) {
+  const providerId = row.dataset.providerId;
+  const baseUrl = row.querySelector(".provider-base-url").value.trim();
+  const apiKey = row.querySelector(".provider-api-key").value;
   setSettingsStatus("settings.loadingModels");
-  const button = $("#settings-load-models");
+  const button = row.querySelector(".provider-load");
   button.disabled = true;
   try {
-    const data = await api("chat/config/models", { baseUrl, apiKey });
-    applyChatConfig(data.config);
+    const data = await api("chat/config/models", {
+      providerId,
+      baseUrl,
+      apiKey,
+    });
+    /* The probe answers with the whole endpoint list, but the page may hold
+       rows the reader typed and has not saved yet. Refreshing only the probed
+       row keeps looking up one model list from discarding the others' work,
+       along with any default the reader just picked. */
+    const probed =
+      data.config?.providers?.find((provider) => provider.id === providerId) ||
+      data.config?.providers?.find(
+        (provider) => provider.baseUrl && provider.baseUrl === baseUrl,
+      );
+    if (probed) {
+      row.dataset.providerId = probed.id;
+      fillModelSelect(
+        row.querySelector(".provider-model"),
+        probed.models,
+        probed.model,
+      );
+      row.querySelector(".provider-key-hint").textContent = probed.hasKey
+        ? t("settings.apiKeyStored", { hint: probed.keyHint })
+        : "";
+      if (apiKey) row.querySelector(".provider-api-key").value = "";
+      updateChatConfigProvider(probed);
+    }
     setSettingsStatus("settings.modelsLoaded", {
       count: data.models.length,
     });
@@ -2277,17 +2596,36 @@ async function loadChatModels() {
   }
 }
 
+/* Fold one endpoint the service just stored into the page's copy without
+   rebuilding the list, so a probe stays a change to a single row. */
+function updateChatConfigProvider(provider) {
+  const index = chatConfig.providers.findIndex(
+    (entry) => entry.id === provider.id,
+  );
+  if (index === -1) chatConfig.providers.push(provider);
+  else chatConfig.providers[index] = provider;
+  chatConfig.available = chatConfig.providers.some((entry) => entry.available);
+  chatChannels.model = anyChatProviderAvailable(chatConfig);
+  renderChatModels();
+  syncChatChannels();
+}
+
 async function saveChatSettings() {
   const button = $("#settings-save");
   button.disabled = true;
   try {
+    const providers = providerValuesFromRows();
+    const activeId =
+      $("#settings-providers").querySelector(
+        'input[name="provider-active"]:checked',
+      )?.value ||
+      chatConfig.activeId ||
+      providers[0]?.id ||
+      "";
     const data = await api("chat/config", {
-      baseUrl: $("#settings-base-url").value.trim(),
-      apiKey: $("#settings-api-key").value,
-      models: chatConfig.models,
-      model: $("#settings-model").value,
+      providers,
+      activeId,
     });
-    $("#settings-api-key").value = "";
     applyChatConfig(data.config);
     setSettingsStatus("settings.saved");
   } catch (err) {
@@ -2378,6 +2716,13 @@ async function pollChat() {
     chatConnected = !!json.connected;
     chatBusy = !!json.busy;
     chatMode = json.mode || (chatConnected ? "origin" : "offline");
+    if (json.channels) {
+      chatChannels = {
+        origin: Boolean(json.channels.origin),
+        model: Boolean(json.channels.model),
+      };
+      syncChatChannels();
+    }
     if (json.messages) {
       let maxTs = chatSince;
       for (const m of json.messages) {
@@ -2720,22 +3065,33 @@ async function sendChat() {
   const input = $("#chat-input");
   const text = input.value.trim();
   if (!text) return;
+  const chosenOption = $("#chat-model").selectedOptions[0];
+  const providerId = chosenOption?.dataset.providerId || "";
+  const model = chosenOption?.dataset.model || "";
+  /* Refused before the composer is cleared, so a message sent to a model
+     channel with nothing chosen is not silently thrown away. */
+  if (chatChannelChoice === "model" && !model) {
+    toast(t("chat.modelNone"));
+    return;
+  }
   chatSending = true;
   const sendBtn = $("#chat-send");
   sendBtn.disabled = true;
   sendBtn.querySelector("span").textContent = T("chat.sending");
   input.value = "";
   try {
-    const request = resolveChatGeneration(text);
+    const request =
+      chatChannelChoice === "origin" ? null : resolveChatGeneration(text);
     if (request) {
       addLocalChatMessage("user", text);
       await runLocalChatGeneration(request, sendBtn);
       return;
     }
-    const chosen = $("#chat-model").value;
     const config = await api("chat", {
       message: text,
-      ...(chosen ? { model: chosen } : {}),
+      channel: chatChannelChoice,
+      ...(providerId ? { providerId } : {}),
+      ...(model ? { model } : {}),
     });
     if (config?.reply?.id != null) {
       const ts = Number(config.reply.timestamp) || Date.now();
@@ -2983,17 +3339,8 @@ async function mcpCallTool() {
 
 function initAiDock() {
   const settingsDialog = $("#settings-dialog");
-  $("#settings-api-key").setAttribute(
-    "placeholder",
-    t("settings.apiKeyPlaceholder"),
-  );
-  $("#settings-base-url").setAttribute(
-    "placeholder",
-    t("settings.baseUrlPlaceholder"),
-  );
   $("#settings-button").addEventListener("click", async () => {
     setSettingsStatus(null);
-    $("#settings-api-key").value = "";
     await loadChatConfig();
     settingsDialog.showModal();
   });
@@ -3001,10 +3348,18 @@ function initAiDock() {
   settingsDialog.addEventListener("close", () => {
     if (settingsDialog.open === false) setSettingsStatus(null);
   });
-  $("#settings-load-models").addEventListener("click", loadChatModels);
+  $("#settings-add-provider").addEventListener("click", addProviderRow);
   $("#settings-save").addEventListener("click", saveChatSettings);
+  $("#chat-channel").addEventListener("change", () => {
+    chatChannelChoice = $("#chat-channel").value || "auto";
+    storeChatPreference("ai3d-chat-channel", chatChannelChoice);
+    renderChat();
+  });
   $("#chat-model").addEventListener("change", () => {
-    $("#settings-model").value = $("#chat-model").value;
+    const option = $("#chat-model").selectedOptions[0];
+    if (!option) return;
+    storeChatPreference("ai3d-chat-provider", option.dataset.providerId || "");
+    storeChatPreference("ai3d-chat-model", option.dataset.model || "");
   });
   $("#mcp-builtin").addEventListener("click", connectBuiltinMcp);
   $("#mcp-server").setAttribute("aria-label", t("mcp.chooseServer"));

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { startReview } from "./helpers/review-server.mjs";
 
@@ -803,37 +804,53 @@ test("chat config stores a key server-side and never returns it", async (t) => {
   const initial = await f.api("chat/config");
   assert.equal(initial.status, 200);
   assert.deepEqual(initial.body.config, {
-    baseUrl: "",
-    hasKey: false,
-    keyHint: "",
-    models: [],
-    model: "",
+    providers: [],
+    activeId: "",
     available: false,
   });
 
   const saved = await f.api("chat/config", {
     method: "POST",
     body: {
-      baseUrl: "https://example.test/v1/",
-      apiKey: "sk-secret-1234",
-      models: ["one", "two"],
-      model: "two",
+      providers: [
+        {
+          id: "p-one",
+          name: "Hosted",
+          baseUrl: "https://example.test/v1/",
+          apiKey: "sk-secret-1234",
+          models: ["one", "two"],
+          model: "two",
+        },
+      ],
+      activeId: "p-one",
     },
   });
   assert.equal(saved.status, 200);
-  assert.equal(saved.body.config.baseUrl, "https://example.test/v1");
-  assert.equal(saved.body.config.hasKey, true);
-  assert.equal(saved.body.config.keyHint, "1234");
-  assert.equal(saved.body.config.model, "two");
+  assert.equal(saved.body.config.activeId, "p-one");
   assert.equal(saved.body.config.available, true);
-  assert.equal("apiKey" in saved.body.config, false);
+  assert.equal(saved.body.config.providers.length, 1);
+  const [provider] = saved.body.config.providers;
+  assert.equal(provider.id, "p-one");
+  assert.equal(provider.name, "Hosted");
+  assert.equal(provider.baseUrl, "https://example.test/v1");
+  assert.equal(provider.hasKey, true);
+  assert.equal(provider.keyHint, "1234");
+  assert.equal(provider.model, "two");
+  assert.deepEqual(provider.models, ["one", "two"]);
+  assert.equal(provider.available, true);
+  assert.equal("apiKey" in provider, false);
 
   // An empty key keeps the stored one; only a new value replaces it.
   const kept = await f.api("chat/config", {
     method: "POST",
-    body: { baseUrl: "https://example.test/v1", apiKey: "" },
+    body: {
+      providers: [
+        { id: "p-one", baseUrl: "https://example.test/v1", apiKey: "" },
+      ],
+      activeId: "p-one",
+    },
   });
-  assert.equal(kept.body.config.hasKey, true);
+  assert.equal(kept.body.config.providers[0].hasKey, true);
 
   const rejected = await f.api("chat/config", {
     method: "POST",
@@ -841,6 +858,172 @@ test("chat config stores a key server-side and never returns it", async (t) => {
   });
   assert.equal(rejected.status, 400);
   assert.equal(rejected.body.code, "CHAT_CONFIG");
+  /* The refused save must not have left a phantom endpoint behind for the
+     next reader to find. */
+  const after = await f.api("chat/config");
+  assert.equal(after.body.config.providers.length, 1);
+  assert.equal(after.body.config.providers[0].id, "p-one");
+});
+
+test("chat config keeps several endpoints with distinct keys", async (t) => {
+  const f = await startReview(t, {});
+  const saved = await f.api("chat/config", {
+    method: "POST",
+    body: {
+      providers: [
+        {
+          id: "p-hosted",
+          name: "Hosted",
+          baseUrl: "https://hosted.test/v1",
+          apiKey: "sk-hosted-aaaa",
+          models: ["fast", "smart"],
+          model: "smart",
+        },
+        {
+          id: "p-local",
+          name: "Local runtime",
+          baseUrl: "http://127.0.0.1:11434/v1",
+          apiKey: "sk-local-bbbb",
+          models: ["llama"],
+          model: "llama",
+        },
+      ],
+      activeId: "p-local",
+    },
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.config.providers.length, 2);
+  assert.equal(saved.body.config.activeId, "p-local");
+  const [hosted, local] = saved.body.config.providers;
+  assert.equal(hosted.keyHint, "aaaa");
+  assert.equal(local.keyHint, "bbbb");
+  assert.deepEqual(local.models, ["llama"]);
+  // Neither key is handed back to the page, only its last four.
+  for (const provider of saved.body.config.providers)
+    assert.equal("apiKey" in provider, false);
+
+  // Saving the list without the second endpoint removes it: the page is the
+  // full list, so a provider it no longer names was deliberately dropped.
+  const trimmed = await f.api("chat/config", {
+    method: "POST",
+    body: {
+      providers: [
+        {
+          id: "p-hosted",
+          name: "Hosted",
+          baseUrl: "https://hosted.test/v1",
+          models: ["smart"],
+          model: "smart",
+        },
+      ],
+    },
+  });
+  assert.equal(trimmed.body.config.providers.length, 1);
+  assert.equal(trimmed.body.config.providers[0].id, "p-hosted");
+  assert.equal(trimmed.body.config.providers[0].hasKey, true);
+  assert.equal(trimmed.body.config.activeId, "p-hosted");
+});
+
+test("chat keeps the MCP and direct-model channels side by side", async (t) => {
+  const calls = [];
+  const endpoint = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (part) => {
+      body += part;
+    });
+    req.on("end", () => {
+      calls.push({
+        method: req.method,
+        url: req.url,
+        auth: req.headers.authorization || "",
+        body,
+      });
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/v1/models") {
+        res.end(JSON.stringify({ data: [{ id: "alpha" }, { id: "beta" }] }));
+        return;
+      }
+      if (req.url === "/v1/chat/completions") {
+        res.end(
+          JSON.stringify({
+            choices: [{ message: { content: "model says hi" } }],
+          }),
+        );
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: { message: "no such route" } }));
+    });
+  });
+  await new Promise((resolve) => endpoint.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => endpoint.close(resolve)));
+  const baseUrl = `http://127.0.0.1:${endpoint.address().port}/v1`;
+
+  // No origin: this installation has no conversation to return to.
+  const f = await startReview(t, {});
+  const saved = await f.api("chat/config", {
+    method: "POST",
+    body: {
+      providers: [
+        {
+          id: "p-local",
+          name: "Local",
+          baseUrl,
+          apiKey: "sk-local-aaaa",
+          models: ["alpha", "beta"],
+          model: "alpha",
+        },
+        {
+          id: "p-spare",
+          name: "Spare",
+          baseUrl: "https://spare.test/v1",
+          apiKey: "sk-spare-bbbb",
+          models: [],
+          model: "",
+        },
+      ],
+      activeId: "p-local",
+    },
+  });
+  assert.equal(saved.status, 200);
+
+  // Both channels are reported at once; only the origin one is missing here.
+  const status = await f.api("chat");
+  assert.deepEqual(status.body.channels, { origin: false, model: true });
+
+  // Asking for the conversation is refused rather than quietly served by the
+  // endpoint: the reader chose a channel and the answer says which one failed.
+  const originOnly = await f.api("chat", {
+    method: "POST",
+    body: { message: "hello there", channel: "origin" },
+  });
+  assert.equal(originOnly.status, 409);
+  assert.equal(originOnly.body.code, "CHAT_ORIGIN_UNAVAILABLE");
+  assert.equal(
+    calls.filter((call) => call.url.endsWith("/chat/completions")).length,
+    0,
+  );
+
+  // The direct channel skips the absent conversation and answers from the
+  // provider the composer named, not merely the default one.
+  const direct = await f.api("chat", {
+    method: "POST",
+    body: { message: "hello there", channel: "model", providerId: "p-local" },
+  });
+  assert.equal(direct.status, 200);
+  assert.equal(direct.body.mode, "model");
+  assert.equal(direct.body.model, "alpha");
+  assert.equal(direct.body.reply.text, "model says hi");
+  const completion = calls.find((call) =>
+    call.url.endsWith("/chat/completions"),
+  );
+  assert.equal(completion.auth, "Bearer sk-local-aaaa");
+  assert.equal(JSON.parse(completion.body).model, "alpha");
+  // The other endpoint's key stayed where it was.
+  assert.equal(
+    calls.some((call) => call.auth === "Bearer sk-spare-bbbb"),
+    false,
+  );
 });
 
 test("built-in MCP connect reports whether this installation carries the server", async (t) => {

@@ -226,6 +226,16 @@ export default {
   "settings.api": "API 設定",
   "settings.apiEyebrow": "設定 · API",
   "settings.apiTitle": "モデルエンドポイント",
+  "settings.providersHint":
+    "OpenAI 互換のエンドポイントを複数保存し、チャットの既定を選べます。",
+  "settings.addProvider": "エンドポイントを追加",
+  "settings.removeProvider": "削除",
+  "settings.providerName": "名前",
+  "settings.providerNamePlaceholder": "クラウドモデル、ローカル実行環境…",
+  "settings.providerUnnamed": "モデルエンドポイント",
+  "settings.setActive": "既定に設定",
+  "settings.noProviders": "モデルエンドポイントがまだありません。",
+  "settings.maxProviders": "最大 12 件まで保存できます。",
   "settings.baseUrl": "API ベース URL",
   "settings.baseUrlPlaceholder": "https://api.example.com/v1",
   "settings.apiKey": "API キー",
@@ -278,6 +288,10 @@ export default {
   "chat.connecting": "接続中…",
   "chat.unavailable":
     "このインスタンスには会話への返信経路がないため、チャットは利用できません。",
+  "chat.channel": "チャネル",
+  "chat.channelAuto": "自動",
+  "chat.channelOrigin": "MCP / 会話",
+  "chat.channelModel": "モデル直接",
   "chat.model": "モデル",
   "chat.modelNone": "モデル未選択",
   "chat.modelReady":
