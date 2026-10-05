@@ -3378,7 +3378,6 @@ function initAiDock() {
   toolsTitle.className = "mcp-section-title";
   toolsTitle.textContent = t("mcp.tools");
   $("#mcp-tools").before(toolsTitle);
-  loadChatConfig();
 }
 
 $("#ai-button").addEventListener("click", () => setAiDock(!aiDockOpen));
@@ -7172,6 +7171,81 @@ renderTextureStrip();
 
 initAiDock();
 loadMcpConnections();
+
+/* ---------------- service watchdog ---------------- */
+
+/* The page cannot start a process and does not pretend to: the desktop shell
+   owns the service and restarts it. What the page can do is notice, and the
+   two things worth noticing are a tab that has just come back and a service
+   that is not the one it was talking to.
+
+   A hidden tab has its timers throttled to about one a minute, and a suspended
+   machine freezes them outright, so waiting for the next poll tick means the
+   reader stares at stale numbers for a while after they come back. The events
+   below are the ones the browser actually fires for that: refresh immediately,
+   coalescing a burst of them into one pass so waking up does not send four
+   requests at once. */
+let lastWakeAt = 0;
+function wakeRefresh() {
+  if (document.visibilityState !== "visible") return;
+  const now = Date.now();
+  if (now - lastWakeAt < 3000) return;
+  lastWakeAt = now;
+  pollState();
+  if (!aiDockOpen) return;
+  if (aiActiveTab === "chat") pollChat();
+  else if (aiActiveTab === "mcp") loadMcpConnections();
+}
+document.addEventListener("visibilitychange", wakeRefresh);
+for (const event of ["focus", "pageshow", "online"])
+  window.addEventListener(event, wakeRefresh);
+
+/* A restarted service is a different one: it has a new pid, no MCP sessions
+   and possibly a new port. The pid is what tells a reconnect apart from a
+   first connect, so the page can drop what the old process owned instead of
+   drawing a connection that no longer exists. The probe backs off when the
+   service is gone rather than retrying on a tight loop. */
+let watchedPid = null;
+let healthFailures = 0;
+let healthTimer = null;
+const HEALTH_INTERVAL = 20000;
+const HEALTH_MAX_INTERVAL = 120000;
+
+function scheduleHealthTick(delay) {
+  clearTimeout(healthTimer);
+  healthTimer = setTimeout(healthTick, delay);
+}
+
+async function healthTick() {
+  let pid = null;
+  try {
+    const response = await fetch(endpoint("api/health"), { cache: "no-store" });
+    const body = await response.json();
+    if (response.ok && body.ok === true) pid = body.pid ?? null;
+  } catch {
+    /* refused or unreadable: counted as unreachable below */
+  }
+  if (pid === null) {
+    healthFailures += 1;
+    scheduleHealthTick(
+      Math.min(HEALTH_INTERVAL * 2 ** healthFailures, HEALTH_MAX_INTERVAL),
+    );
+    return;
+  }
+  const reconnected =
+    healthFailures > 0 || (watchedPid !== null && watchedPid !== pid);
+  watchedPid = pid;
+  healthFailures = 0;
+  scheduleHealthTick(HEALTH_INTERVAL);
+  if (!reconnected) return;
+  // Sessions the old process held did not survive it, and the model list may
+  // have changed with the build; both are re-read rather than guessed at.
+  loadChatConfig();
+  loadMcpConnections();
+  pollState();
+}
+scheduleHealthTick(HEALTH_INTERVAL);
+
 // Read-only diagnostics for browser acceptance checks; never mutate review state.
 window.__reviewDiagnostics = () => ({
   versionId: loadedId,

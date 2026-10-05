@@ -166,6 +166,8 @@ npm run desktop:build:installer       # 构建本地 NSIS 安装包（Windows）
 
 本地安装包输出在 `src-tauri/target/release/bundle/nsis/`。推送 `v*` 标签时，GitHub Actions 会构建并附加到对应 Release：Linux x64 AppImage，macOS Intel 与 Apple Silicon 两个 DMG（ad-hoc 签名，内含 Applications 拖放快捷方式），以及 Windows x64 与 ARM64 两个 NSIS 安装包（自签名，安装界面提供简体中文、繁体中文与英文）。每个 Release 还附带 `checksums-sha1.txt` 与 `checksums-md5.txt`，逐行列出上述安装包的 SHA-1 与 MD5，下载后可直接用 `sha1sum -c checksums-sha1.txt` 和 `md5sum -c checksums-md5.txt` 校验。应用标识为 `org.mutantcat.ai3d`，窗口标题为 AI3D，图标与仓库根目录的 `icon.png` 一致。桌面端数据（资产库、审阅状态、已发布模型）保存在系统应用数据目录，默认只在本机 loopback 地址上运行内置服务。
 
+桌面外壳托管内置服务，并且有一个看门狗线程盯着它：窗口只在内置服务写出就绪文件之后才指向它；此后每 5 秒探测一次 `/api/health`，进程退出、或者连续三次探测无响应，都会自动重启服务并把窗口重新指向新端口，启动失败按退避重试而不是空转。息屏或休眠不会被误判为崩溃——外壳按墙钟时间识别出这段时间的间隔，直接清空失败计数，所以合盖过夜后醒来不会触发重启。页面一侧同样在标签页重新可见、窗口重获焦点、页面从后退缓存恢复或网络恢复时立刻重读状态、聊天与 MCP 连接；重启后的服务是另一个进程（新的 pid、没有 MCP 会话），页面据此重新加载连接列表，而不是继续显示已经不存在的连接。
+
 ### 十一、开发进度
 
 计划不是承诺：使用中可能会调整顺序。想法和需求欢迎发到 [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions)。

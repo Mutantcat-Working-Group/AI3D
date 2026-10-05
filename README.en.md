@@ -324,6 +324,21 @@ verify as they stand. The application identifier is `org.mutantcat.ai3d`; the
 window title is AI3D and the icon is the repository's `icon.png`. Desktop data
 (the asset library, review state and published models) lives in the OS
 application data directory, and the bundled service only listens on the local
+loopback address.
+
+The desktop shell hosts the bundled service and runs a watchdog thread over it:
+the window only points at the service after it writes its ready file, and from
+then on the shell probes `/api/health` every 5 seconds so a process exit, or
+three failed probes in a row, restarts the service and repoints the window at
+the new port, with backoff on repeated startup failures instead of spinning.
+Screen-off or sleep is not mistaken for a crash: the shell reads the wall-clock
+gap and clears the failure counter, so a laptop lid left closed overnight does
+not trigger a restart on wake. The page side refreshes the state, chat and MCP
+connections as soon as the tab becomes visible again, the window regains focus,
+the page is restored from the back-forward cache or the network comes back; a
+restarted service is a different process (new pid, no MCP sessions), so the page
+reloads the connection list instead of showing connections that no longer exist.
+
 ### 11. Roadmap
 
 Plans, not promises: the order can change as people use it. Ideas and requests

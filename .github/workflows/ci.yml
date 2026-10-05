@@ -34,6 +34,17 @@ jobs:
       - run: npm run check:i18n
       - run: npm run format:check
       - run: node --test tests/*.test.mjs
+      # The desktop shell's watchdog is the one piece of the app that is meant
+      # to act while nobody is watching, so it is also the piece nobody would
+      # notice had quietly stopped working. Its rules are plain Rust with no
+      # tauri types in them, which is what lets this run here, with a bare
+      # `rustc --test`, instead of only on the runners that can bundle a
+      # windowing toolkit.
+      - run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --edition 2021 --test src-tauri/src/watchdog.rs -o "$RUNNER_TEMP/watchdog-tests"
+          "$RUNNER_TEMP/watchdog-tests"
       # The version lives in three manifests and only this build compares them.
       # 0.13.1 shipped with the authoritative one left behind at 0.13.0, so the
       # release could not be packaged at all and nothing said so for a day.

@@ -78,6 +78,27 @@ test("the workflow asks for the skip rather than relying on a bare runner", () =
   assert.match(workflow, /AI3D_SKIP_HOST_BUILD:\s*"1"/);
 });
 
+/* The watchdog is the code that is supposed to act while nobody is watching,
+   which makes it exactly the code whose tests nobody would notice going
+   missing. The module is deliberately free of tauri types so CI can compile
+   and run it with a bare `rustc --test`, and this pins that it does: a step
+   deleted by accident would otherwise leave the rules unexercised until a
+   release build happened to break. */
+test("the workflow compiles and runs the desktop watchdog tests", () => {
+  const workflow = fs.readFileSync(
+    path.join(repo, ".github/workflows/ci.yml"),
+    "utf8",
+  );
+  assert.match(
+    workflow,
+    /rustc --edition 2021 --test src-tauri\/src\/watchdog\.rs/,
+  );
+  assert.ok(
+    fs.existsSync(path.join(repo, "src-tauri/src/watchdog.rs")),
+    "the file the workflow compiles has to exist",
+  );
+});
+
 /* The one class of failure the rest of the suite cannot see. Everything else
    runs from the source tree, where the tessellator resolves out of node_modules
    and works; the package resolves it from `vendor/`, and the first build of it
