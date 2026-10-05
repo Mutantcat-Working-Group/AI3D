@@ -150,9 +150,13 @@ export class ChatConfig {
     atomicJson(this.file, this.state);
   }
 
-  /* Server-internal: what a call needs without the page ever seeing the key. */
+  /* Server-internal: what a call needs without the page ever seeing the key.
+     A named provider that is no longer stored resolves to nothing rather than
+     to the reader's default: falling back would spend one endpoint's key
+     against another endpoint's URL. Only a call that names no provider at all
+     gets the active one. */
   target(id) {
-    const provider = (id ? this.providerById(id) : null) || this.active();
+    const provider = id ? this.providerById(id) : this.active();
     if (!provider) return null;
     const { baseUrl, apiKey, model } = provider;
     return { id: provider.id, baseUrl, apiKey, model };

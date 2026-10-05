@@ -924,6 +924,77 @@ test("chat config keeps several endpoints with distinct keys", async (t) => {
   assert.equal(trimmed.body.config.activeId, "p-hosted");
 });
 
+test("probing an unsaved endpoint does not spend the active provider's identity", async (t) => {
+  // Two live endpoints, each answering with its own model list, so a probe that
+  // borrowed the other's URL or key would be visible in the answer.
+  const serve = async (names) => {
+    const server = http.createServer((req, res) => {
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/v1/models") {
+        res.end(JSON.stringify({ data: names.map((id) => ({ id })) }));
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: { message: "no such route" } }));
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    t.after(() => new Promise((resolve) => server.close(resolve)));
+    return `http://127.0.0.1:${server.address().port}/v1`;
+  };
+  const defaultUrl = await serve(["alpha"]);
+  const addedUrl = await serve(["beta", "gamma"]);
+
+  const f = await startReview(t, {});
+  const saved = await f.api("chat/config", {
+    method: "POST",
+    body: {
+      providers: [
+        {
+          id: "p-default",
+          name: "Default",
+          baseUrl: defaultUrl,
+          apiKey: "sk-default-aaaa",
+          models: ["alpha"],
+          model: "alpha",
+        },
+      ],
+      activeId: "p-default",
+    },
+  });
+  assert.equal(saved.status, 200);
+
+  // A row the reader just added and has not saved: it carries its own id, its
+  // own URL and its own key, and the stored list does not know it yet.
+  const probe = await f.api("chat/config/models", {
+    method: "POST",
+    body: {
+      providerId: "p-new-row",
+      baseUrl: addedUrl,
+      apiKey: "sk-added-bbbb",
+    },
+  });
+  assert.equal(probe.status, 200);
+  assert.deepEqual(probe.body.models, ["beta", "gamma"]);
+
+  const after = await f.api("chat/config");
+  const providers = after.body.config.providers;
+  const ids = providers.map((provider) => provider.id);
+  // Two endpoints with two ids; the probe must not have overwritten the first.
+  assert.deepEqual([...ids].sort(), ["p-default", "p-new-row"]);
+  const base = providers.find((provider) => provider.id === "p-default");
+  const added = providers.find((provider) => provider.id === "p-new-row");
+  assert.equal(base.baseUrl, defaultUrl);
+  assert.equal(base.keyHint, "aaaa");
+  assert.deepEqual(base.models, ["alpha"]);
+  assert.equal(added.baseUrl, addedUrl);
+  assert.equal(added.keyHint, "bbbb");
+  assert.deepEqual(added.models, ["beta", "gamma"]);
+
+  // Nothing the reader can pick from is listed twice.
+  const names = providers.flatMap((provider) => provider.models);
+  assert.equal(new Set(names).size, names.length);
+});
+
 test("chat keeps the MCP and direct-model channels side by side", async (t) => {
   const calls = [];
   const endpoint = http.createServer((req, res) => {

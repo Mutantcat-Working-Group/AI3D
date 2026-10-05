@@ -1133,9 +1133,16 @@ app.post("/api/chat/config/models", async (req, res) => {
     })
     .strict()
     .parse(req.body);
-  const target = chatConfig.target(p.providerId) || {};
-  const baseUrl = p.baseUrl || target.baseUrl || "";
-  const apiKey = p.apiKey || target.apiKey || "";
+  /* The stored endpoint is resolved by id alone. The default provider is not
+     a stand-in for one that is named but not stored: a row the reader just
+     added carries its own id, and borrowing the active provider's id or key
+     here stored the new endpoint under the old one's identity, so a second
+     probe overwrote the first and the same models appeared twice. */
+  const stored = p.providerId
+    ? chatConfig.providerById(p.providerId)
+    : undefined;
+  const baseUrl = p.baseUrl || stored?.baseUrl || "";
+  const apiKey = p.apiKey || stored?.apiKey || "";
   if (!baseUrl)
     throw new ReviewError(
       "A base URL is needed before its models can be listed.",
@@ -1146,7 +1153,7 @@ app.post("/api/chat/config/models", async (req, res) => {
      so an unreachable endpoint reports the failure instead of a stale list. */
   const models = await listModels({ baseUrl, apiKey });
   const config = chatConfig.saveProbe({
-    id: target.id || p.providerId,
+    id: stored?.id || p.providerId,
     baseUrl,
     apiKey: p.apiKey,
     models,
