@@ -1023,7 +1023,6 @@ app.get("/api/download/:filename", (req, res) => {
 const localChat = [];
 const LOCAL_CHAT_LIMIT = 200;
 const CHAT_CONTEXT_MESSAGES = 20;
-let localChatSeq = 0;
 
 function appendLocalChat(role, text) {
   const message = {
@@ -1033,6 +1032,14 @@ function appendLocalChat(role, text) {
     timestamp: Date.now(),
     local: true,
   };
+  /* A reader pages this channel with the newest timestamp it has seen, so two
+     messages sharing a millisecond would make the second one unreachable:
+     the poll asks for `> since` and the new message is not greater than the
+     boundary the previous poll already published. Keep the stamps strictly
+     increasing, which also makes the page's sort agree with arrival order. */
+  const previous = localChat[localChat.length - 1];
+  if (previous && message.timestamp <= previous.timestamp)
+    message.timestamp = previous.timestamp + 1;
   localChat.push(message);
   if (localChat.length > LOCAL_CHAT_LIMIT)
     localChat.splice(0, localChat.length - LOCAL_CHAT_LIMIT);

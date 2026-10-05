@@ -247,6 +247,16 @@ export class ChatConfig {
   saveProbe({ id, baseUrl, apiKey, models } = {}) {
     let provider = this.providerById(id);
     if (!provider) {
+      /* A probe can add an endpoint the list does not have yet, so it is the
+         one writer that reaches past the cap the page enforces. Without this
+         the reload in `load` trims back to the limit and can drop the endpoint
+         being made active, which is the last thing a reader would suspect. */
+      if (this.state.providers.length >= MAX_PROVIDERS)
+        throw new ReviewError(
+          `At most ${MAX_PROVIDERS} model endpoints can be stored.`,
+          400,
+          "CHAT_CONFIG",
+        );
       provider = this.blank();
       const clean = this.cleanId(id);
       if (clean) provider.id = clean;

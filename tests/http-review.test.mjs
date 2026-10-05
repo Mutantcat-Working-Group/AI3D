@@ -1097,6 +1097,141 @@ test("chat keeps the MCP and direct-model channels side by side", async (t) => {
   );
 });
 
+test("a probe cannot store an endpoint past the cap", async (t) => {
+  const serve = async (names) => {
+    const server = http.createServer((req, res) => {
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/v1/models") {
+        res.end(JSON.stringify({ data: names.map((id) => ({ id })) }));
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: { message: "no such route" } }));
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    t.after(() => new Promise((resolve) => server.close(resolve)));
+    return `http://127.0.0.1:${server.address().port}/v1`;
+  };
+  const baseUrl = await serve(["alpha"]);
+
+  const f = await startReview(t, {});
+  const providers = Array.from({ length: 12 }, (_, index) => ({
+    id: `p-${index}`,
+    name: `Endpoint ${index}`,
+    baseUrl: `https://endpoint-${index}.test/v1`,
+    apiKey: `sk-${index}`,
+    models: [],
+    model: "",
+  }));
+  const saved = await f.api("chat/config", {
+    method: "POST",
+    body: { providers, activeId: "p-0" },
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.config.providers.length, 12);
+
+  /* The composer will not offer a thirteenth row, but the probe route writes
+     through a different door than the list save does. An endpoint it accepted
+     past the cap would be trimmed away when the list is read back, and the
+     endpoint that trim dropped could well be the one being made active. */
+  const probe = await f.api("chat/config/models", {
+    method: "POST",
+    body: { providerId: "p-late", baseUrl, apiKey: "sk-late-aaaa" },
+  });
+  assert.equal(probe.status, 400);
+  assert.equal(probe.body.code, "CHAT_CONFIG");
+
+  const after = await f.api("chat/config");
+  assert.equal(after.body.config.providers.length, 12);
+  assert.equal(after.body.config.activeId, "p-0");
+});
+
+test("a local chat message written on the reader's cursor is still delivered", async (t) => {
+  /* The page pages this channel with the newest stamp it has seen, so a
+     message that shares that millisecond is one the next poll will not hand
+     back: the reader's own message is not echoed optimistically the way a
+     generated result is, and it stays missing until some later message moves
+     the cursor past it. A turn on a local endpoint is measured in
+     milliseconds, which is exactly the scale where two writes meet. */
+  let turn = 0;
+  const endpoint = http.createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/v1/models") {
+        res.end(JSON.stringify({ data: [{ id: "alpha" }] }));
+        return;
+      }
+      if (req.url === "/v1/chat/completions") {
+        turn += 1;
+        res.end(
+          JSON.stringify({
+            choices: [{ message: { content: `answer ${turn}` } }],
+          }),
+        );
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: { message: "no such route" } }));
+    });
+  });
+  await new Promise((resolve) => endpoint.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => endpoint.close(resolve)));
+  const baseUrl = `http://127.0.0.1:${endpoint.address().port}/v1`;
+
+  const f = await startReview(t, {});
+  const saved = await f.api("chat/config", {
+    method: "POST",
+    body: {
+      providers: [
+        {
+          id: "p-local",
+          name: "Local",
+          baseUrl,
+          apiKey: "sk-local-aaaa",
+          models: ["alpha"],
+          model: "alpha",
+        },
+      ],
+      activeId: "p-local",
+    },
+  });
+  assert.equal(saved.status, 200);
+
+  // The first turn is what moves the cursor: after sending it, the reader has
+  // seen this reply and pages from its stamp.
+  const first = await f.api("chat", {
+    method: "POST",
+    body: {
+      message: "first question",
+      channel: "model",
+      providerId: "p-local",
+    },
+  });
+  assert.equal(first.status, 200);
+  const cursor = first.body.reply.timestamp;
+
+  // The second turn is sent the moment the first answer is in hand, which is
+  // the reader's own behaviour: the composer is cleared and re-used at once.
+  const second = await f.api("chat", {
+    method: "POST",
+    body: {
+      message: "second question",
+      channel: "model",
+      providerId: "p-local",
+    },
+  });
+  assert.equal(second.status, 200);
+
+  const page = await f.api(`chat?since=${cursor}`);
+  const texts = page.body.messages.map((message) => message.text);
+  assert.ok(
+    texts.includes("second question"),
+    "the reader's own message fell behind the cursor it had already reached",
+  );
+  assert.ok(texts.includes("answer 2"), "the answer to it was lost with it");
+});
+
 test("built-in MCP connect reports whether this installation carries the server", async (t) => {
   const f = await startReview(t, {});
   const config = await f.api("chat/config");

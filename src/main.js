@@ -2584,6 +2584,17 @@ async function loadChatModels(row) {
         : "";
       if (apiKey) row.querySelector(".provider-api-key").value = "";
       updateChatConfigProvider(probed);
+    } else {
+      /* The endpoint answered but is not in the stored list under this row's
+         identity, so its own answer is the only thing worth showing. Leaving
+         the select untouched would report a successful load that changed
+         nothing on screen. */
+      const answered = Array.isArray(data.models) ? data.models : [];
+      fillModelSelect(
+        row.querySelector(".provider-model"),
+        answered,
+        answered[0] || "",
+      );
     }
     setSettingsStatus("settings.modelsLoaded", {
       count: data.models.length,
