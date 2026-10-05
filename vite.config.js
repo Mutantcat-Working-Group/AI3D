@@ -12,6 +12,17 @@ const version =
 export default defineConfig({
   define: { __AI3D_VERSION__: JSON.stringify(version) },
   base: "./",
-  server: { proxy: { "/api": "http://127.0.0.1:43173" } },
+  // The service answers a write only when the request's `Origin` and `Host`
+  // agree, which is what keeps a page on another site from driving it. The
+  // string shorthand turns on `changeOrigin`, rewriting `Host` to the service's
+  // own port while the browser's `Origin` still names this one -- every POST
+  // through the dev server then came back "This request did not come from the
+  // current workbench" and no setting could be saved while developing. Leaving
+  // `Host` as the browser sent it keeps the two in agreement.
+  server: {
+    proxy: {
+      "/api": { target: "http://127.0.0.1:43173", changeOrigin: false },
+    },
+  },
   build: { target: "es2022", chunkSizeWarningLimit: 900 },
 });
