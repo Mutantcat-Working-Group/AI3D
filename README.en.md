@@ -1,556 +1,174 @@
-<div align="center">
-  <img src="icon.png" width="100" alt="AI3D" />
-  <h2>AI3D</h2>
-  <p>Game 3D asset generator</p>
+<div align=center>
+<img src="icon.png" style="width:100px;" width="100"/>
+<h2>AI3D</h2>
 </div>
 
-[中文](README.md) | **English**
-
-[![CI](https://github.com/Mutantcat-Working-Group/AI3D/actions/workflows/ci.yml/badge.svg)](https://github.com/Mutantcat-Working-Group/AI3D/actions/workflows/ci.yml)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[简体中文](README.md) | English
 
 ### 1. Product overview
 
-AI3D (AI3D模型 in Chinese) is a game 3D asset generator: describe the prop,
-character or scene you want in one sentence, and it produces a low-poly asset
-with named parts, playable animation previews and export packs for
-Unity, Godot and Unreal in seconds. It also keeps the agent-assisted review
-workbench, so "change this" can still be communicated on real mesh surfaces.
+AI3D is a game 3D asset generator: describe the prop, character or scene you want in one sentence, and within seconds you have a low-poly asset with named parts, playable animations and ready-to-use export packs for Unity, Godot and Unreal. It also ships a built-in chat panel and an MCP server, so generating, asking and reviewing all happen in one window.
 
-Generation is deterministic procedural modeling: the same description and seed
-always produce the same mesh. Every asset ships with engine-ready collider
-presets, LODs, animation clips and a manifest, so it fits a game pipeline
-instead of staying a preview image.
+- Deterministic procedural modeling: the same description and seed always produce the same mesh, which makes assets safe to commit.
+- 102 built-in asset templates across weapons, armor, creatures, buildings, props, vehicles, sci-fi and nature, each with named parts, tags and collider presets.
+- Engine-ready: every asset carries LODs, colliders, named parts with attachment points, and gameplay and spawn metadata. What you export is what you ship.
+- Built-in chat: talk to the model in the app itself; a single sentence can generate an asset, a set, a scene or a whole project, with an offline modeling knowledge pack for cited answers.
+- MCP server: AI coding assistants such as Claude Code and Cursor can drive generation and review directly. The software is the server.
+- Review loop: drop lettered pins on real mesh surfaces and fill in near-planar regions with a paint bucket. The agent receives 3D coordinates and face references, never screenshots.
+- Desktop client: a Tauri build for Windows, macOS and Linux, with the interface in Simplified Chinese, Traditional Chinese, English, German, French and Japanese.
+- **Publisher** published by 异猫工作群 (mutantcat.org), GitHub: https://github.com/Mutantcat-Working-Group
 
-### 2. What it generates
+Core value:
 
-102 built-in game asset templates, each with sensible part names, tags and
-collider presets:
+- Deterministic: results can be rebuilt; the description plus the seed is the recipe.
+- Engine-ready: naming, LODs, colliders, animations and manifests all ship, so the export drops straight into a pipeline.
+- AI-native: chat and MCP are built-in capabilities, not plugins.
+- One closed window: generation, export, knowledge search, review annotations and agent conversation live in a single interface.
 
-| Category  | Assets                                                                                                                                                                                                                                                                                                                                                                                         |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Weapons   | sword, dagger, axe, mace, bow, hammer, spear, halberd, staff, shield, cannon                                                                                                                                                                                                                                                                                                                   |
-| Armor     | helmet, chestplate, gauntlets, boots                                                                                                                                                                                                                                                                                                                                                           |
-| Creatures | character, monster, dragon, skeleton, mummy                                                                                                                                                                                                                                                                                                                                                    |
-| Buildings | house, tower, tent, statue, pillar, well, bridge, fence, gate, fountain, portcullis, beehive                                                                                                                                                                                                                                                                                                   |
-| Props     | potion, chest, key, gem, barrel, crate, flag, torch, campfire, sign, tree stump, mushroom, crystal, runestone, spike trap, grave, ladder, candelabra, anvil, bookshelf, cauldron, throne, bench, lantern, table, chair, bed, chandelier, armor stand, bread, pie, meat leg, hay bale, rope coil, bucket, coin pile, berry bush, stone coffin, cage, bone pile, cobweb, lever, urn, wheat sheaf |
-| Vehicles  | car, boat, plane, bike, wagon, minecart                                                                                                                                                                                                                                                                                                                                                        |
-| Sci-fi    | turret, drone, comm antenna                                                                                                                                                                                                                                                                                                                                                                    |
-| Village   | windmill                                                                                                                                                                                                                                                                                                                                                                                       |
-| Nature    | mushroom cluster, pine tree, palm tree, bush                                                                                                                                                                                                                                                                                                                                                   |
+### 2. Features
 
-Beyond the quick templates you can describe an asset in natural language and
-choose a style (low-poly / realistic / stylized), then tune color, roughness,
-metalness, emissive and seed. Generate up to 12 seed variants at once, preview
-each one, and save the ones you like to the asset library.
+#### Asset generation
 
-![The asset generator interface](docs/media/viewer.png)
+- Quick templates: 102 asset types, each with named parts, default PBR textures, a collider preset and template prompts in six languages.
+- Natural language: describe the asset directly, pick low-poly / realistic / stylized, and tune color, roughness, metalness and emissive.
+- Seed variants: generate up to 12 variants at once, preview them one by one, and save the winners to the asset library, which supports tag filtering, favorites, renaming and batch export.
+- Asset sets: one row per asset, up to 32 per batch, sharing style, materials and export settings, with a `set.json` manifest at the top.
+- Scenes and projects: eight scene kits place props deterministically by seed; five project templates expand into asset sets, scenes and engine import orders in one go.
 
-### 3. Built for a game pipeline
+#### Engine-ready
 
-- **Animation** - characters and monsters get idle / walk / attack clips,
-  dragons get idle / fly / attack, and animated props ship procedural clips
-  (chest open, flame flicker, flag wave, fountain flow, wheel / propeller
-  spin, turret sweep, antenna sway, crystal / runestone pulse, tree sway,
-  boat bob); play them in the preview and export them in the GLB. Engine packs
-  can also write each clip as its own `animations/<asset>/<clip>.glb` for
-  state-machine wiring.
-- **LODs** - generate three LOD levels in one click, preview each level and
-  export the set; every level carries triangle, vertex, part and draw-call
-  budgets, and the simplifier keeps materials and merges same-material meshes.
-- **Colliders** - box / sphere / capsule / cylinder / convex hull / mesh presets
-  per asset type, sized from the actual mesh; the hull is sampled from mesh
-  vertices. All presets are emitted as engine-side collider files. The preview
-  can overlay the proxy the export would ship, so an oversized or floating
-  collider shows up before the pack is built.
-- **Named parts and attachment points** - every asset keeps a full named part
-  hierarchy, and exports record each part's centre and bounds plus recommended
-  attachment coordinates (weapon grips, character feet, chest hinges, light
-  sockets, flag mounts and more), so a team can build prefab sockets without
-  hand-measuring the mesh. The generator shows a read-only layout summary for
-  the current asset; enabling "Include named anchor nodes" writes empty
-  `anchor_<role>` nodes (with `ai3d` user data) into GLB/glTF exports so an
-  engine can find sockets by name after import.
-- **Gameplay metadata** - every asset carries a `gameplay` field in export
-  manifests and game pack manifests that says how an engine should treat it
-  (chest opens as a container, portcullis raises as a door, lever pulls as a
-  switch, monsters fight as enemies, torches light, coins collect, beehives
-  and wheat sheaves harvest, mounts ride); the generator shows the current
-  asset's interaction and role summary so gameplay prefabs need no guessing.
-- **Spawn and AI metadata** - spawnable assets (character, monster, dragon,
-  skeleton, mummy, turret) carry a `spawn` field in export manifests and game
-  pack manifests with faction, AI behaviour, health, move speed, aggro range
-  and attack damage; the generator shows the current asset's spawn summary so
-  spawning, navigation and balance tuning need no guessing.
-- **Real-world scale** - the size carries a unit (m / cm / mm / ft / in) and a
-  fit axis (largest dimension / height / width / depth), and the origin can be
-  centred, planted on the ground, or pinned to the base or the top, so a
-  character stands on the floor while a prop stays centred. The measured span
-  in metres goes into the manifest.
-- **Engine packs** - Unity, Godot and Unreal presets. Godot packs ship a
-  `.tscn` that instances `LOD0.glb`; Unity and Unreal currently emit GLB,
-  materials and import metadata rather than pretending to produce native
-  `.prefab` / `.meta` / `.uasset`. The pack carries meshes, materials
-  (standalone albedo / normal / roughness / metalness / AO maps),
-  colliders, animation info, a whole-pack triangle / vertex / part / draw-call
-  budget and a manifest with engine-ready names; enabling "Include LOD levels"
-  writes a per-asset 0-3 LOD chain into it.
-- **Variant batches** - up to 12 seeded takes can be packed at once as one
-  engine pack, each with its own thumbnail, collider and 4-level LOD chain,
-  so a whole set of a prop's forms ships in a single download.
-- **Scene kits** - dungeon, camp, outpost, village, temple, battle, wilderness
-  and town kits place props deterministically from a seed, exportable as a
-  whole scene.
-- **Project templates** - prototype starter, fantasy dungeon, village
-  adventure, sci-fi outpost and wilderness survival each expand one brief into
-  categorized asset sets and complete scenes, shipping `project.json` and
-  `import-order.json` with the pack.
-- **Modular kit** - wall, window wall, door wall, corner wall, floor, stairs
-  and arch pieces tile exactly on a grid with cell size, run length, height and
-  thickness controls.
-- **Modular scene** - courtyard, tower room and corridor presets combine those
-  pieces on the same grid, deterministic from a seed and exportable as a whole
-  scene.
-- **Manifest** - export JSON / CSV with asset name, type, tags, triangle,
-  vertex, part and draw-call counts, the named part hierarchy and attachment
-  points, per-level LOD budgets and collider info.
-- **Download formats** - GLB, JSON glTF (`.gltf` with embedded resources) and
-  OBJ. The UI no longer offers FBX, which was never actually implemented.
+- Three LOD levels: generate in one click, preview per level, batch export; each level records triangle, vertex, part and draw-call budgets.
+- Colliders: box / sphere / capsule / cylinder / convex hull / mesh presets, sized from the actual mesh. Toggle "show colliders" in the preview to inspect the physics proxy before exporting.
+- Named parts and attachment points: exports record each part's center and bounding box plus recommended anchors (grip, foot, hinge, hook...). With the option on, GLB/glTF gains `anchor_<role>` empty nodes that engines can look up by name.
+- Gameplay and spawn metadata: chests open, portcullises rise, coins are picked up, monsters are enemies. Interaction roles, factions, AI behavior, health and combat values go into the manifest, ready for level scripts.
+- Engine packs: Unity, Godot and Unreal presets with meshes, separate textures (albedo / normal / roughness / metalness / AO), colliders, an animation list and a budget summary. The Godot pack includes a `.tscn` that instances `LOD0.glb` directly.
+- Real-world size and origin: units (m / cm / mm / ft / in), size basis (largest edge / height / width / depth) and origin placement are all selectable, written in meters into the manifest and the measured bounding box.
+
+#### Built-in chat and knowledge pack
+
+- The chat panel lives inside the workbench: talk about the current model while generating, exporting or reviewing, without opening another window.
+- Plain requests build: project, scene, set or single-asset needs phrased in ordinary language are recognized and routed into the matching generation pipeline, with confirmation, progress and results written back into the chat; plain questions are still forwarded to any connected agent.
+- Model configuration: store several model endpoints at once, each with its own API key (up to 12), and pick the one the chat uses by default from the models you configured.
+- Knowledge search: type "LOD budget", "whitebox", "topology" or "PBR" and get cited, license-annotated entries from the offline knowledge pack that ships with the software; click one to insert the citation into your message. The search needs no host and works offline.
+- Knowledge coverage: the glTF 2.0 specification and Khronos sample assets; professional modeling workflows such as whitebox and base mesh work, retopology and quad layout, UV unwrapping and texel density, high/low-poly baking, skinning budgets and PBR materials; plus public sources including Blender's official human basemesh (CC0), Smithsonian Open Access (CC0), OpenGameArt, Poly Haven, Kenney, Quaternius, Mixamo and NASA 3D Resources, each entry carrying its license.
+
+#### Review loop with agents
+
+- The agent runs `precheck` on the model file, then `open` to publish. You drop lettered pins on the mesh surface or paint connected near-planar regions with the bucket, then press "hand to the agent".
+- What the agent reads is a set of 3D coordinates, face references and version information; it can also point back at the surface it understood. Each version stays openable and annotatable.
+- Model limits: 600,000 triangles, 80 MB per file, 8192x8192 per texture (33,554,432 pixels total). `precheck` catches oversize before `open` and reports the simplification ratio instead of refusing afterwards.
+
+#### Desktop client
+
+- The Tauri desktop puts the same generator and workbench in a native window titled AI3D, with the repository's root `icon.png` as the application icon.
+- A watchdog probes the built-in service every 5 seconds: an exited process or repeated silence restarts it and re-points the window at the new port. Screen-off and sleep are not mistaken for a crash.
+- It listens on loopback only by default; LAN mode binds an authenticated private IPv4 and always requires authorization.
+- Desktop data (asset library, review state, published models) lives in the system application data directory.
+
+### 3. Install and download
+
+1. Desktop: download the package for your platform from [Releases](https://github.com/Mutantcat-Working-Group/AI3D/releases/latest): Linux x64 AppImage, DMGs for macOS Intel and Apple Silicon (ad-hoc signed, with an Applications drop shortcut), and NSIS installers for Windows x64 and ARM64 (self-signed). Every release also attaches `checksums-sha1.txt` and `checksums-md5.txt`:
+
+   ```sh
+   sha1sum -c checksums-sha1.txt
+   md5sum -c checksums-md5.txt
+   ```
+
+   The desktop build requires Node.js 22 or newer on the machine: the packaged built-in service still runs on Node, while the window itself uses the system WebView (WebView2 on Windows).
+2. Run in the browser: Node.js 22 or newer and a WebGL-capable browser.
+
+   ```sh
+   npm ci
+   npm run dev          # opens http://127.0.0.1:43175
+   ```
+3. MCP clients: add AI3D as an MCP server to Claude Code, Cursor and friends.
+
+   ```toml
+   [mcp_servers.ai3d]
+   command = "npx"
+   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20260929", "ai3d-mcp"]
+   ```
+
+   Always pin the tag. Without one, npm installs whatever the default branch holds that day and runs its `prepare` script. This repository is not published to the npm registry; the command uses npm as a package manager, not the registry as a source.
+4. Build from source (including a local installer):
+
+   ```sh
+   npm ci
+   npm run desktop:build            # packages the built-in service and frontend
+   npm run desktop:build:installer  # builds a local installer
+   ```
 
 ### 4. Quick start
 
-Node.js 22 or newer and a browser with WebGL.
+1. After launch the interface opens on the review workbench; press the "generator" button in the top right to enter the generator.
+2. Pick a quick template, or describe the asset you want in one sentence, and press "generate".
+3. Tune color, materials and seed; up to 12 variants per run. When a preview looks right, save it to the asset library.
+4. Open the export panel: choose a format (GLB / JSON glTF / OBJ) and an engine (Unity / Godot / Unreal), tick colliders, LOD, animation and named anchors, then download a single file or the whole pack.
+5. Change your mind or have a question? Use the "AI" panel on the right: ask about modeling knowledge, or say "generate a fantasy dungeon project" and let the workbench build it in place.
+6. To use your own models: open "settings", add a model endpoint and its API key. Multiple endpoints can be stored, and the chat then picks from the models you configured.
+7. To review with an agent: after it runs `precheck` and `open`, drop pins or paint regions on the mesh surface, then press "hand to the agent".
+
+### 5. Developer integration
+
+#### MCP Server
+
+- What it is: generation and review capabilities for MCP-compatible AI coding assistants, under the service name `org.mutantcat.ai3d`.
+- Install: `npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20260929" ai3d-mcp`.
+- Ownership: the `AI3D_OWNER` environment variable or the workspace decides who owns a draft; a second owner asking about the same project receives `RESUME_REQUIRED` until someone makes it clear the review is continuing.
+- Tools: `ai3d_generate` (`kind` selects single asset / set / scene / project, with `quality` and `profile`), `ai3d_catalog` (read-only catalog queries), `ai3d_knowledge` (knowledge pack search), plus `precheck`, `open`, `read` and the other review actions.
+- Delivery: only a host that can write back to its own session may deliver submissions. `status.notifier` reports the capabilities the host actually provides; when `send` is false, submission batches stay `waiting` (persisted, listable, collected by `read`), which is not a delivery failure.
+
+#### CLI
 
 ```sh
-npm ci
-npm run dev          # open http://127.0.0.1:43175
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"
+ai3d <action> --owner <id> …   # JSON in, JSON out
 ```
 
-Open the generator in the top-right corner, pick a quick template or describe
-an asset, and generate. Once the preview looks right, open the export panel,
-choose format (GLB / JSON glTF / OBJ), engine, collider and animation, and
-download a single file or a full pack. Generated results can be saved to the
-local asset library with tag filtering, favorites, renaming and batch export.
-
-### 5. The review loop with an agent
-
-Generated or imported models can also go through review: the agent runs
-`precheck` on the model file, then `open` to publish it. You open the URL in a
-modern WebGL browser, drop lettered pins directly on the mesh surface or fill
-connected near-flat regions with the paint bucket, and press **Send to Agent**.
-The agent reads positions, face references and version information rather than
-a screenshot, confirms what it understood, and publishes the next version.
-Every version stays open for marking.
-
-Telling an agent "the fillet on the left bracket is too sharp" costs a sentence
-and buys an argument about which bracket. A mark carries the mesh, the face,
-the barycentric coordinate and the version it was made against. The agent gets
-an address, not a description, and can say back which surface it understood.
-
-![A recording of dropping lettered pins A and B, filling a face with the paint bucket, and sending the batch to the agent](docs/media/demo.gif)
-
-### 6. Built-in chat and modeling knowledge
-
-AI3D now folds the chat panel into the workbench, so you can talk about the
-current model while generating, exporting or reviewing without opening a
-separate chat window. The conversation is still attached to the host session
-that started the task, so only a host that can write back into its own session
-can send and receive; without a return route the panel says chat is unavailable
-instead of inventing a reply. A knowledge search sits above the composer: type a
-term such as "LOD budget", "white model", "topology" or "PBR" and the offline
-pack returns cited entries with their source and licence. Selecting one inserts
-the citation straight into the message, and search works offline without a host.
-
-The pack copies no third-party files. It stores verifiable sources, licences
-and concise facts, which keeps it small enough to ship in an offline installer
-and reliable enough to hand to an agent as context. It currently covers:
-
-- The glTF 2.0 specification and the Khronos sample-asset corpus, for
-  interchange and compatibility questions.
-- Professional modeling craft: base-mesh and white-model workflow, the
-  blockout-to-detail pipeline order, retopology and quad flow, UV unwrapping and
-  texel density, high-to-low baking and normal maps, normal-map and shading
-  conventions, modular kits and trim sheets, rigging and skinning budgets,
-  texture packing and colour space, asset naming conventions, hard-surface
-  bevels and panel breaks, game asset budgets, LOD and virtualized geometry,
-  and PBR material authoring.
-- Public white-model and reference libraries: the Blender human base-mesh asset
-  bundle (CC0), Smithsonian Open Access 3D collection (CC0), OpenGameArt, Scan
-  the World sculpture scans, Mixamo rigged characters and animations, Poly
-  Haven, Kenney, Quaternius, Poly Pizza, Sketchfab's CC0 filter, Wikimedia
-  Commons 3D models, MakeHuman base meshes, the Z-Anatomy atlas and NASA 3D
-  Resources, each tagged with its licence; CC0 resources are marked as usable
-  commercially without attribution.
-
-An MCP client can call the `ai3d_knowledge` tool against the same pack and gets
-structured entries with citations. The chat panel and MCP share one
-implementation, so the two surfaces cannot drift apart. An MCP agent can also
-call `ai3d_generate` to create an asset from one sentence and write a GLB plus a
-Unity, Godot or Unreal engine pack into the workspace, sharing the same
-deterministic generator as the interface. Pass `kind: "set"` with an `items`
-list to build a whole asset set in one call and sum it in a set.json manifest,
-pass `kind: "scene"` to compose a whole level kit (dungeon, camp, outpost,
-village, temple, battle, wilderness, town) with an optional `design` object
-for custom spawn points, objectives, loot tables, locks and directives, or a
-`props` array that lays the scene out prop by prop, pinning each prop's type,
-size, position, rotation and seed instead of taking the kit's own arrangement,
-or pass `kind: "project"` with a `template` (prototype starter, fantasy
-dungeon, village adventure, sci-fi outpost or wilderness survival) to expand
-one brief into categorized asset sets, complete scene kits, an engine import
-order and a project.json delivery manifest. Project templates carry their
-quality and platform-profile defaults into every nested pack. The returned
-design audit validates scene metadata, and the same pack carries it into the
-engine-space scene blueprint. Single assets and whole sets also take
-`quality: "audit"` or `"repair"` to run the game-readiness gate: the score,
-failures and repairs are recorded in each asset's summary.json, in the pack's
-manifest.json/game-ready.json and in the set's set.json, sharing the
-workbench's game-ready path. Before generating, a read-only `ai3d_catalog` tool
-lists every asset type's tags, collider preset, animation clips, gameplay role
-and spawn/AI data, each scene kit's prop types and default level design, the
-scene design fields and the rules the audit enforces, and a `projects` mode
-that returns every complete project template with its asset groups, scene kits,
-defaults and aliases.
-
-### 7. Three ways in, one implementation
-
-The core does not know which harness is talking to it. All three entry points
-drive the same instance manager, with the same actions and the same results.
-
-| Entry point        | How                                                    | Ownership                       |
-| ------------------ | ------------------------------------------------------ | ------------------------------- |
-| OpenClaw extension | native `ai3d` tool                                     | derived from the host's session |
-| `ai3d` CLI         | `ai3d <action> --owner <id> ...`, JSON in, JSON out    | stated by the caller            |
-| `ai3d-mcp`         | stdio MCP server, added to your client's `mcp_servers` | the workspace, or `AI3D_OWNER`  |
-
-Ownership decides who may change a draft or switch the displayed version. A
-second owner asking about the same project is refused with `RESUME_REQUIRED`
-until someone says, explicitly, that the review is being continued.
-
-Only a host that can write into its own conversation can announce a submission.
-A client reached over a tool protocol cannot, because the protocol has no way to
-wake a conversation. `status.notifier` reports what the host actually offers.
-Where `send` is false, a submitted batch has the status `waiting`: durable,
-listed, collected by calling `read`. It is not a delivery that failed, and it
-never becomes stalled.
-
-### 8. Model limits
-
-| Limit          | Threshold                        | On exceeding                     |
-| -------------- | -------------------------------- | -------------------------------- |
-| Triangles      | 600,000                          | publish refused, `MODEL_LIMIT`   |
-| File size      | 80 MB                            | publish refused, `MODEL_LIMIT`   |
-| Texture pixels | 8192x8192 each, 33,554,432 total | publish refused, `TEXTURE_LIMIT` |
-
-A mark names a source face, so a model at the cap marks exactly as precisely as
-a small one. `precheck` measures a file before `open` and, when it is over,
-answers with the ratio to decimate by instead of a refusal after the fact.
-
-A STEP has no face count until it has been tessellated, so `precheck` tessellates
-it to measure it; `open` then publishes the same tessellation. Over the cap it
-says to simplify the model rather than giving a ratio, because there are no
-triangles in the file to decimate.
-
-### 9. Installing and running
-
-From a clone, for the full development environment:
-
-```sh
-npm ci
-npm run samples      # generate the parametric sample models
-npm test             # 414 unit and integration tests
-npm run test:browser # 94 real-Chromium tests
-```
-
-`npm run samples` writes to `tmp/samples` inside the clone, where the suites
-publish from. Work happens on `dev`; `main` is what has been released and is
-only ever fast-forwarded from `dev` with the tag going on straight afterwards.
-
-For an OpenClaw install, build and install the extension from that clone:
+#### OpenClaw extension
 
 ```sh
 npm run build:integration -- tmp/candidate/package
 openclaw plugins install ./tmp/candidate/package
 ```
 
-For any MCP client, install a tagged commit and point the client at it:
+#### Web API
 
-```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"
-```
+The built-in service's HTTP API listens on loopback only by default; LAN mode binds an authenticated private IPv4 and always requires authorization.
 
-```toml
-[mcp_servers.ai3d]
-command = "ai3d-mcp"
-```
-
-Or start it without installing:
-
-```toml
-[mcp_servers.ai3d]
-command = "npx"
-args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20260929", "ai3d-mcp"]
-```
-
-Pin the tag. Without one, npm takes whatever the default branch holds at that
-second and runs the `prepare` script in it. AI3D is not published on the npm
-registry; this repository installs as the package `org.mutantcat.ai3d`. The
-install commands above use npm as the package manager, not as the source.
-
-The workbench listens on the loopback address by default. LAN mode binds one
-verified private IPv4 and always requires authorization.
-
-### 10. Desktop client
-
-AI3D also ships as a Tauri desktop client that puts the same generator and
-workbench in its own window. The desktop app needs Node.js 22 or newer on the
-machine because the bundled service still runs under Node; the window uses the
-system WebView (WebView2 on Windows).
+#### Build and test from source
 
 ```sh
 npm ci
-npm run desktop:build                 # stage the service and web client into tmp/desktop-package
-npm run desktop:dev                   # open the desktop window in dev mode
-npm run desktop:build:installer       # build the NSIS installer (Windows)
+npm run samples      # generates the parametric sample models
+npm test             # 414 unit and integration tests
+npm run test:browser # 94 real-Chromium tests
 ```
 
-Installer output lands in `src-tauri/target/release/bundle/nsis/`. Pushing a
-`v*` tag makes GitHub Actions build and attach the following installers to the
-release: a Linux x64 AppImage, Intel and Apple Silicon macOS DMGs (ad-hoc
-signed, with an Applications drag link), and x64 and ARM64 Windows NSIS
-installers (self-signed, with Simplified Chinese, Traditional Chinese and
-English installer UI). Every release also carries `checksums-sha1.txt` and
-`checksums-md5.txt`, one line per installer, which `sha1sum -c` and `md5sum -c`
-verify as they stand. The application identifier is `org.mutantcat.ai3d`; the
-window title is AI3D and the icon is the repository's `icon.png`. Desktop data
-(the asset library, review state and published models) lives in the OS
-application data directory, and the bundled service only listens on the local
-loopback address.
+#### Documents
 
-The desktop shell hosts the bundled service and runs a watchdog thread over it:
-the window only points at the service after it writes its ready file, and from
-then on the shell probes `/api/health` every 5 seconds so a process exit, or
-three failed probes in a row, restarts the service and repoints the window at
-the new port, with backoff on repeated startup failures instead of spinning.
-Screen-off or sleep is not mistaken for a crash: the shell reads the wall-clock
-gap and clears the failure counter, so a laptop lid left closed overnight does
-not trigger a restart on wake. The page side refreshes the state, chat and MCP
-connections as soon as the tab becomes visible again, the window regains focus,
-the page is restored from the back-forward cache or the network comes back; a
-restarted service is a different process (new pid, no MCP sessions), so the page
-reloads the connection list instead of showing connections that no longer exist.
+- [AGENT-INTERFACE.md](AGENT-INTERFACE.md) — the interface contract for agent implementations
+- [docs/zh/](docs/zh/) — Chinese design documents: positioning, requirements, versioning rules, roadmap
+- [简体中文 README](README.md) — Chinese project description
 
-### 11. Roadmap
+### 6. Progress
 
-Plans, not promises: the order can change as people use it. Ideas and requests
-are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions).
+A plan is not a promise: order may shift in use. Ideas and requests are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions).
 
-- **1.4** - what the reviewer means reaches the agent: a submission carries
-  which way was up on the reviewer's screen, a mark can carry a short note, and
-  the reviewer can measure the model and attach the dimension to a mark.
-- **1.5** - every valid GLB opens and looks as its author made it: Draco,
-  Meshopt and KTX2 compression, rigged models in their bind pose, morph targets,
-  GPU instancing, a texture budget that fits a 4K PBR set, and `.gltf` with
-  external files.
-- **1.6** - showing a GLB as intended: animation poses, LOD sets and material
-  variants.
-- **1.7** - review aids for game assets: UV and checker views, per-channel
-  texture views, per-mesh triangle counts and a node tree with visibility.
-- **1.8 (done)** - game prop kits: dungeon pieces (brazier, runestone, spike
-  trap) and sci-fi pieces (turret, drone, comm antenna), with triangle, vertex
-  and part counts shown per asset so teams can check engine budgets before
-  export.
-- **1.9 (done)** - scene kits: eight presets including dungeon, camp and
-  outpost that place props deterministically from a seed, and export the whole
-  scene with named props intact.
-- **2.0 (done)** - animation playback: rigged animation you can play and step
-  through frame by frame.
-- **2.1 (done)** - built-in chat and modeling knowledge: talk to AI3D inside
-  the app, backed by a cited knowledge pack of public white-model and
-  professional modeling references, callable as an MCP tool.
-- **2.2 (done)** - knowledge pack maintenance: record source, license and
-  refresh date, support offline search and later incremental updates.
-- **2.3 (done)** - named part hierarchy and attachment points: export
-  manifests carry part bounds and recommended attachment coordinates, and the
-  generator shows a layout summary for the current asset.
-- **2.4 (done)** - more game asset templates: gate, wagon, cannon, grave,
-  ladder and candelabra, with type-specific tags, collider presets and default
-  PBR textures.
-- **2.5 (done)** - common prop templates: anvil, bookshelf, cauldron, throne,
-  bench and lantern, covering the forging, furniture, cooking and lighting
-  props that show up most often in public white-model packs, with type-specific
-  tags, collider presets and default PBR textures.
-- **2.6 (done)** - furniture and combat prop templates: table, chair, bed,
-  chandelier, armor stand and skeleton, covering the interior props and dungeon
-  enemies game packs reach for most, with type-specific tags, collider presets
-  and default PBR textures.
-- **2.7 (done)** - adventure supply and village templates: bread, pie, meat
-  leg, hay bale, rope coil, bucket, windmill, coin pile, minecart and berry
-  bush, covering food, supplies, village and mine scenes; the minecart ships a
-  wheel spin clip, and everything keeps type-specific tags, collider presets
-  and default PBR textures.
-- **2.8 (done)** - dungeon and wilderness templates: stone coffin, portcullis,
-  cage, bone pile, cobweb, lever, urn, mummy, beehive and wheat sheaf, covering
-  dungeon mechanisms, tombs, prisons and harvest fields; the coffin opens, the
-  portcullis raises, the lever pulls, the mummy lurches, the beehive buzzes and
-  the cobweb sways, and everything keeps type-specific tags, collider presets
-  and default PBR textures; the new templates now ship inside the dungeon,
-  outpost, village and wilderness scene kits.
-- **2.9 (done)** - gameplay metadata: every asset carries engine-readable
-  interaction and role descriptions (chests open, portcullises raise, torches
-  light, coins collect, monsters are enemies, mounts ride), written into
-  export manifests and game pack manifests, with a matching summary in the
-  generator.
-- **2.10 (done)** - spawn and AI metadata: character, monster, dragon,
-  skeleton, mummy and turret carry faction, AI behaviour, health, move speed,
-  aggro range and attack damage, written into export manifests and game pack
-  manifests, with a matching summary in the generator.
-- **2.11 (done)** - scene design metadata: all eight scene kits carry spawn
-  points, objectives, loot tables, lock states and director hints, written
-  into the scene userData, export manifests and a per-scene design.json in
-  game packs, with a matching summary in the generator.
-- **2.12 (done)** - scene design audit: level metadata is checked prop by prop
-  (spawn points, objectives, loot containers and items, locks and their
-  triggers), game packs also emit a design/<scene>.audit.json, the generator
-  shows a pass/warn/fail badge, and the eight kits gained the chest, lever,
-  gate and urn props their designs referenced.
-- **2.13 (done)** - engine scene blueprints: every scene with design metadata
-  also ships blueprints/<scene>.json, giving each prop's position, heading,
-  bounds and design role (loot container, locked prop) already converted into
-  the target engine's axis and units (Unity/Godot Y-up meters, Unreal Z-up
-  centimeters) so an editor script can place the level directly.
-- **2.14 (done)** - scene level readiness: a scene's design audit now folds
-  into the game pack's readiness summary and game-ready.json (a passing design
-  reads ready, any failing check reads needs-attention), and a pack that holds
-  only scenes still emits the readiness report without any mesh assets.
-- **2.15 (done)** - agent scene generation: `ai3d_generate` takes
-  `kind: "scene"` to compose one of the eight level kits (dungeon, camp,
-  outpost, village, temple, battle, wilderness, town) from a `type` or a
-  sentence, writing a GLB, an engine pack, the design metadata, the design
-  audit and an engine-space scene blueprint into the workspace.
-- **2.16 (done)** - blueprints mark spawn actors: creature props in a scene
-  blueprint now carry faction, AI behaviour, health, move speed, aggro range
-  and attack damage, collected into a top-level `spawns` list so a level script
-  can place the enemies straight from the blueprint.
-- **2.17 (done)** - scene packs ship an editor setup script: a designed scene
-  now emits a builder for the target engine (`blueprints/<scene>.unity.cs`,
-  `blueprints/<scene>.unreal.py` or `blueprints/<scene>.godot.gd`) next to the
-  blueprint. One menu command drops the composed model into the level and
-  places every prop anchor and enemy spawn at its blueprint transform, with the
-  combat stats attached to the spawn markers.
-- **2.18 (done)** - the generator edits level design in place: after composing a
-  scene you can add or remove spawn points, objectives, loot tables, locks and
-  directives, and the readiness badge re-audits on every edit. Saving and
-  reloading a scene restores the design metadata alongside props and theme, so
-  the blueprint, audit and engine setup script all carry the edited result.
-- **2.19 (done)** - agent-authored level design: `ai3d_generate` with
-  `kind: "scene"` now accepts a `design` object, letting chat and MCP supply
-  spawn points, objectives, loot tables, locks and directives through the same
-  audit, blueprint, engine-pack and setup-script path as in-app edits.
-- **2.20 (done)** - agent catalogue lookup: a read-only `ai3d_catalog` tool
-  whose `types` mode returns every asset type's tags, collider preset,
-  animation clips, gameplay role and spawn/AI data, whose `kits` mode returns
-  each scene kit's prop types and default level design, and whose `design`
-  mode describes the scene design fields and the audit rules; `query` and
-  `tags` filter the result, so a `type` or loot item key can be resolved
-  against the generator's own registry before anything is written.
-- **2.21 (done)** - agent-authored prop layout: `ai3d_generate` with
-  `kind: "scene"` now accepts a `props` array, letting chat and MCP pin each
-  prop's type, size, position, rotation and seed and replace the kit's default
-  arrangement; the design audit then checks loot containers and locks against
-  those placed props, and the blueprint, engine pack and builder script follow
-  the new layout. Passing `props` for a non-scene call is rejected.
-- **2.22 (done)** - agent-authored asset set: `ai3d_generate` now takes
-  `kind: "set"` with an `items` list (up to 32) to build a batch of props in
-  one call, sharing one style, engine and export switches while each item can
-  override its name, size, units, color and seed. Every asset gets its own
-  folder, duplicate names get a `-2` suffix, and a `set.json` manifest sums the
-  resolved settings and the triangle, vertex, part and draw-call totals. A set
-  seed derives each asset seed as `seed + index`, so the same request rebuilds
-  the same set.
-- **2.23 (done)** - workbench-authored asset set: the generator now has an
-  Asset Set field where one asset per line builds up to 32 props with the
-  panel's shared style, size unit, material and export settings. Duplicate IDs
-  get a `-2` suffix and the set seed derives each item's seed. Export writes
-  the batch into one target-engine pack with a `set.json` using the same schema
-  as the agent tool, recording each prompt, resolved setting, stats and model
-  file for later scripts and conversations.
-- **2.24 (done)** - agent generation quality gate: `ai3d_generate` takes a new
-  `quality` switch (`off`, `audit` or `repair`, default `off`), so chat and MCP
-  can audit a single asset or a whole set, or repair it first and then audit.
-  The readiness score and failures land in each asset's `summary.json`, in the
-  pack's `manifest.json`/`game-ready.json` and in the set's `set.json`, sharing
-  the workbench's game-ready audit and repair path; scenes keep their design
-  audit as the readiness source.
-- **2.25 (done)** - target platform asset profiles: the generator and
-  `ai3d_generate` (chat/MCP) take a new `profile` (`balanced` by default,
-  `mobile`, `desktop` or `vr`) that sets the triangle, draw-call, texture,
-  LOD, bone and animation-clip ceilings the readiness gate enforces. The
-  readiness block gains a `profile` and a `budget`, both written to
-  `summary.json`, `set.json`, the pack's `manifest.json` and `game-ready.json`
-  so a build machine reads the exact ceilings the assets were judged against.
-- **2.26 (done)** - complete project generation: `ai3d_generate` now takes
-  `kind: "project"` with a `template` (prototype starter, fantasy dungeon,
-  village adventure, sci-fi outpost or wilderness survival) and expands one
-  brief into categorized asset sets, complete scene kits and an engine import
-  order. The project root writes `project.json`, `import-order.json` and
-  `README.md`, aggregates triangle, vertex, part, draw-call and readiness
-  totals, and carries the template's `quality` and `profile` defaults into
-  every nested pack. `ai3d_catalog` also gains a `projects` mode for
-  discovering templates, groups, scenes, defaults and aliases before
-  generation.
-- **2.27 (done)** - workbench project generation: the generator panel gains a
-  Project strip that expands the prototype starter, fantasy dungeon, village
-  adventure, sci-fi outpost or wilderness survival template into categorized
-  asset sets and complete scene kits under one shared style, material and
-  export setting. Every record lands in the asset library and passes the
-  quality gate, and the export carries `project.json` and `import-order.json`
-  beside the flat `manifest.json`, matching the agent-facing project schema so
-  build scripts and chat read back the same plan.
-- **2.28 (done)** - projects from chat: when the built-in chat receives a brief
-  with a generation verb and a project template, such as "generate a fantasy
-  dungeon project", the workbench selects that template and runs the same
-  project pipeline, merging its asset sets and scene kits into the library.
-  Confirmation, progress and results are written back into the chat, so the
-  project still completes when the instance has no return route to an agent
-  conversation, while ordinary messages keep flowing to the connected agent.
-- **2.29 (done)** - assets and scenes from chat: the local generation bridge now
-  covers single assets, asset sets and scene kits as well as projects. A brief
-  with a generation verb is resolved in project, scene, set, asset order against
-  the existing pipelines, while confirmation, progress and results are written
-  back into the chat. Connected agents receive a notice so they do not generate
-  the same result twice, and ordinary questions still flow to the agent.
-- **2.30 (done)** - character armor family: helmets, chestplates, gauntlets and
-  boots now ship as export-ready templates with named parts, metal or leather
-  PBR defaults, collider presets, gameplay metadata and quick-template labels
-  in all six languages, ready for equipment and loot systems.
-- **2.31 (done)** - expanded weapon family: daggers, maces, staffs and halberds
-  now ship as export-ready templates with named parts, default PBR textures,
-  collider presets, grip attachment points, gameplay metadata and
-  quick-template labels in all six languages for melee, polearm and magic
-  weapon systems.
-- **2.32 (done)** - nature asset family: mushroom clusters, pine trees, palm
-  trees and bushes now ship as export-ready templates with named parts (stems
-  and caps, trunks and foliage, trunks and fronds, crowns and berries),
-  default PBR textures, collider presets, gameplay metadata and quick-template
-  labels in all six languages for wilderness, forest and village scenes.
+- [X] 102 asset templates and a deterministic generator
+- [X] Engine pack exports (Unity / Godot / Unreal) with LODs, colliders and animation
+- [X] Named parts, attachment points, gameplay and spawn metadata
+- [X] Asset set, scene kit and project template generation
+- [X] Built-in chat that generates assets, sets, scenes and projects in-app
+- [X] Offline modeling knowledge pack (sourced and licensed, shared by chat and MCP)
+- [X] Three entries on one implementation: MCP Server, OpenClaw extension, CLI
+- [X] Review loop with agents (pins, paint bucket, precheck / open)
+- [X] Tauri desktop client (Windows / macOS / Linux) with watchdog
+- [X] Six-language interface (Simplified Chinese, Traditional Chinese, English, Deutsch, Français, 日本語)
+- [ ] Model compatibility extensions: Draco / Meshopt / KTX2 compression, glTF with external files, morph targets
 
-### 12. Documentation
+[Apache-2.0](LICENSE)
 
-- [AGENT-INTERFACE.md](AGENT-INTERFACE.md) - the contract an agent implements
-- [docs/zh/](docs/zh/) - design documents, in Chinese: positioning,
-  requirements, versioning rules, roadmap
-- [Chinese README](README.md) - the Chinese project overview
+---
 
-### 13. License
-
-Apache-2.0. See [LICENSE](LICENSE).
-
-STEP support is the one part that is not ours. Reading a STEP means evaluating
-its surfaces, which AI3D does with
-[occt-import-js](https://github.com/kovacsv/occt-import-js), a WebAssembly build
-of [Open CASCADE Technology](https://github.com/Open-Cascade-SAS/OCCT). Both are
-**LGPL-2.1** and stay that way: from a clone or an npm install the library
-resolves as an ordinary dependency, and the OpenClaw package carries it as two
-unmodified files in `vendor/` with both licence texts beside them, rather than
-folded into a bundle. Replacing them is a matter of swapping those two files.
-Everything AI3D itself remains Apache-2.0.
+STEP support is the only part that is not this project's code. Reading STEP requires evaluating its surfaces, which AI3D does with [occt-import-js](https://github.com/kovacsv/occt-import-js), a WebAssembly build of [Open CASCADE Technology](https://github.com/Open-Cascade-SAS/OCCT). Both are **LGPL-2.1** and are kept as-is. AI3D's own code remains Apache-2.0.
