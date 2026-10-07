@@ -12,6 +12,14 @@ on:
 permissions:
   contents: write
 
+# gh works out which repository to talk to by looking for a git directory,
+# and the checksums job runs without one. The first release to carry that
+# job spent its whole run failing on "not a git repository" for that reason
+# alone. Name the repository once here instead of repeating a flag on every
+# call that needs it.
+env:
+  GH_REPO: ${{ github.repository }}
+
 jobs:
   release:
     name: publish the tag as a release
