@@ -86,7 +86,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
    ```toml
    [mcp_servers.ai3d]
    command = "npx"
-   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20260929", "ai3d-mcp"]
+   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20261007", "ai3d-mcp"]
    ```
 
    务必固定 tag。没有 tag 时，npm 会安装默认分支当时的内容并运行其中的 `prepare` 脚本。本仓库未发布到 npm registry；安装命令用 npm 作为包管理器，而不是把 npm registry 当作来源。
@@ -113,7 +113,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 #### MCP Server
 
 - 说明：为 MCP 兼容的 AI 编程助手提供生成与审阅能力，服务名 `org.mutantcat.ai3d`。
-- 安装：`npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20260929" ai3d-mcp`。
+- 安装：`npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20261007" ai3d-mcp`。
 - 归属：`AI3D_OWNER` 环境变量或工作区决定草稿归属；第二个归属者询问同一项目会收到 `RESUME_REQUIRED`，直到有人明确说明审阅正在继续。
 - 工具：`ai3d_generate`（`kind` 区分单件／套装／场景／项目，支持 `quality` 与 `profile`）、`ai3d_catalog`（只读目录查询）、`ai3d_knowledge`（知识包检索），以及 `precheck`／`open`／`read` 等审阅动作。
 - 投递：只有能写回自己会话的宿主可以主动投递提交；`status.notifier` 报告宿主实际提供的能力，`send` 为 false 时提交批次状态为 `waiting`——可持久化、可列出，不是投递失败。
@@ -121,7 +121,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 #### CLI
 
 ```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20261007"
 ai3d <action> --owner <id> …   # JSON 进 JSON 出
 ```
 

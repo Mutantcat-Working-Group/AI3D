@@ -1,6 +1,6 @@
 [package]
 name = "ai3d-desktop"
-version = "1.0.20260929"
+version = "1.0.20261007"
 description = "AI3D desktop client"
 authors = ["Kelven Ling <kelvenlinglzy@gmail.com>"]
 license = "Apache-2.0"

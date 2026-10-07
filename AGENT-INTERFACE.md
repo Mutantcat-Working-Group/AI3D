@@ -27,7 +27,7 @@ second and runs the `prepare` script in it.
 
 | Host             | Install                                                                                                                     | It worked when                                                            |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Any MCP client   | `npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"`, then `command = "ai3d-mcp"`                                 | `initialize` answers with the operating instructions, not an empty string |
+| Any MCP client   | `npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20261007"`, then `command = "ai3d-mcp"`                                 | `initialize` answers with the operating instructions, not an empty string |
 | CLI, any harness | the same install; call `ai3d <action> --owner <id>`                                                                         | `ai3d help` prints the documentation paths                                |
 | OpenClaw         | from a clone: `npm run build:integration -- tmp/candidate/package`, then `openclaw plugins install ./tmp/candidate/package` | the native `ai3d` tool answers `inspect`                                  |
 

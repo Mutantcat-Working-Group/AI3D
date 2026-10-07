@@ -86,7 +86,7 @@ Core value:
    ```toml
    [mcp_servers.ai3d]
    command = "npx"
-   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20260929", "ai3d-mcp"]
+   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20261007", "ai3d-mcp"]
    ```
 
    Always pin the tag. Without one, npm installs whatever the default branch holds that day and runs its `prepare` script. This repository is not published to the npm registry; the command uses npm as a package manager, not the registry as a source.
@@ -113,7 +113,7 @@ Core value:
 #### MCP Server
 
 - What it is: generation and review capabilities for MCP-compatible AI coding assistants, under the service name `org.mutantcat.ai3d`.
-- Install: `npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20260929" ai3d-mcp`.
+- Install: `npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20261007" ai3d-mcp`.
 - Ownership: the `AI3D_OWNER` environment variable or the workspace decides who owns a draft; a second owner asking about the same project receives `RESUME_REQUIRED` until someone makes it clear the review is continuing.
 - Tools: `ai3d_generate` (`kind` selects single asset / set / scene / project, with `quality` and `profile`), `ai3d_catalog` (read-only catalog queries), `ai3d_knowledge` (knowledge pack search), plus `precheck`, `open`, `read` and the other review actions.
 - Delivery: only a host that can write back to its own session may deliver submissions. `status.notifier` reports the capabilities the host actually provides; when `send` is false, submission batches stay `waiting` (persisted, listable, collected by `read`), which is not a delivery failure.
@@ -121,7 +121,7 @@ Core value:
 #### CLI
 
 ```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20260929"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20261007"
 ai3d <action> --owner <id> …   # JSON in, JSON out
 ```
 
