@@ -290,6 +290,19 @@ test("generation refuses workspace symlinks and cannot override the host workspa
   assert.equal(scoped.result.isError, undefined);
   assert.equal(fs.existsSync(path.join(dir, "scoped")), true);
   assert.equal(fs.existsSync(path.join(outside, "scoped")), false);
+  const repeated = await handle({
+    id: 82,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: { type: "sword", output: "scoped" },
+    },
+  });
+  assert.equal(repeated.result.isError, true);
+  assert.match(
+    JSON.parse(repeated.result.content[0].text).message,
+    /already exists/,
+  );
 });
 
 test("the generate tool resolves a natural-language prompt", async (t) => {

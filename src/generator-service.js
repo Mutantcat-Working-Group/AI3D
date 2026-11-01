@@ -588,6 +588,20 @@ function resolveOutputDir(workspace, output) {
   return target;
 }
 
+function claimOutputDirectory(target) {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  try {
+    fs.mkdirSync(target);
+  } catch (error) {
+    if (error.code === "EEXIST")
+      throw new GenerationError(
+        BAD_OUTPUT,
+        "The output candidate already exists; choose a new output directory or name.",
+      );
+    throw error;
+  }
+}
+
 function writeZipContents(zip, packDir) {
   const unpacked = unzipSync(
     new Uint8Array(zip.buffer, zip.byteOffset, zip.byteLength),
@@ -632,6 +646,7 @@ async function writePackArtifacts({
     path.relative(workspace, path.join(outDir, id)),
   );
   const packDir = path.join(itemDir, "pack");
+  claimOutputDirectory(itemDir);
   fs.mkdirSync(packDir, { recursive: true });
   const packZip = path.join(itemDir, `${id}.zip`);
   const glb = path.join(itemDir, `${id}.glb`);
@@ -954,6 +969,7 @@ export async function generateProjectToPack({
   const projectId = assetSlug(name || resolvedTemplate.id);
   const projectOutput = path.posix.join(baseOutput, projectId);
   const projectDir = resolveOutputDir(workspace, projectOutput);
+  claimOutputDirectory(projectDir);
   const workspaceRoot = path.resolve(workspace);
   const relative = (absolute) =>
     path.relative(workspaceRoot, absolute).split(path.sep).join("/");
@@ -1259,6 +1275,7 @@ export async function generateSetToPack({
   const baseOutput =
     typeof output === "string" && output.trim() ? output : "generated-assets";
   const setOutput = path.posix.join(baseOutput, setId);
+  claimOutputDirectory(resolveOutputDir(workspace, setOutput));
   const workspaceRoot = path.resolve(workspace);
   const usedIds = new Set();
   const relative = (absolute) =>

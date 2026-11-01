@@ -407,7 +407,7 @@ export class McpConnections {
     try {
       return await session.connect();
     } catch (error) {
-      this.sessions.delete(id);
+      if (this.sessions.get(id) === session) this.sessions.delete(id);
       throw error;
     }
   }
