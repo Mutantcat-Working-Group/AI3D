@@ -48,7 +48,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 
 - 聊天面板收在工作台内：生成、导出或审阅时都能就当前模型直接对话，不用另开窗口。
 - 说人话就能建：带生成意图的项目／场景／套装／单件需求会被识别并直接走对应生成管线，确认、进度与结果都回写聊天区；普通问题仍原样转发给已连接的 Agent。
-- 模型配置：支持同时保存多个模型端点并分别填写 API Key（最多 12 个），默认聊天从已配置的模型中选择。
+- 模型配置：支持保存最多 12 个 OpenAI 兼容端点，填写 API Base URL、API Key 和默认模型；可获取模型列表，也可直接填写模型 ID。本地免密端点可留空 Key。
 - 知识检索：输入「LOD 预算」「白模」「拓扑」「PBR」等关键词，从随软件发布的离线知识包取回带来源与许可的条目，点选后直接插入消息；检索不依赖宿主，离线也能用。
 - 知识包覆盖：glTF 2.0 规范与 Khronos 示例资产；白模与基础网格工作流、重拓扑与四边面布线、UV 展开与像素密度、高低模烘焙、骨骼绑定预算、PBR 材质等专业建模流程；Blender 官方人体白模（CC0）、史密森尼开放获取藏品（CC0）、OpenGameArt、Poly Haven、Kenney、Quaternius、Mixamo、NASA 3D Resources 等公共来源，逐条标注许可。
 
@@ -67,9 +67,10 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 
 ### 三、安装与下载
 
-1. 桌面端：从 [Releases](https://github.com/Mutantcat-Working-Group/AI3D/releases/latest) 下载对应平台安装包——Linux x64 AppImage、macOS Intel 与 Apple Silicon 的 DMG（ad-hoc 签名，内含 Applications 拖放快捷方式）、Windows x64 与 ARM64 的 NSIS 安装包（自签名）。每个 Release 附带 `checksums-sha1.txt` 与 `checksums-md5.txt`：
+1. 桌面端：从 [Releases](https://github.com/Mutantcat-Working-Group/AI3D/releases/latest) 下载对应平台安装包——Linux x64 与 ARM64 AppImage、macOS Intel 与 Apple Silicon 的 DMG（ad-hoc 签名，内含 Applications 拖放快捷方式）、Windows x64 与 ARM64 的 NSIS 安装包（自签名）。每个 Release 附带 SHA-256 及兼容旧流程的 SHA-1／MD5 校验文件：
 
    ```sh
+   sha256sum -c checksums-sha256.txt
    sha1sum -c checksums-sha1.txt
    md5sum -c checksums-md5.txt
    ```
@@ -108,7 +109,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 3. 调节颜色、材质与种子，一次最多生成 12 个变体；预览满意后保存进资产库。
 4. 打开导出面板：选格式（GLB／JSON glTF／OBJ）与引擎（Unity／Godot／Unreal），勾选碰撞体、LOD、动画与命名附加点，下载单文件或整包。
 5. 想改主意或有问题：右侧「AI」面板直接聊天——可以问建模知识，也可以说「生成一个奇幻地牢项目」让工作台就地开建。
-6. 使用自己的模型：打开「设置」，添加模型端点并填写 API Key，可保存多个端点；之后聊天默认从已配置的模型里选。
+6. 使用自己的模型：打开「设置」，添加 OpenAI 兼容的 API Base URL（如 `https://api.openai.com/v1`）、API Key 和模型 ID，设为默认并保存。Ollama 可填写 `http://127.0.0.1:11434/v1`、留空 Key，并填写本机已安装的模型名；无需先获取模型列表。
 7. 与 Agent 协作审阅：Agent 对模型运行 `precheck` 并 `open` 后，你在网格表面打针或用油漆桶标注，再按「交给 Agent」。
 
 ### 五、开发者集成

@@ -48,7 +48,7 @@ Core value:
 
 - The chat panel lives inside the workbench: talk about the current model while generating, exporting or reviewing, without opening another window.
 - Plain requests build: project, scene, set or single-asset needs phrased in ordinary language are recognized and routed into the matching generation pipeline, with confirmation, progress and results written back into the chat; plain questions are still forwarded to any connected agent.
-- Model configuration: store several model endpoints at once, each with its own API key (up to 12), and pick the one the chat uses by default from the models you configured.
+- Model configuration: store up to 12 OpenAI-compatible endpoints with an API base URL, API key and default model. Fetch the model list or enter a model ID directly; keyless local endpoints can leave the key empty.
 - Knowledge search: type "LOD budget", "whitebox", "topology" or "PBR" and get cited, license-annotated entries from the offline knowledge pack that ships with the software; click one to insert the citation into your message. The search needs no host and works offline.
 - Knowledge coverage: the glTF 2.0 specification and Khronos sample assets; professional modeling workflows such as whitebox and base mesh work, retopology and quad layout, UV unwrapping and texel density, high/low-poly baking, skinning budgets and PBR materials; plus public sources including Blender's official human basemesh (CC0), Smithsonian Open Access (CC0), OpenGameArt, Poly Haven, Kenney, Quaternius, Mixamo and NASA 3D Resources, each entry carrying its license.
 
@@ -67,9 +67,10 @@ Core value:
 
 ### 3. Install and download
 
-1. Desktop: download the package for your platform from [Releases](https://github.com/Mutantcat-Working-Group/AI3D/releases/latest): Linux x64 AppImage, DMGs for macOS Intel and Apple Silicon (ad-hoc signed, with an Applications drop shortcut), and NSIS installers for Windows x64 and ARM64 (self-signed). Every release also attaches `checksums-sha1.txt` and `checksums-md5.txt`:
+1. Desktop: download the package for your platform from [Releases](https://github.com/Mutantcat-Working-Group/AI3D/releases/latest): Linux x64 and ARM64 AppImages, DMGs for macOS Intel and Apple Silicon (ad-hoc signed, with an Applications drop shortcut), and NSIS installers for Windows x64 and ARM64 (self-signed). Every release attaches SHA-256 checksums plus SHA-1/MD5 files for existing workflows:
 
    ```sh
+   sha256sum -c checksums-sha256.txt
    sha1sum -c checksums-sha1.txt
    md5sum -c checksums-md5.txt
    ```
@@ -108,7 +109,7 @@ Core value:
 3. Tune color, materials and seed; up to 12 variants per run. When a preview looks right, save it to the asset library.
 4. Open the export panel: choose a format (GLB / JSON glTF / OBJ) and an engine (Unity / Godot / Unreal), tick colliders, LOD, animation and named anchors, then download a single file or the whole pack.
 5. Change your mind or have a question? Use the "AI" panel on the right: ask about modeling knowledge, or say "generate a fantasy dungeon project" and let the workbench build it in place.
-6. To use your own models: open "settings", add a model endpoint and its API key. Multiple endpoints can be stored, and the chat then picks from the models you configured.
+6. To use your own model: open "settings", add an OpenAI-compatible API base URL (such as `https://api.openai.com/v1`), API key and model ID, select it as the default and save. For Ollama, use `http://127.0.0.1:11434/v1`, leave the key empty and enter a locally installed model name. Fetching a model list is optional.
 7. To review with an agent: after it runs `precheck` and `open`, drop pins or paint regions on the mesh surface, then press "hand to the agent".
 
 ### 5. Developer integration
