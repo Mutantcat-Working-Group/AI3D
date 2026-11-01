@@ -75,21 +75,24 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
    ```
 
    桌面版需要本机安装 Node.js 22 或更新版本——打包后的内置服务仍由 Node 运行，窗口本身使用系统 WebView（Windows 上为 WebView2）。
+
 2. 浏览器直接运行：需要 Node.js 22 或更新版本与支持 WebGL 的浏览器。
 
    ```sh
    npm ci
    npm run dev          # 打开 http://127.0.0.1:43175
    ```
+
 3. MCP 客户端：把 AI3D 作为 MCP 服务器接入 Claude Code、Cursor 等 AI 编程助手。
 
    ```toml
    [mcp_servers.ai3d]
    command = "npx"
-   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20261101", "ai3d-mcp"]
+   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.1.20261101", "ai3d-mcp"]
    ```
 
    务必固定 tag。没有 tag 时，npm 会安装默认分支当时的内容并运行其中的 `prepare` 脚本。本仓库未发布到 npm registry；安装命令用 npm 作为包管理器，而不是把 npm registry 当作来源。
+
 4. 源码构建（含本地安装包）：
 
    ```sh
@@ -113,7 +116,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 #### MCP Server
 
 - 说明：为 MCP 兼容的 AI 编程助手提供生成与审阅能力，服务名 `org.mutantcat.ai3d`。
-- 安装：`npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20261101" ai3d-mcp`。
+- 安装：`npx -p "github:Mutantcat-Working-Group/AI3D#v1.1.20261101" ai3d-mcp`。
 - 归属：`AI3D_OWNER` 环境变量或工作区决定草稿归属；第二个归属者询问同一项目会收到 `RESUME_REQUIRED`，直到有人明确说明审阅正在继续。
 - 工具：`ai3d_generate`（`kind` 区分单件／套装／场景／项目，支持 `quality` 与 `profile`）、`ai3d_catalog`（只读目录查询）、`ai3d_knowledge`（知识包检索），以及 `precheck`／`open`／`read` 等审阅动作。
 - 投递：只有能写回自己会话的宿主可以主动投递提交；`status.notifier` 报告宿主实际提供的能力，`send` 为 false 时提交批次状态为 `waiting`——可持久化、可列出，不是投递失败。
@@ -121,7 +124,7 @@ AI3D（中文名：AI3D模型）是一个游戏 3D 资产生成器：一句话�
 #### CLI
 
 ```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20261101"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.1.20261101"
 ai3d <action> --owner <id> …   # JSON 进 JSON 出
 ```
 
@@ -155,16 +158,16 @@ npm run test:browser # 95 real-Chromium tests
 
 计划不是承诺：使用中可能会调整顺序。想法和需求欢迎发到 [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions)。
 
-- [X] 102 类资产模板与确定性生成器
-- [X] 引擎包导出（Unity／Godot／Unreal）、LOD、碰撞体、动画
-- [X] 命名部位、附加点、玩法与出生元数据
-- [X] 资产套装、场景套装与项目模板生成
-- [X] 内置聊天：软件内对话生成资产、套装、场景与项目
-- [X] 离线建模知识包（带来源与许可，聊天与 MCP 共用）
-- [X] MCP Server、OpenClaw 扩展、CLI 三种入口，同一套实现
-- [X] 与 Agent 的审阅闭环（定位针、油漆桶、precheck／open）
-- [X] Tauri 桌面客户端（Windows／macOS／Linux）与看门狗
-- [X] 六语言界面（简体中文、繁体中文、English、Deutsch、Français、日本語）
+- [x] 102 类资产模板与确定性生成器
+- [x] 引擎包导出（Unity／Godot／Unreal）、LOD、碰撞体、动画
+- [x] 命名部位、附加点、玩法与出生元数据
+- [x] 资产套装、场景套装与项目模板生成
+- [x] 内置聊天：软件内对话生成资产、套装、场景与项目
+- [x] 离线建模知识包（带来源与许可，聊天与 MCP 共用）
+- [x] MCP Server、OpenClaw 扩展、CLI 三种入口，同一套实现
+- [x] 与 Agent 的审阅闭环（定位针、油漆桶、precheck／open）
+- [x] Tauri 桌面客户端（Windows／macOS／Linux）与看门狗
+- [x] 六语言界面（简体中文、繁体中文、English、Deutsch、Français、日本語）
 - [ ] 模型兼容性扩展：Draco／Meshopt／KTX2 压缩、外部文件 glTF、形态目标
 
 [Apache-2.0](LICENSE)

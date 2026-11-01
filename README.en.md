@@ -75,21 +75,24 @@ Core value:
    ```
 
    The desktop build requires Node.js 22 or newer on the machine: the packaged built-in service still runs on Node, while the window itself uses the system WebView (WebView2 on Windows).
+
 2. Run in the browser: Node.js 22 or newer and a WebGL-capable browser.
 
    ```sh
    npm ci
    npm run dev          # opens http://127.0.0.1:43175
    ```
+
 3. MCP clients: add AI3D as an MCP server to Claude Code, Cursor and friends.
 
    ```toml
    [mcp_servers.ai3d]
    command = "npx"
-   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.0.20261101", "ai3d-mcp"]
+   args = ["-p", "github:Mutantcat-Working-Group/AI3D#v1.1.20261101", "ai3d-mcp"]
    ```
 
    Always pin the tag. Without one, npm installs whatever the default branch holds that day and runs its `prepare` script. This repository is not published to the npm registry; the command uses npm as a package manager, not the registry as a source.
+
 4. Build from source (including a local installer):
 
    ```sh
@@ -113,7 +116,7 @@ Core value:
 #### MCP Server
 
 - What it is: generation and review capabilities for MCP-compatible AI coding assistants, under the service name `org.mutantcat.ai3d`.
-- Install: `npx -p "github:Mutantcat-Working-Group/AI3D#v1.0.20261101" ai3d-mcp`.
+- Install: `npx -p "github:Mutantcat-Working-Group/AI3D#v1.1.20261101" ai3d-mcp`.
 - Ownership: the `AI3D_OWNER` environment variable or the workspace decides who owns a draft; a second owner asking about the same project receives `RESUME_REQUIRED` until someone makes it clear the review is continuing.
 - Tools: `ai3d_generate` (`kind` selects single asset / set / scene / project, with `quality` and `profile`), `ai3d_catalog` (read-only catalog queries), `ai3d_knowledge` (knowledge pack search), plus `precheck`, `open`, `read` and the other review actions.
 - Delivery: only a host that can write back to its own session may deliver submissions. `status.notifier` reports the capabilities the host actually provides; when `send` is false, submission batches stay `waiting` (persisted, listable, collected by `read`), which is not a delivery failure.
@@ -121,7 +124,7 @@ Core value:
 #### CLI
 
 ```sh
-npm i -g "github:Mutantcat-Working-Group/AI3D#v1.0.20261101"
+npm i -g "github:Mutantcat-Working-Group/AI3D#v1.1.20261101"
 ai3d <action> --owner <id> …   # JSON in, JSON out
 ```
 
@@ -155,16 +158,16 @@ npm run test:browser # 95 real-Chromium tests
 
 A plan is not a promise: order may shift in use. Ideas and requests are welcome in [Discussions](https://github.com/Mutantcat-Working-Group/AI3D/discussions).
 
-- [X] 102 asset templates and a deterministic generator
-- [X] Engine pack exports (Unity / Godot / Unreal) with LODs, colliders and animation
-- [X] Named parts, attachment points, gameplay and spawn metadata
-- [X] Asset set, scene kit and project template generation
-- [X] Built-in chat that generates assets, sets, scenes and projects in-app
-- [X] Offline modeling knowledge pack (sourced and licensed, shared by chat and MCP)
-- [X] Three entries on one implementation: MCP Server, OpenClaw extension, CLI
-- [X] Review loop with agents (pins, paint bucket, precheck / open)
-- [X] Tauri desktop client (Windows / macOS / Linux) with watchdog
-- [X] Six-language interface (Simplified Chinese, Traditional Chinese, English, Deutsch, Français, 日本語)
+- [x] 102 asset templates and a deterministic generator
+- [x] Engine pack exports (Unity / Godot / Unreal) with LODs, colliders and animation
+- [x] Named parts, attachment points, gameplay and spawn metadata
+- [x] Asset set, scene kit and project template generation
+- [x] Built-in chat that generates assets, sets, scenes and projects in-app
+- [x] Offline modeling knowledge pack (sourced and licensed, shared by chat and MCP)
+- [x] Three entries on one implementation: MCP Server, OpenClaw extension, CLI
+- [x] Review loop with agents (pins, paint bucket, precheck / open)
+- [x] Tauri desktop client (Windows / macOS / Linux) with watchdog
+- [x] Six-language interface (Simplified Chinese, Traditional Chinese, English, Deutsch, Français, 日本語)
 - [ ] Model compatibility extensions: Draco / Meshopt / KTX2 compression, glTF with external files, morph targets
 
 [Apache-2.0](LICENSE)

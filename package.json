@@ -1,6 +1,6 @@
 {
   "name": "org.mutantcat.ai3d",
-  "version": "1.0.20261101",
+  "version": "1.1.20261101",
   "private": true,
   "license": "Apache-2.0",
   "author": "Kelven Ling <kelvenlinglzy@gmail.com>",
@@ -53,22 +53,22 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "ajv": "8.17.1",
+    "ajv": "^8.20.0",
     "cross-spawn": "7.0.6",
-    "express": "^5.1.0",
+    "express": "^5.3.0",
     "fflate": "^0.8.3",
     "image-size": "^2.0.4",
     "occt-import-js": "^0.0.23",
     "three": "^0.180.0",
     "three-mesh-bvh": "^0.9.15",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@tauri-apps/cli": "^2.12.0",
     "esbuild": "0.28.2",
     "prettier": "^3.9.8",
-    "vite": "^7.1.0"
+    "vite": "^7.3.7"
   },
   "description": "Game 3D asset generator: describe a prop, character or level and export game-ready models for Unity, Godot and Unreal."
 }
