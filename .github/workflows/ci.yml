@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   push:
   pull_request:
 
@@ -16,6 +17,18 @@ permissions:
 # which is the supply-chain hole this file would otherwise open on our behalf.
 # The comment says which release each SHA was, so upgrading stays readable.
 jobs:
+  windows:
+    name: Windows command and protocol regression tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/command.test.mjs tests/bridge.test.mjs tests/mcp-client.test.mjs tests/chat-config.test.mjs tests/permissions.test.mjs
+
   checks:
     name: i18n, format, unit tests
     runs-on: ubuntu-latest

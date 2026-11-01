@@ -220,6 +220,7 @@ export default {
   "settings.apiKeyPlaceholder": "粘贴密钥，它只会保存在本机。",
   "settings.loadModels": "加载模型",
   "settings.defaultModel": "默认模型",
+  "settings.modelId": "模型 ID",
   "settings.save": "保存",
   "settings.saved": "已保存。",
   "settings.loadingModels": "正在加载模型…",

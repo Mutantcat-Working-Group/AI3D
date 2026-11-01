@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { imageSize, disableTypes, types as imageTypes } from "image-size";
 import { ReviewError, atomicJson } from "./store.mjs";
 import { convertStepDetached, STEP_FORMATS } from "./step.mjs";
+import { relativePosix } from "./paths.mjs";
 
 // Also disable decoder fallback: a malformed RIFF header must not reach a
 // different format's parser after the supported-format signature check.
@@ -353,7 +354,7 @@ export async function importModel(
       format: "glb",
       sha256: meshHash,
       filename: `${meshHash}.glb`,
-      stored: path.relative(workspace, meshTarget),
+      stored: relativePosix(workspace, meshTarget),
       bytes: derived.glb.length,
       meshes: derived.meshCount,
       brepFaces: derived.brepFaces,
@@ -372,10 +373,10 @@ export async function importModel(
        word instead put "in" beside millimetre coordinates. */
     units: step ? "mm" : String(units).slice(0, 30),
     source: source
-      ? path.relative(workspace, path.resolve(workspace, source))
+      ? relativePosix(workspace, path.resolve(workspace, source))
       : null,
-    original: path.relative(workspace, actual),
-    stored: path.relative(workspace, target),
+    original: relativePosix(workspace, actual),
+    stored: relativePosix(workspace, target),
     bytes: buffer.length,
     ...metadata,
     ...(mesh ? { mesh } : {}),

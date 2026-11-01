@@ -62,7 +62,18 @@ export function matchLocale(tag) {
 
 /* `navigator.languages` is the ordered list the user actually set, so the first
    entry that has a catalogue wins; `navigator.language` alone would ignore a
-   second and third preference that we can serve. */
+   second and third preference that we can serve.
+
+   The lookup is gated on `window` for the same reason `readRequested` gates on
+   it: Node 21 and later define a `navigator` global of their own, carrying the
+   machine's language. Reading it unconditionally made a Node process that
+   merely imported this module answer in the developer's language, so the same
+   catalogue came out differently depending on where the code ran. */
+function browserLanguages() {
+  if (typeof window === "undefined") return [];
+  return navigator.languages || [navigator.language];
+}
+
 export function pickLocale(requested, navigatorLanguages) {
   const tags = [
     ...(requested ? [requested] : []),
@@ -90,12 +101,7 @@ function readRequested() {
   }
 }
 
-let locale = pickLocale(
-  readRequested(),
-  typeof navigator === "undefined"
-    ? []
-    : navigator.languages || [navigator.language],
-);
+let locale = pickLocale(readRequested(), browserLanguages());
 
 export function currentLocale() {
   return locale;

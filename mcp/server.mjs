@@ -14,6 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
+import Ajv from "ajv";
 import { fileURLToPath } from "node:url";
 import { InstanceManager, inspectInstall } from "../integration/manager.mjs";
 import { precheckModel, stepMeshFor } from "../integration/precheck.mjs";
@@ -395,6 +396,14 @@ export const CATALOG_TOOL = {
   },
 };
 
+const ajv = new Ajv({ strict: false, allErrors: true });
+const toolValidators = new Map(
+  [TOOL, KNOWLEDGE_TOOL, CATALOG_TOOL, GENERATE_TOOL].map((tool) => [
+    tool.name,
+    ajv.compile(tool.inputSchema),
+  ]),
+);
+
 export function createHandler({
   workspace = process.cwd(),
   root = ROOT,
@@ -417,10 +426,23 @@ export function createHandler({
       ...managerOptions,
     });
   return async function handle(message) {
+    if (
+      !message ||
+      typeof message !== "object" ||
+      Array.isArray(message) ||
+      typeof message.method !== "string" ||
+      (message.jsonrpc !== undefined && message.jsonrpc !== "2.0")
+    )
+      return {
+        id: null,
+        error: { code: -32600, message: "Invalid JSON-RPC request." },
+      };
     const { id, method, params } = message;
     // A notification carries no id and takes no reply; answering one is how a
     // client ends up waiting for a response to something it never asked.
     const reply = (result) => (id === undefined ? null : { id, result });
+    if (method === "ping") return reply({});
+    if (id === undefined) return null;
     if (method === "initialize")
       return reply({
         protocolVersion: PROTOCOL_VERSION,
@@ -438,10 +460,39 @@ export function createHandler({
         tools: [TOOL, KNOWLEDGE_TOOL, CATALOG_TOOL, GENERATE_TOOL],
       });
     if (method === "tools/call") {
-      const input = params?.arguments || {};
+      const input = params?.arguments ?? {};
+      if (
+        !params ||
+        typeof params.name !== "string" ||
+        !input ||
+        typeof input !== "object" ||
+        Array.isArray(input)
+      )
+        return {
+          id,
+          error: {
+            code: -32602,
+            message:
+              "Tool arguments must be an object and a tool name is required.",
+          },
+        };
+      const validate = toolValidators.get(params.name);
+      if (validate && !validate(input))
+        return reply({
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                code: "BAD_INPUT",
+                message: ajv.errorsText(validate.errors).slice(0, 500),
+              }),
+            },
+          ],
+        });
       if (params?.name === GENERATE_TOOL.name) {
         try {
-          const result = await generateAssetToPack({ workspace, ...input });
+          const result = await generateAssetToPack({ ...input, workspace });
           return reply({
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
             structuredContent: result,
@@ -552,8 +603,24 @@ export function createHandler({
 export function serve(input, output, options) {
   const handle = createHandler(options);
   let buffer = "";
+  input.setEncoding?.("utf8");
   input.on("data", async (chunk) => {
     buffer += chunk;
+    if (Buffer.byteLength(buffer, "utf8") > 8 * 1024 * 1024) {
+      buffer = "";
+      output.write(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: null,
+          error: {
+            code: -32600,
+            message: "MCP input exceeded the 8 MiB limit.",
+          },
+        }) + "\n",
+      );
+      input.destroy();
+      return;
+    }
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
@@ -582,7 +649,10 @@ export function serve(input, output, options) {
         output.write(
           JSON.stringify({
             jsonrpc: "2.0",
-            id: "id" in message ? message.id : null,
+            id:
+              message && typeof message === "object"
+                ? (message.id ?? null)
+                : null,
             error: {
               code: -32603,
               message: `The request ${message.method || "(unnamed)"} could not be answered: ${String(error?.message || error).slice(0, 200)}`,

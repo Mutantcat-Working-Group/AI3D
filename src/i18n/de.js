@@ -257,6 +257,7 @@ export default {
     "Schlüssel einfügen; er wird nur auf diesem Rechner gespeichert.",
   "settings.loadModels": "Modelle laden",
   "settings.defaultModel": "Standardmodell",
+  "settings.modelId": "Modell-ID",
   "settings.save": "Speichern",
   "settings.saved": "Gespeichert.",
   "settings.loadingModels": "Modelle werden geladen…",

@@ -21,7 +21,14 @@ env:
   GH_REPO: ${{ github.repository }}
 
 jobs:
+  verify:
+    name: verify release candidate
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   release:
+    needs: verify
     name: publish the tag as a release
     runs-on: ubuntu-latest
     steps:
@@ -64,6 +71,7 @@ jobs:
             printf 'Checksums for every attached asset are in checksums-sha1.txt and checksums-md5.txt.\n'
           } > "$RUNNER_TEMP/notes.md"
           gh release create "$tag" \
+            --draft \
             --title "AI3D ${tag#v}" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --verify-tag
@@ -315,13 +323,17 @@ jobs:
           fi
           # Plain `sha1sum`/`md5sum` output, so the reader checks a download with
           # `sha1sum -c checksums-sha1.txt` and nothing has to be decoded first.
+          sha256sum "${files[@]}" > checksums-sha256.txt
           sha1sum "${files[@]}" > checksums-sha1.txt
           md5sum "${files[@]}" > checksums-md5.txt
           # Prove the files a reader will run actually verify; a digest nobody
           # checked is the failure these files exist to prevent.
+          sha256sum -c checksums-sha256.txt
           sha1sum -c checksums-sha1.txt
           md5sum -c checksums-md5.txt
           gh release upload "$GITHUB_REF_NAME" \
+            checksums-sha256.txt \
             checksums-sha1.txt \
             checksums-md5.txt \
             --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest

@@ -18,6 +18,8 @@ import {
   INTEGRATION_API,
 } from "../server/instance.mjs";
 import { listenerConfig, privateIPv4 } from "../server/network.mjs";
+import { hardenDirectory } from "../server/permissions.mjs";
+import { relativePosix } from "../server/paths.mjs";
 import { cacheRelease, cachedRelease } from "./release.mjs";
 import { summarizeSubmission, readReceipt } from "./summarize.mjs";
 import {
@@ -305,10 +307,14 @@ export class InstanceManager {
     });
     if (!within(this.allowed, runtime))
       fail("PATH_SCOPE", "The runtime directory is outside the file policy.");
+    // This directory is the server's data dir in the managed path, so the chat
+    // provider keys and the browser admission verifiers are written inside it.
+    // Creating it with a mode is a request POSIX honours and Windows ignores.
+    if (create) hardenDirectory(runtime);
     return {
       id,
       projectRoot,
-      project: path.relative(this.workspace, projectRoot),
+      project: relativePosix(this.workspace, projectRoot),
       runtime,
     };
   }
@@ -389,7 +395,7 @@ export class InstanceManager {
           delete registry.projects[id];
       registry.projects[p.id] = {
         project: p.project,
-        runtime: path.relative(this.workspace, p.runtime),
+        runtime: relativePosix(this.workspace, p.runtime),
         instanceId: config.instance.id,
         agentId: this.agentId,
         installRoot: this.installRoot,
@@ -608,6 +614,23 @@ export class InstanceManager {
     return this.withServingVersion(await this.run(input));
   }
   async run(input) {
+    if (
+      !input ||
+      typeof input !== "object" ||
+      Array.isArray(input) ||
+      ![
+        "open",
+        "status",
+        "activate",
+        "retain",
+        "read",
+        "echo",
+        "finish",
+        "unlock",
+        "stop",
+      ].includes(input.action)
+    )
+      fail("BAD_ACTION", "A supported review action is required.");
     const origin = this.resolveOrigin();
     if (
       !within(this.allowed, path.join(this.workspace, "projects/ai3d-state")) ||

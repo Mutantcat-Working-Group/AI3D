@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "ai3d-desktop"
-version = "1.0.20261007"
+version = "1.0.20261101"
 dependencies = [
  "serde",
  "serde_json",

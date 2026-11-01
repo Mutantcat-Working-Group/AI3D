@@ -201,7 +201,12 @@ test("browser verifiers and edit identity survive restart; grants and raw creden
       stored.includes(admission.value),
     false,
   );
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  /* These are the verifiers that mint a review session, so the file is written
+     0600. Windows has no mode bits and ignores the request entirely; the
+     restriction there comes from the runtime directory's access list, which
+     permissions.test.mjs checks. */
+  if (process.platform !== "win32")
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   const restarted = new ReviewAccess(options);
   assert.equal(restarted.metadata().grantActive, false);
   assert.equal(restarted.authenticate(session.value).id, browserId);

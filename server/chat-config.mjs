@@ -168,10 +168,10 @@ export class ChatConfig {
       name: provider.name,
       baseUrl: provider.baseUrl,
       hasKey: Boolean(provider.apiKey),
-      keyHint: provider.apiKey ? provider.apiKey.slice(-4) : "",
+      keyHint: provider.apiKey.length > 4 ? provider.apiKey.slice(-4) : "",
       models: provider.models,
       model: provider.model,
-      available: Boolean(provider.baseUrl && provider.apiKey && provider.model),
+      available: Boolean(provider.baseUrl && provider.model),
     }));
     return {
       providers,
@@ -199,6 +199,11 @@ export class ChatConfig {
           400,
           "CHAT_CONFIG",
         );
+      if (clean !== provider.baseUrl) {
+        provider.apiKey = "";
+        provider.models = [];
+        provider.model = "";
+      }
       provider.baseUrl = clean;
     }
     if (incoming.apiKey !== undefined && String(incoming.apiKey).trim())
@@ -212,7 +217,9 @@ export class ChatConfig {
   }
 
   mergeProvider(incoming) {
-    const provider = this.providerById(incoming.id) || this.blank();
+    const provider = structuredClone(
+      this.providerById(incoming.id) || this.blank(),
+    );
     const clean = this.cleanId(incoming.id);
     if (clean) provider.id = clean;
     return this.mergeInto(provider, incoming);
@@ -263,7 +270,10 @@ export class ChatConfig {
       this.state.providers.push(provider);
     }
     const clean = normalizeBaseUrl(baseUrl);
-    if (clean) provider.baseUrl = clean;
+    if (clean && clean !== provider.baseUrl) {
+      provider.apiKey = "";
+      provider.baseUrl = clean;
+    }
     if (apiKey !== undefined && String(apiKey).trim())
       provider.apiKey = String(apiKey).trim().slice(0, MAX_KEY);
     provider.models = this.cleanModels(models);
@@ -279,25 +289,31 @@ export class ChatConfig {
      picks a different default. The flat shape of the first release is still
      accepted so a cached page cannot corrupt a live key. */
   update({ activeId, providers, ...flat } = {}) {
-    const flatTouched = ["baseUrl", "apiKey", "models", "model"].some(
-      (key) => flat[key] !== undefined,
-    );
-    if (providers !== undefined) this.replaceProviders(providers);
-    else if (flatTouched) {
-      /* An invalid flat save must not leave the phantom endpoint it was about
+    const previous = structuredClone(this.state);
+    try {
+      const flatTouched = ["baseUrl", "apiKey", "models", "model"].some(
+        (key) => flat[key] !== undefined,
+      );
+      if (providers !== undefined) this.replaceProviders(providers);
+      else if (flatTouched) {
+        /* An invalid flat save must not leave the phantom endpoint it was about
          to build in the running list: `mergeInto` throws before the new entry
          is attached, so the next save starts from the same clean list. */
-      const existing = this.active();
-      if (existing) this.mergeInto(existing, flat);
-      else this.state.providers.push(this.mergeInto(this.blank(), flat));
+        const existing = this.active();
+        if (existing) this.mergeInto(existing, flat);
+        else this.state.providers.push(this.mergeInto(this.blank(), flat));
+      }
+      if (activeId !== undefined) {
+        const clean = this.cleanId(activeId);
+        if (clean && this.providerById(clean)) this.state.activeId = clean;
+      }
+      this.normalize();
+      this.save();
+      return this.view();
+    } catch (error) {
+      this.state = previous;
+      throw error;
     }
-    if (activeId !== undefined) {
-      const clean = this.cleanId(activeId);
-      if (clean && this.providerById(clean)) this.state.activeId = clean;
-    }
-    this.normalize();
-    this.save();
-    return this.view();
   }
 }
 

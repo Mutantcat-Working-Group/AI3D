@@ -28,6 +28,7 @@ export function normalizeBaseUrl(value) {
     return "";
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+  if (url.username || url.password || url.search || url.hash) return "";
   return text;
 }
 
@@ -78,6 +79,7 @@ export async function listModels({
   const base = normalizeBaseUrl(baseUrl);
   if (!base) throw new Error("The API base URL is not an http(s) address.");
   const response = await fetchImpl(`${base}/models`, {
+    redirect: "error",
     headers: authHeaders(apiKey),
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -108,6 +110,7 @@ export async function chatCompletion({
   const base = normalizeBaseUrl(baseUrl);
   if (!base) throw new Error("The API base URL is not an http(s) address.");
   const response = await fetchImpl(`${base}/chat/completions`, {
+    redirect: "error",
     method: "POST",
     headers: { ...authHeaders(apiKey), "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages, stream: false }),

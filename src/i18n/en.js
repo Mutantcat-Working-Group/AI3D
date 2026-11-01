@@ -243,6 +243,7 @@ export default {
     "Paste a key; it is stored on this computer only.",
   "settings.loadModels": "Load models",
   "settings.defaultModel": "Default model",
+  "settings.modelId": "Model ID",
   "settings.save": "Save",
   "settings.saved": "Saved.",
   "settings.loadingModels": "Loading models…",

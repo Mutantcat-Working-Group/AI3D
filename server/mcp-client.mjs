@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawnCommand } from "./command.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -83,21 +83,43 @@ export class McpSession {
     this.buffer = "";
     this.nextId = 1;
     this.tools = [];
-    const child = spawn(this.command, this.args, {
+    const child = spawnCommand(this.command, this.args, {
       cwd: this.cwd,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
     this.child = child;
     child.stdout?.setEncoding("utf8");
-    child.stdout?.on("data", (chunk) => this.onData(chunk));
+    child.stdout?.on("data", (chunk) => {
+      if (this.child === child) this.onData(chunk);
+    });
     child.stderr?.setEncoding("utf8");
-    child.stderr?.on("data", (chunk) => this.onStderr(chunk));
-    child.on("error", (error) => this.onError(error));
-    child.on("exit", (code, signal) => this.onExit(code, signal));
+    child.stderr?.on("data", (chunk) => {
+      if (this.child === child) this.onStderr(chunk);
+    });
+    child.stdin.on("error", (error) => {
+      if (this.child === child) this.onError(error);
+    });
+    child.on("error", (error) => {
+      if (this.child === child) this.onError(error);
+    });
+    child.on("exit", (code, signal) => {
+      if (this.child === child) this.onExit(code, signal);
+    });
   }
 
   async connect() {
+    if (this.connecting) return this.connecting;
+    if (this.connected) return this.snapshot();
+    this.connecting = this.initialize();
+    try {
+      return await this.connecting;
+    } finally {
+      this.connecting = null;
+    }
+  }
+
+  async initialize() {
     this.open();
     try {
       const initialized = await this.request(
@@ -109,9 +131,29 @@ export class McpSession {
         },
         { timeoutMs: 15000 },
       );
-      const listed = await this.request("tools/list", {});
+      if (initialized?.protocolVersion !== MCP_PROTOCOL_VERSION)
+        throw new Error(
+          "The MCP server negotiated an unsupported protocol version.",
+        );
       this.notify("notifications/initialized");
-      this.tools = Array.isArray(listed?.tools) ? listed.tools : [];
+      const tools = [];
+      const cursors = new Set();
+      let cursor;
+      for (let page = 0; ; page++) {
+        const listed = await this.request(
+          "tools/list",
+          cursor ? { cursor } : {},
+        );
+        if (!Array.isArray(listed?.tools))
+          throw new Error("The MCP server returned an invalid tool list.");
+        tools.push(...listed.tools);
+        cursor = listed.nextCursor;
+        if (!cursor) break;
+        if (typeof cursor !== "string" || cursors.has(cursor) || page >= 19)
+          throw new Error("The MCP tool list pagination did not finish.");
+        cursors.add(cursor);
+      }
+      this.tools = tools;
       this.connected = true;
       this.lastError = null;
       return this.snapshot();
@@ -186,6 +228,11 @@ export class McpSession {
 
   onData(chunk) {
     this.buffer += chunk;
+    if (Buffer.byteLength(this.buffer, "utf8") > 8 * 1024 * 1024) {
+      this.lastError = "The MCP response exceeded the 8 MiB limit.";
+      this.close();
+      return;
+    }
     const lines = this.buffer.split("\n");
     this.buffer = lines.pop() ?? "";
     for (const line of lines) {
@@ -200,7 +247,22 @@ export class McpSession {
         });
         continue;
       }
+      if (!message || typeof message !== "object" || Array.isArray(message))
+        continue;
       if (message.id === undefined) continue; // server notification
+      if (typeof message.method === "string") {
+        this.child?.stdin.write(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: message.id,
+            error: {
+              code: -32601,
+              message: "Client requests are not supported.",
+            },
+          }) + "\n",
+        );
+        continue;
+      }
       const pending = this.pending.get(message.id);
       if (!pending) continue;
       clearTimeout(pending.timer);
@@ -283,9 +345,7 @@ export class McpConnections {
         id: entry.id,
         name: String(entry.name || entry.command),
         command: entry.command,
-        args: Array.isArray(entry.args)
-          ? entry.args.map(String).filter(Boolean)
-          : [],
+        args: Array.isArray(entry.args) ? entry.args.map(String) : [],
       });
     }
   }
@@ -320,8 +380,9 @@ export class McpConnections {
       id: nextId,
       name: String(name || command).slice(0, 80),
       command,
-      args: (args || []).map(String).filter(Boolean),
+      args: (args || []).map(String),
     };
+    this.disconnect(nextId);
     this.connections.set(nextId, connection);
     this.save();
     return connection;

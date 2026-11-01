@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lanAddresses } from "../server/network.mjs";
 import { agentSocketPath, readInstance } from "../server/instance.mjs";
-import { within } from "../server/paths.mjs";
+import { relativePosix, within } from "../server/paths.mjs";
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The same default as the server's: the clone itself, unless told otherwise.
 const workspace = fs.realpathSync(
@@ -59,12 +59,12 @@ try {
       "origin",
     ]);
     body = {
-      file: path.relative(workspace, path.resolve(args[0])),
+      file: relativePosix(workspace, path.resolve(args[0])),
       ...options,
     };
     if (body.origin) body.origin = readWorkspaceJson(body.origin);
     if (body.source)
-      body.source = path.relative(workspace, path.resolve(body.source));
+      body.source = relativePosix(workspace, path.resolve(body.source));
   } else if (command === "bind") {
     endpoint = "/origin";
     body = { origin: readWorkspaceJson(args[0]) };

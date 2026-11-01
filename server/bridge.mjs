@@ -1,7 +1,5 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { execCommand } from "./command.mjs";
 import { normalizeOrigin, deliveryParams } from "./origin.mjs";
-const exec = promisify(execFile);
 
 // Every failure out of call() carries the host's own two fields, so a caller
 // never has to parse prose to find out what went wrong or whether to retry.
@@ -56,7 +54,7 @@ export class OpenClawBridge {
     let stdout;
     let refused = false;
     try {
-      ({ stdout } = await exec("openclaw", argv, options));
+      ({ stdout } = await execCommand("openclaw", argv, options));
     } catch (error) {
       // A refused call still prints its typed reason on stdout and only then
       // exits non-zero. execFile rejects on the exit code before any of that is

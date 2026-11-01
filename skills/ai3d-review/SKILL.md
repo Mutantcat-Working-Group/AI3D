@@ -171,3 +171,20 @@ opening all count as use; polling status does not.
 `open` may return `runtimesNeedingReopen`: other projects still served by a
 build too old to close itself. Say which ones, so the user can decide to reopen
 them. Never stop somebody else's project on the strength of it.
+
+## 10. Evidence and repair limits
+
+Keep the accepted baseline and identify changed and preserved regions before
+editing. Bind a review to the saved source/export paths and SHA-256 hashes;
+reopen the saved source and reimport the actual export when the modeling tool
+is available. Inspect preview pixels at useful size. A new process is artifact
+isolation, not independent reasoning: use a distinct reviewer only when
+available and authorized, otherwise label the result self-check only.
+
+Precheck success, matching hashes, low triangle counts and non-overlapping
+bounds do not certify shape, normals, joints or the target engine. Distinguish
+contact from penetration and export seams from actual holes. State units and
+diagnostic tolerances, preserve raw findings, and never widen tolerances or
+hide geometry to obtain a pass. Default to two repair passes per candidate
+request unless the user sets another budget; then report the current files and
+remaining issues. A new candidate needs new evidence.

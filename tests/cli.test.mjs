@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { run, parseArgs, cliOrigin } from "../cli/ai3d.mjs";
+import { removeTree } from "./helpers/tree.mjs";
 
 // The manager hands its own environment to the service it starts, so this
 // reaches every instance these cases open: no suite talks to the internet.
@@ -15,7 +16,10 @@ const stl =
 function workspace(t) {
   fs.mkdirSync(path.join(repo, "tmp"), { recursive: true });
   const dir = fs.mkdtempSync(path.join(repo, "tmp", "cli-workspace-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  /* The service this suite starts runs with the fixture as its working
+     directory, and Windows will not delete that directory until the process
+     has let go of it, which is a moment after it is reported dead. */
+  t.after(() => removeTree(dir));
   fs.mkdirSync(path.join(dir, "web"));
   fs.writeFileSync(
     path.join(dir, "web/index.html"),

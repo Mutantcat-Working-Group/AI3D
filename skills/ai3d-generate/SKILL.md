@@ -82,3 +82,35 @@ Generation never publishes to the review workbench. To review what was just
 generated, run `precheck` on the GLB and `open` it afterwards, following the
 review skill. Done means the files exist, the path stays inside the workspace,
 and the user knows what was generated and where it is.
+
+## 4. Candidate quality and delivery evidence
+
+Before generation, establish the requested style, scale, up axis, silhouette,
+semantic parts and target engine. Keep an accepted baseline and write revisions
+to a new output directory; retain the original request and identify changed and
+preserved regions. Never overwrite an accepted pack to make a variant.
+
+Inspect the saved GLB in a fresh importer, not only the in-memory generator
+result. Compare dimensions, orientation, materials, part inventory and requested
+animation with the brief. If an editable Blender source is supplied, reopen it
+separately and compare its evaluated state with the actual export. Inspect
+preview pixels, including affected details and interior views when relevant.
+Bind previews and findings to the exact candidate paths and SHA-256 hashes.
+
+Triangle counts, hashes, AABB overlaps and readiness scores are diagnostics:
+they do not establish resemblance, clearance or visual quality. UV and normal
+seams can split GLB vertices; diagnose a copy with a stated tolerance rather
+than welding the delivery file to improve a metric. A successful reimport
+establishes that importer worked, not that Unity, Godot or Unreal was tested.
+
+When independent review is requested and available, give a distinct reviewer
+the raw brief, baseline, frozen files and actual previews without a predicted
+verdict. A fresh importer process isolates state; it is not an independent
+reviewer. Otherwise describe the result as self-check only. Default to at most
+two local repair passes, unless the user supplies another budget, then deliver
+the best candidate with unresolved findings. Recheck changed boundaries after
+each repair and never reuse an older candidate's verdict.
+
+Keep third-party model, image and texture sources and license terms separate
+from application code. State which artifacts and engine imports were actually
+checked; unavailable checks remain explicitly unverified.

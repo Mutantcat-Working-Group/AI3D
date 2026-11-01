@@ -30,10 +30,12 @@ function tmpDir(t) {
 const FAKE_MCP = `
 const readline = require("readline");
 const rl = readline.createInterface({ input: process.stdin });
+let initialized = false;
 rl.on("line", (line) => {
   if (!line.trim()) return;
   let msg;
   try { msg = JSON.parse(line); } catch { return; }
+  if (msg.method === "notifications/initialized") initialized = true;
   if (msg.id === undefined) return;
   let result = {};
   if (msg.method === "initialize") {
@@ -43,6 +45,10 @@ rl.on("line", (line) => {
       serverInfo: { name: "fake-mcp", version: "0" },
     };
   } else if (msg.method === "tools/list") {
+    if (!initialized) {
+      console.log(JSON.stringify({ jsonrpc: "2.0", id: msg.id, error: { code: -32000, message: "Not initialized" } }));
+      return;
+    }
     result = {
       tools: [{
         name: "echo",

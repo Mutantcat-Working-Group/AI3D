@@ -2391,6 +2391,17 @@ function createProviderRow(provider) {
   const models = document.createElement("select");
   models.className = "provider-model";
   fillModelSelect(models, provider.models || [], provider.model);
+  const modelId = document.createElement("input");
+  modelId.className = "provider-model-id";
+  modelId.type = "text";
+  modelId.maxLength = 200;
+  modelId.autocomplete = "off";
+  modelId.spellcheck = false;
+  modelId.placeholder = t("settings.modelId");
+  modelId.setAttribute("aria-label", t("settings.modelId"));
+  models.addEventListener("change", () => {
+    modelId.value = "";
+  });
   const load = document.createElement("button");
   load.type = "button";
   load.className = "quiet provider-load";
@@ -2418,6 +2429,7 @@ function createProviderRow(provider) {
     providerField("settings.apiKey", apiKey, "provider-key-field"),
     keyHint,
     modelRow,
+    modelId,
   );
   return row;
 }
@@ -2451,15 +2463,21 @@ function providerValuesFromRows() {
   return [...$("#settings-providers").querySelectorAll(".provider-row")].map(
     (row) => {
       const model = row.querySelector(".provider-model");
+      const manual = row.querySelector(".provider-model-id").value.trim();
       return {
         id: row.dataset.providerId,
         name: row.querySelector(".provider-name").value.trim(),
         baseUrl: row.querySelector(".provider-base-url").value.trim(),
         apiKey: row.querySelector(".provider-api-key").value,
-        models: [...model.options]
-          .map((option) => option.value)
-          .filter(Boolean),
-        model: model.value,
+        models: [
+          ...new Set(
+            [...model.options]
+              .map((option) => option.value)
+              .filter(Boolean)
+              .concat(manual ? [manual] : []),
+          ),
+        ],
+        model: manual || model.value,
       };
     },
   );
@@ -2573,6 +2591,7 @@ async function loadChatModels(row) {
         (provider) => provider.baseUrl && provider.baseUrl === baseUrl,
       );
     if (probed) {
+      row.querySelector(".provider-model-id").value = "";
       row.dataset.providerId = probed.id;
       fillModelSelect(
         row.querySelector(".provider-model"),

@@ -19,6 +19,8 @@ import {
 } from "../integration/context.mjs";
 import { ReviewStore } from "../server/store.mjs";
 import { OpenClawBridge } from "../server/bridge.mjs";
+import { agentSocketPath } from "../server/instance.mjs";
+import { removeTree } from "./helpers/tree.mjs";
 
 // The manager hands its own environment to the service it starts, so this
 // reaches every instance these cases open: no suite talks to the internet.
@@ -90,7 +92,7 @@ function setup(t) {
       } catch {}
     }
     await new Promise((r) => setTimeout(r, 120));
-    fs.rmSync(workspace, { recursive: true, force: true });
+    await removeTree(workspace);
   });
   async function open(project, args = {}) {
     projects.push(project);
@@ -669,7 +671,11 @@ test("a route the running build predates says so, instead of leaking a parse err
       "<!DOCTYPE html>\n<html><head><title>Error</title></head><body><pre>Cannot POST /retain</pre></body></html>",
     );
   });
-  await new Promise((r) => server.listen(path.join(dir, "agent.sock"), r));
+  /* The address has to be the one `ipc` will dial, which is a filesystem socket
+     on POSIX and a named pipe on Windows. Writing `agent.sock` by hand made
+     this pair of cases fail on Windows with EACCES while the product was
+     correct. */
+  await new Promise((r) => server.listen(agentSocketPath(dir), r));
   t.after(() => {
     server.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -701,7 +707,7 @@ test("a route that does real work gets its own budget, and silence still fails f
       res.end(JSON.stringify({ status: "published" }));
     }, 200);
   });
-  await new Promise((r) => server.listen(path.join(dir, "agent.sock"), r));
+  await new Promise((r) => server.listen(agentSocketPath(dir), r));
   t.after(() => {
     server.close();
     fs.rmSync(dir, { recursive: true, force: true });

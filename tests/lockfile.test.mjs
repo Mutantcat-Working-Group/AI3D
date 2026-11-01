@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import {
   claimLock,
   readLock,
@@ -20,7 +21,11 @@ test("a claim is exclusive and always publishes complete content", (t) => {
   const file = scratch(t);
   claimLock(file, { startedAt: 12345 });
   assert.deepEqual(readLock(file), { pid: process.pid, startedAt: 12345 });
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  // The lock carries a pid and nothing secret, but it is still written 0600,
+  // which Windows ignores outright — there the restriction belongs to the
+  // directory and is checked in permissions.test.mjs.
+  if (process.platform !== "win32")
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.throws(() => claimLock(file), { code: "EEXIST" });
   // The private staging copy must never be left behind next to the lock.
   assert.deepEqual(
@@ -65,10 +70,36 @@ test("release only clears a lock this process owns", (t) => {
   );
 });
 
-test("liveness follows the process, not the presence of a file", () => {
+test("liveness follows the process, not the presence of a file", async (t) => {
   assert.equal(processAlive(process.pid), true);
-  // pid 1 exists and is owned by root: EPERM is a running process, not a stale one.
-  assert.equal(processAlive(1), true);
+  /* A running process that is not this one must read as alive. POSIX names the
+     cheapest such pid, 1, owned by root, which answers EPERM rather than ESRCH.
+     Windows reports pid 1 as gone, so the same intent is checked against a real
+     child there instead of against a pid that does not exist. */
+  if (process.platform === "win32") {
+    const child = spawn(
+      process.execPath,
+      ["-e", "setTimeout(() => {}, 60000)"],
+      {
+        stdio: "ignore",
+      },
+    );
+    t.after(() => {
+      try {
+        child.kill();
+      } catch {
+        /* already gone */
+      }
+    });
+    await new Promise((resolve, reject) => {
+      child.once("spawn", resolve);
+      child.once("error", reject);
+    });
+    assert.equal(processAlive(child.pid), true);
+    child.kill();
+  } else {
+    assert.equal(processAlive(1), true);
+  }
   for (const pid of [0, -1, 1.5, null, undefined, "123"])
     assert.equal(processAlive(pid), false, `pid ${pid} must not look alive`);
 });

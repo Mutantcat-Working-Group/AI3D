@@ -66,6 +66,37 @@ const handlerFor = (dir) =>
     },
   });
 
+test("MCP rejects malformed requests and tool arguments without crashing", async (t) => {
+  const handle = handlerFor(workspace(t));
+  assert.equal((await handle(null)).error.code, -32600);
+  assert.equal((await handle([])).error.code, -32600);
+  assert.deepEqual((await handle({ id: 1, method: "ping" })).result, {});
+  assert.equal(
+    (
+      await handle({
+        id: 2,
+        method: "tools/call",
+        params: { name: "ai3d", arguments: [] },
+      })
+    ).error.code,
+    -32602,
+  );
+  const bad = await handle({
+    id: 3,
+    method: "tools/call",
+    params: { name: "ai3d", arguments: { action: "bogus" } },
+  });
+  assert.equal(bad.result.isError, true);
+  assert.equal(JSON.parse(bad.result.content[0].text).code, "BAD_INPUT");
+  assert.equal(
+    await handle({
+      method: "tools/call",
+      params: { name: "ai3d_generate", arguments: {} },
+    }),
+    null,
+  );
+});
+
 test("initialize advertises tools and carries the Skill as its instructions", async (t) => {
   const dir = workspace(t);
   const answer = await handlerFor(dir)({ id: 1, method: "initialize" });
@@ -555,7 +586,7 @@ test("the generate tool rejects malformed asset set items", async (t) => {
   assert.equal(empty.result.isError, true);
   assert.match(
     JSON.parse(empty.result.content[0].text).message,
-    /non-empty array/,
+    /fewer than 1 items/,
   );
 
   const unknownType = await call({
@@ -577,7 +608,7 @@ test("the generate tool rejects malformed asset set items", async (t) => {
   assert.equal(extraField.result.isError, true);
   assert.match(
     JSON.parse(extraField.result.content[0].text).message,
-    /unsupported field/,
+    /additional properties/,
   );
 
   const wrongKind = await call({
@@ -701,8 +732,8 @@ test("the generate tool rejects unknown or misplaced project templates", async (
   });
   assert.equal(unknown.result.isError, true);
   const refused = JSON.parse(unknown.result.content[0].text);
-  assert.equal(refused.code, "BAD_PARAMETER");
-  assert.match(refused.message, /Unknown project template/);
+  assert.equal(refused.code, "BAD_INPUT");
+  assert.match(refused.message, /allowed values/);
 
   for (const [kind, extra] of [
     ["asset", { type: "sword" }],
@@ -909,10 +940,10 @@ test("the generate tool rejects an unknown quality mode", async (t) => {
     },
   });
   assert.equal(answer.result.isError, true);
-  assert.equal(JSON.parse(answer.result.content[0].text).code, "BAD_PARAMETER");
+  assert.equal(JSON.parse(answer.result.content[0].text).code, "BAD_INPUT");
   assert.match(
     JSON.parse(answer.result.content[0].text).message,
-    /quality must be one of/,
+    /allowed values/,
   );
 });
 
@@ -932,8 +963,8 @@ test("the generate tool rejects an unknown target profile", async (t) => {
   });
   assert.equal(answer.result.isError, true);
   const error = JSON.parse(answer.result.content[0].text);
-  assert.equal(error.code, "BAD_PARAMETER");
-  assert.match(error.message, /profile must be one of/);
+  assert.equal(error.code, "BAD_INPUT");
+  assert.match(error.message, /allowed values/);
 });
 
 test("the knowledge tool returns cited entries and rejects unknown ids", async (t) => {

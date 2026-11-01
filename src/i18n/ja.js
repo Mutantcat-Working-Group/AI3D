@@ -243,6 +243,7 @@ export default {
     "キーを貼り付けてください。この端末にのみ保存されます。",
   "settings.loadModels": "モデルを読み込む",
   "settings.defaultModel": "既定のモデル",
+  "settings.modelId": "モデル ID",
   "settings.save": "保存",
   "settings.saved": "保存しました。",
   "settings.loadingModels": "モデルを読み込み中…",

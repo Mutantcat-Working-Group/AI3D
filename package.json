@@ -1,6 +1,6 @@
 {
   "name": "org.mutantcat.ai3d",
-  "version": "1.0.20261007",
+  "version": "1.0.20261101",
   "private": true,
   "license": "Apache-2.0",
   "author": "Kelven Ling <kelvenlinglzy@gmail.com>",
@@ -53,6 +53,8 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
+    "ajv": "8.17.1",
+    "cross-spawn": "7.0.6",
     "express": "^5.1.0",
     "fflate": "^0.8.3",
     "image-size": "^2.0.4",

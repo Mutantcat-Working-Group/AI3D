@@ -254,6 +254,7 @@ export default {
     "Collez une clé ; elle reste sur cet ordinateur.",
   "settings.loadModels": "Charger les modèles",
   "settings.defaultModel": "Modèle par défaut",
+  "settings.modelId": "Identifiant du modèle",
   "settings.save": "Enregistrer",
   "settings.saved": "Enregistré.",
   "settings.loadingModels": "Chargement des modèles…",

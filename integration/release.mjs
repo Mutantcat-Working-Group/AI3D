@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { scopedPath, fail } from "./context.mjs";
+import { hardenDirectory } from "../server/permissions.mjs";
 
 /* Relative paths are hashed as part of the release identity, so they have to be
    the same string on every platform. Some entries below are written by hand in
@@ -86,6 +87,10 @@ export function cacheRelease(installRoot, runtime) {
   const root = path.join(runtime, "releases", id);
   if (!fs.existsSync(root)) {
     fs.mkdirSync(path.dirname(root), { recursive: true, mode: 0o700 });
+    // A release cache is executable code the service will later run, so on
+    // Windows it gets the same access list the mode asked for: otherwise every
+    // local account could rewrite what the next start executes.
+    hardenDirectory(path.dirname(root));
     const staging = fs.mkdtempSync(path.join(path.dirname(root), "candidate-"));
     for (const { relative, data } of content) {
       fs.mkdirSync(path.dirname(path.join(staging, relative)), {

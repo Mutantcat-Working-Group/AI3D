@@ -15,6 +15,7 @@ import { McpConnections } from "./mcp-client.mjs";
 import { ChatConfig, MAX_PROVIDERS } from "./chat-config.mjs";
 import {
   listModels,
+  normalizeBaseUrl,
   chatCompletion,
   SYSTEM_PROMPT,
   CHAT_TIMEOUT_MS,
@@ -23,6 +24,7 @@ import { IdleWatch, viewerUse, agentUse, idleMsFrom } from "./idle.mjs";
 import { originInput, normalizeOrigin } from "./origin.mjs";
 import { listenerConfig, privateIPv4 } from "./network.mjs";
 import { createUpdateWatch, updateCheckEnabled } from "./upstream.mjs";
+import { hardenDirectory } from "./permissions.mjs";
 import {
   readInstance,
   instanceCookieName,
@@ -73,6 +75,11 @@ const mediaDir = path.resolve(
 // managed path already builds its parents 0700; this is the standalone one,
 // where without a mode the answer came from whoever happened to run it.
 fs.mkdirSync(runtime, { recursive: true, mode: 0o700 });
+// The mode above is a request POSIX honours and Windows ignores, leaving the
+// directory with its parent's access list. Hardening it here covers every
+// credential the service writes inside, including the ones `atomicJson`
+// renames into place on each save.
+hardenDirectory(runtime);
 const instanceFile = path.join(runtime, "instance.lock");
 if (fs.existsSync(instanceFile)) {
   const previous = readLock(instanceFile);
@@ -1023,6 +1030,7 @@ app.get("/api/download/:filename", (req, res) => {
 const localChat = [];
 const LOCAL_CHAT_LIMIT = 200;
 const CHAT_CONTEXT_MESSAGES = 20;
+let localChatBusy = false;
 
 function appendLocalChat(role, text) {
   const message = {
@@ -1080,7 +1088,7 @@ app.get("/api/chat", async (req, res) => {
     return res.json({
       connected: view.available,
       mode: view.available ? "model" : "offline",
-      busy: false,
+      busy: localChatBusy,
       messages: localChatSince(Number.isFinite(since) ? since : 0),
       channels,
     });
@@ -1096,7 +1104,7 @@ app.get("/api/chat", async (req, res) => {
     res.json({
       connected: view.available,
       mode: view.available ? "model" : "offline",
-      busy: false,
+      busy: localChatBusy,
       messages: localChatSince(Number.isFinite(since) ? since : 0),
       channels,
     });
@@ -1149,7 +1157,10 @@ app.post("/api/chat/config/models", async (req, res) => {
     ? chatConfig.providerById(p.providerId)
     : undefined;
   const baseUrl = p.baseUrl || stored?.baseUrl || "";
-  const apiKey = p.apiKey || stored?.apiKey || "";
+  const apiKey =
+    p.apiKey ||
+    (normalizeBaseUrl(baseUrl) === stored?.baseUrl ? stored.apiKey : "") ||
+    "";
   if (!baseUrl)
     throw new ReviewError(
       "A base URL is needed before its models can be listed.",
@@ -1231,6 +1242,13 @@ app.post("/api/chat", async (req, res) => {
   const target = chatConfig.target(p.providerId) || {};
   const model = p.model || target.model || "";
   if (target.baseUrl && model) {
+    if (localChatBusy)
+      throw new ReviewError(
+        "A model reply is already in progress.",
+        409,
+        "CHAT_BUSY",
+      );
+    localChatBusy = true;
     appendLocalChat("user", p.message);
     try {
       const text = await chatCompletion({
@@ -1254,6 +1272,8 @@ app.post("/api/chat", async (req, res) => {
         502,
         "CHAT_MODEL_FAILED",
       );
+    } finally {
+      localChatBusy = false;
     }
   }
   throw new ReviewError(

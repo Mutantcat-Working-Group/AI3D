@@ -4,6 +4,7 @@ import http from "node:http";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { agentSocketPath, readInstance } from "../../server/instance.mjs";
+import { removeTree } from "./tree.mjs";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function startReview(
@@ -81,7 +82,7 @@ export async function startReview(
   }
   t.after(async () => {
     await stopChild();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeTree(dir);
   });
   function ipc(route, body) {
     return new Promise((resolve, reject) => {
