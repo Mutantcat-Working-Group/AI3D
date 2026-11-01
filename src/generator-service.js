@@ -571,6 +571,20 @@ function resolveOutputDir(workspace, output) {
       BAD_OUTPUT,
       "output must stay inside the workspace.",
     );
+  let current = root;
+  for (const segment of relative.split(path.sep)) {
+    current = path.join(current, segment);
+    try {
+      if (fs.lstatSync(current).isSymbolicLink())
+        throw new GenerationError(
+          BAD_OUTPUT,
+          "output must not traverse a symbolic link.",
+        );
+    } catch (error) {
+      if (error.code === "ENOENT") break;
+      throw error;
+    }
+  }
   return target;
 }
 
@@ -613,7 +627,10 @@ async function writePackArtifacts({
   engine,
 }) {
   const outDir = resolveOutputDir(workspace, output);
-  const itemDir = path.join(outDir, id);
+  const itemDir = resolveOutputDir(
+    workspace,
+    path.relative(workspace, path.join(outDir, id)),
+  );
   const packDir = path.join(itemDir, "pack");
   fs.mkdirSync(packDir, { recursive: true });
   const packZip = path.join(itemDir, `${id}.zip`);

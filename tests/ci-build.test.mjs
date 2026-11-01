@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { McpSession } from "../server/mcp-client.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,12 +36,36 @@ const candidate = (t, name) => {
   return out;
 };
 
-test("without the host build, the package still builds and says so", (t) => {
-  const result = JSON.parse(
-    build(candidate(t, "ci-skip"), { AI3D_SKIP_HOST_BUILD: "1" }),
-  );
+test("without the host build, the package still builds and its MCP server answers", async (t) => {
+  const out = candidate(t, "ci-skip");
+  const result = JSON.parse(build(out, { AI3D_SKIP_HOST_BUILD: "1" }));
   assert.equal(result.hostBuild, false);
   assert.equal(result.bundledSkill, true);
+  const session = new McpSession(
+    {
+      id: "packaged",
+      name: "Packaged AI3D",
+      command: process.execPath,
+      args: [path.join(repo, out, "runtime/mcp-server.mjs")],
+    },
+    { cwd: repo },
+  );
+  try {
+    const connected = await session.connect();
+    assert.equal(connected.tools.length, 4);
+    const catalogue = await session.callTool("ai3d_catalog", {
+      mode: "types",
+      limit: 1,
+    });
+    assert.equal(catalogue.isError, false);
+    assert.equal(catalogue.structuredContent.types.length, 1);
+    assert.equal(
+      fs.existsSync(path.join(repo, out, "skills/ai3d-generate/SKILL.md")),
+      true,
+    );
+  } finally {
+    session.close();
+  }
 });
 
 test("a missing host command is still an error, not a quiet skip", (t) => {

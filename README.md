@@ -141,7 +141,7 @@ openclaw plugins install ./tmp/candidate/package
 ```sh
 npm ci
 npm run samples      # 生成参数化样例模型
-npm test             # 423 unit and integration tests
+npm test             # 424 unit and integration tests
 npm run test:browser # 95 real-Chromium tests
 ```
 

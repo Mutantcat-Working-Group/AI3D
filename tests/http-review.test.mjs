@@ -1236,6 +1236,24 @@ test("built-in MCP connect reports whether this installation carries the server"
   const f = await startReview(t, {});
   const config = await f.api("chat/config");
   assert.equal(config.body.builtinMcp, true);
+  const connected = await f.api("mcp/builtin/connect", {
+    method: "POST",
+    body: {},
+  });
+  assert.equal(connected.status, 200);
+  assert.equal(connected.body.connection.id, "ai3d-builtin");
+  assert.equal(connected.body.connection.tools.length, 4);
+  const called = await f.api("mcp/tools/call", {
+    method: "POST",
+    body: {
+      id: "ai3d-builtin",
+      name: "ai3d_catalog",
+      args: { mode: "types", limit: 1 },
+    },
+  });
+  assert.equal(called.status, 200);
+  assert.equal(called.body.result.isError, false);
+  assert.equal(called.body.result.structuredContent.types.length, 1);
 });
 
 test("MCP connections API lifecycle", async (t) => {

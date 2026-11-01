@@ -68,7 +68,7 @@ jobs:
           {
             printf '%s\n\n' "$notes"
             printf 'This release is commit %s.\n' "$commit"
-            printf 'Checksums for every attached asset are in checksums-sha1.txt and checksums-md5.txt.\n'
+            printf 'Checksums for every attached asset are in checksums-sha256.txt, checksums-sha1.txt and checksums-md5.txt.\n'
           } > "$RUNNER_TEMP/notes.md"
           gh release create "$tag" \
             --draft \

@@ -1353,7 +1353,10 @@ app.post("/api/mcp/tools/call", async (req, res) => {
       name: z.string().trim().min(1).max(100),
       args: z
         .record(z.string().min(1).max(200), z.unknown())
-        .max(100)
+        .refine(
+          (value) => Object.keys(value).length <= 100,
+          "At most 100 tool arguments are allowed.",
+        )
         .optional(),
     })
     .strict()
@@ -1733,6 +1736,8 @@ const server = app.listen(port, network.host, () => {
     );
 });
 function shutdown() {
+  for (const id of mcpConnections.sessions.keys())
+    mcpConnections.disconnect(id);
   server.close();
   agentServer.close(() => process.exit(0));
 }

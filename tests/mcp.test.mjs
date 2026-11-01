@@ -257,6 +257,41 @@ test("the generate tool writes a game pack into the workspace", async (t) => {
   assert.equal(parsed.assets[0].id, "hero-sword");
 });
 
+test("generation refuses workspace symlinks and cannot override the host workspace", async (t) => {
+  const dir = workspace(t);
+  const outside = workspace(t);
+  fs.symlinkSync(
+    outside,
+    path.join(dir, "linked"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  const handle = handlerFor(dir);
+  const linked = await handle({
+    id: 80,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: { type: "sword", output: "linked/assets" },
+    },
+  });
+  assert.equal(linked.result.isError, true);
+  assert.match(
+    JSON.parse(linked.result.content[0].text).message,
+    /symbolic link/,
+  );
+  const scoped = await handle({
+    id: 81,
+    method: "tools/call",
+    params: {
+      name: "ai3d_generate",
+      arguments: { type: "sword", output: "scoped", workspace: outside },
+    },
+  });
+  assert.equal(scoped.result.isError, undefined);
+  assert.equal(fs.existsSync(path.join(dir, "scoped")), true);
+  assert.equal(fs.existsSync(path.join(outside, "scoped")), false);
+});
+
 test("the generate tool resolves a natural-language prompt", async (t) => {
   const dir = workspace(t);
   const answer = await handlerFor(dir)({

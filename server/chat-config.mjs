@@ -252,37 +252,43 @@ export class ChatConfig {
   /* The endpoint answered its model list. The URL that answered is stored with
      it, because a list of model names is not useful without one. */
   saveProbe({ id, baseUrl, apiKey, models } = {}) {
-    let provider = this.providerById(id);
-    if (!provider) {
-      /* A probe can add an endpoint the list does not have yet, so it is the
+    const previous = structuredClone(this.state);
+    try {
+      let provider = this.providerById(id);
+      if (!provider) {
+        /* A probe can add an endpoint the list does not have yet, so it is the
          one writer that reaches past the cap the page enforces. Without this
          the reload in `load` trims back to the limit and can drop the endpoint
          being made active, which is the last thing a reader would suspect. */
-      if (this.state.providers.length >= MAX_PROVIDERS)
-        throw new ReviewError(
-          `At most ${MAX_PROVIDERS} model endpoints can be stored.`,
-          400,
-          "CHAT_CONFIG",
-        );
-      provider = this.blank();
-      const clean = this.cleanId(id);
-      if (clean) provider.id = clean;
-      this.state.providers.push(provider);
+        if (this.state.providers.length >= MAX_PROVIDERS)
+          throw new ReviewError(
+            `At most ${MAX_PROVIDERS} model endpoints can be stored.`,
+            400,
+            "CHAT_CONFIG",
+          );
+        provider = this.blank();
+        const clean = this.cleanId(id);
+        if (clean) provider.id = clean;
+        this.state.providers.push(provider);
+      }
+      const clean = normalizeBaseUrl(baseUrl);
+      if (clean && clean !== provider.baseUrl) {
+        provider.apiKey = "";
+        provider.baseUrl = clean;
+      }
+      if (apiKey !== undefined && String(apiKey).trim())
+        provider.apiKey = String(apiKey).trim().slice(0, MAX_KEY);
+      provider.models = this.cleanModels(models);
+      if (!provider.models.includes(provider.model))
+        provider.model = provider.models[0] || "";
+      if (!provider.name) provider.name = hostLabel(provider.baseUrl);
+      this.normalize();
+      this.save();
+      return this.view();
+    } catch (error) {
+      this.state = previous;
+      throw error;
     }
-    const clean = normalizeBaseUrl(baseUrl);
-    if (clean && clean !== provider.baseUrl) {
-      provider.apiKey = "";
-      provider.baseUrl = clean;
-    }
-    if (apiKey !== undefined && String(apiKey).trim())
-      provider.apiKey = String(apiKey).trim().slice(0, MAX_KEY);
-    provider.models = this.cleanModels(models);
-    if (!provider.models.includes(provider.model))
-      provider.model = provider.models[0] || "";
-    if (!provider.name) provider.name = hostLabel(provider.baseUrl);
-    this.normalize();
-    this.save();
-    return this.view();
   }
 
   /* The page sends `providers` for a full save and `activeId` when the reader

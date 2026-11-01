@@ -375,7 +375,7 @@ export class McpConnections {
   }
 
   upsert({ id, name, command, args }) {
-    const nextId = id && this.connections.has(id) ? id : crypto.randomUUID();
+    const nextId = id || crypto.randomUUID();
     const connection = {
       id: nextId,
       name: String(name || command).slice(0, 80),

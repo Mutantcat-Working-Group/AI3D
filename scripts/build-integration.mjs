@@ -58,7 +58,7 @@ await build({
    stdio server. Bundled beside the review server, which resolves it before
    the repository copy and can therefore launch it with the same Node. */
 await build({
-  entryPoints: [path.join(repo, "mcp/server.mjs")],
+  entryPoints: [path.join(repo, "mcp/stdio.mjs")],
   outfile: path.join(out, "runtime/mcp-server.mjs"),
   bundle: true,
   platform: "node",
@@ -202,9 +202,15 @@ if (skillExport) {
     }
   };
   checkPlain(skillRoot);
+  const generateSkill = path.join(out, "skills/ai3d-generate");
+  fs.cpSync(path.join(repo, "skills/ai3d-generate"), generateSkill, {
+    recursive: true,
+    dereference: false,
+  });
+  checkPlain(generateSkill);
   const manifestFile = path.join(out, "openclaw.plugin.json");
   const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
-  manifest.skills = ["./skills/ai3d-review"];
+  manifest.skills = ["./skills/ai3d-review", "./skills/ai3d-generate"];
   fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + "\n");
 }
 // Copying is not shipping. `copyFileSync` only complains about a source that is

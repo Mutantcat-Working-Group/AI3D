@@ -58,6 +58,9 @@ export function cacheRelease(installRoot, runtime) {
     // child -- so they are listed with the server rather than treated as
     // optional extras.
     "runtime/step-child.mjs",
+    ...(fs.existsSync(path.join(installRoot, "runtime/mcp-server.mjs"))
+      ? ["runtime/mcp-server.mjs"]
+      : []),
     ...files(path.join(installRoot, present(installRoot, "vendor"))).map((p) =>
       path.join("vendor", p),
     ),
