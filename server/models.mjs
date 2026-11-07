@@ -200,6 +200,25 @@ export function inspectModel(buffer, format, { derived } = {}) {
         400,
         "ANIMATED_MODEL",
       );
+    /* Morph targets are refused here for the same reason the page refuses
+       them: the viewer throws after the mesh is already in the scene, which
+       leaves the page with no model, a version id that never clears, and a
+       retry loop that re-reads the same file every two seconds. The service
+       is the only place that can say so before anything is published. */
+    if (
+      (doc.meshes || []).some((mesh) =>
+        (mesh.primitives || []).some(
+          (prim) =>
+            Array.isArray(prim.targets) ||
+            (prim.extras && Array.isArray(prim.extras.targets)),
+        ),
+      )
+    )
+      throw new ReviewError(
+        "Convert morph targets to a static mesh before importing.",
+        400,
+        "ANIMATED_MODEL",
+      );
     let triangles = 0;
     for (const node of doc.nodes || []) {
       if (node.mesh === undefined) continue;

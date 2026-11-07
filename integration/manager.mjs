@@ -19,7 +19,7 @@ import {
 } from "../server/instance.mjs";
 import { listenerConfig, privateIPv4 } from "../server/network.mjs";
 import { hardenDirectory } from "../server/permissions.mjs";
-import { relativePosix } from "../server/paths.mjs";
+import { relativePosix, isReservedProjectPath } from "../server/paths.mjs";
 import { cacheRelease, cachedRelease } from "./release.mjs";
 import { summarizeSubmission, readReceipt } from "./summarize.mjs";
 import {
@@ -278,7 +278,7 @@ export class InstanceManager {
   project(project, create = false) {
     if (
       !/^projects\/[a-zA-Z0-9][^\x00-\x1f]*$/.test(project || "") ||
-      project.startsWith("projects/ai3d-state")
+      isReservedProjectPath(this.workspace, project)
     )
       fail(
         "PROJECT_REQUIRED",

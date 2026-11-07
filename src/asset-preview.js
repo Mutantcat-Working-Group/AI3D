@@ -82,6 +82,20 @@ export class AssetPreview {
     this.fit();
   }
 
+  /* Removing a child is not the same as letting go of it. Every `setModel`
+     clears the previous model, and `syncGenPreview` clones the workbench model
+     on each control change -- geometry and materials are cloned with it, so
+     each preview owns its own and nothing else ever releases them. The GPU
+     buffers and programs they cost are the renderer's, and the only other place
+     that gave any back was the preview panel being closed outright. A long
+     session of dragging sliders therefore grew the renderer's memory without
+     bound, and the browser answered by discarding textures and dropping
+     frames.
+
+     The maps are reached through the material rather than disposed with it:
+     `material.dispose()` releases the program, not the textures it points at,
+     and a preview's maps are the five procedural PBR maps each asset carries.
+     The review viewer walks them the same way for the same reason. */
   clearModel() {
     if (this.mixer) {
       this.mixer.stopAllAction();
@@ -90,6 +104,16 @@ export class AssetPreview {
     }
     for (const child of [...this.model.children]) {
       this.model.remove(child);
+      child.traverse?.((node) => {
+        node.geometry?.dispose?.();
+        const material = node.material;
+        for (const entry of Array.isArray(material) ? material : [material]) {
+          if (!entry) continue;
+          for (const value of Object.values(entry))
+            if (value?.isTexture) value.dispose();
+          entry.dispose();
+        }
+      });
     }
   }
 
@@ -164,6 +188,19 @@ export class AssetPreview {
     this.model.position.copy(center).multiplyScalar(-1);
     this.camera.position.copy(direction).multiplyScalar(distance);
     this.camera.lookAt(0, 0, 0);
+  }
+
+  /* How much of the renderer this preview is still holding. A preview is
+     replaced far more often than the panel is closed -- every control change
+     clones the model again -- so the count is the only way to tell a leak in
+     the replacement from one in the panel's lifetime. */
+  stats() {
+    return {
+      meshes: this.model.children.length,
+      geometries: this.renderer.info.memory.geometries,
+      textures: this.renderer.info.memory.textures,
+      programs: this.renderer.info.programs?.length ?? null,
+    };
   }
 
   frame() {

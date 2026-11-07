@@ -1287,3 +1287,121 @@ test("MCP connections API lifecycle", async (t) => {
   const after = await f.api("mcp/connections");
   assert.deepEqual(after.body.connections, []);
 });
+
+/* A submission is a frozen snapshot, and its file is the durable copy. The
+   outbox used to write the parts list onto the batch object before each
+   delivery attempt, and `submissionStatus` then rewrote that same object to
+   `submissions/<id>.json` — so a batch with nowhere to go, which the outbox
+   selected on every tick, rewrote its own frozen file forever. Reading the
+   manifest at the boundary instead keeps what the Agent receives and leaves the
+   stored record exactly as it was sealed. */
+test("a batch held for collection never rewrites its own file", async (t) => {
+  const f = await startReview(t, {
+    origin: { harness: "codex", sessionKey: "a-codex-run" },
+  });
+  assert.deepEqual((await f.ipc("/status")).body.notifier, {
+    send: false,
+    observe: false,
+  });
+  const model = await f.publish();
+  const owner = { versionId: model.id, clientId: "client-collect" };
+  await f.api("ready", {
+    method: "POST",
+    body: { ...owner, sha256: model.sha256, meshes: [mesh] },
+  });
+  await f.api("review/begin", { method: "POST", body: owner });
+  const draft = await f.api("draft", {
+    method: "PUT",
+    body: { ...owner, revision: 0, annotations, camera: null },
+  });
+  const file = path.join(f.dir, "submissions", "held-batch.json");
+  const stateFile = path.join(f.dir, "state.json");
+
+  assert.equal(
+    (
+      await f.api("feedback", {
+        method: "POST",
+        body: {
+          ...owner,
+          revision: draft.body.revision,
+          submissionId: "held-batch",
+        },
+      })
+    ).status,
+    200,
+  );
+  // Sealed once, by the submit. This is the byte sequence every later pass
+  // would have to leave alone.
+  const before = fs.readFileSync(file, "utf8");
+  const stateBefore = fs.statSync(stateFile).mtimeMs;
+  // The outbox runs every second in this fixture. Waiting across several ticks
+  // is what makes a per-tick rewrite visible.
+  await new Promise((r) => setTimeout(r, 3000));
+
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  assert.equal(
+    fs.statSync(stateFile).mtimeMs,
+    stateBefore,
+    "state.json was rewritten by a batch that did nothing",
+  );
+  // Waiting is not a failure: the batch says so in its own status.
+  const held = (await f.ipc("/submissions/held-batch")).body;
+  assert.equal(held.status, "waiting");
+  assert.equal(held.attempts, undefined);
+  assert.equal(held.lastError, null);
+  assert.equal(held.stalledAt, null);
+  assert.equal(
+    held.nextAttemptAt > Date.now(),
+    true,
+    "a held batch must not be re-selected on the next tick",
+  );
+});
+
+/* The SPA fallback answers every unmatched GET with index.html, which is right
+   for a client-side route and wrong for an API one. A typo in `/api/draf`
+   returned the whole application shell with a 200, and the caller's
+   `response.json()` then died on HTML with a parse error naming neither the
+   route nor the spelling -- so the failure pointed away from the actual
+   mistake. An unknown `/api/*` is a client mistake, and it is answered as one
+   with the route echoed back. */
+test("an unknown /api route is a 404 that names itself, not the application shell", async (t) => {
+  const f = await startReview(t);
+  await f.publish();
+  const request = (route) =>
+    new Promise((resolve, reject) => {
+      const req = http.request(
+        new URL(`/api/${route}`, f.url),
+        { method: "GET" },
+        (res) => {
+          const chunks = [];
+          res.on("data", (part) => chunks.push(part));
+          res.on("end", () => {
+            const text = Buffer.concat(chunks).toString();
+            let body;
+            try {
+              body = JSON.parse(text);
+            } catch {
+              body = undefined;
+            }
+            resolve({ status: res.statusCode, body, text });
+          });
+        },
+      );
+      req.on("error", reject);
+      req.end();
+    });
+
+  const missing = await request("draf");
+  assert.equal(missing.status, 404);
+  assert.equal(missing.body.code, "NOT_FOUND");
+  assert.match(missing.body.error, /\/api\/draf/);
+  // The shell is what the old fallback sent. Asserting it is absent is the
+  // whole point: HTML here means the route was swallowed, not reported.
+  assert.equal(/<!doctype html>/i.test(missing.text), false);
+
+  // A known route still answers, so the 404 handler is a guard for misses and
+  // not a replacement for the router.
+  const known = await request("state");
+  assert.equal(known.status, 200);
+  assert.equal(known.body.error, undefined);
+});

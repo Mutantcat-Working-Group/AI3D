@@ -24,5 +24,12 @@ export default defineConfig({
       "/api": { target: "http://127.0.0.1:43173", changeOrigin: false },
     },
   },
-  build: { target: "es2022", chunkSizeWarningLimit: 900 },
+  /* Everything the workbench needs is in one entry: it loads index.html, then
+     the bundle, then renders. There is no dynamic import to split on, because
+     the generator, the viewer, the chat and the export panel are all on screen
+     together from the first paint, and pulling any of them out would trade a
+     400 kB gzip download for a second round trip the user waits on. So the
+     bundle is ~1.39 MB and this limit is where that is declared rather than
+     discovered as a warning on every build. */
+  build: { target: "es2022", chunkSizeWarningLimit: 1500 },
 });

@@ -10211,6 +10211,15 @@ export function exportOBJ(object, options = {}) {
 /**
  * Wrap a model for export without mutating it: apply the requested scale and
  * rotate the whole graph so a Z-up engine reads it upright.
+ *
+ * The exported graph is a copy under a detached wrapper, and the source is
+ * never detached from its own parent. That matters twice over: `Object3D.add`
+ * removes a child from wherever it already is, so reparenting the model took
+ * it off the scene the page was showing; and a wrapper that is not in the
+ * scene graph has no world matrix of its own, so an exporter reading
+ * `matrixWorld` (OBJ) silently ignored both the scale and the rotation.
+ * Copying the source's composed world matrix into the copy is what makes the
+ * wrapper's transform reach every vertex.
  */
 function wrapForExport(
   object,
@@ -10220,10 +10229,17 @@ function wrapForExport(
   if (scale === 1 && (!rotateZup || upAxis === "Y")) return object;
   const wrapper = new THREE.Group();
   wrapper.name = `${object.name || "model"}-export`;
-  wrapper.add(object);
   wrapper.animations = object.animations || [];
   wrapper.scale.setScalar(scale);
   if (rotateZup && upAxis === "Z") wrapper.rotation.x = -Math.PI / 2;
+  const copy = object.clone(true);
+  copy.animations = wrapper.animations;
+  copy.matrixAutoUpdate = false;
+  object.updateWorldMatrix(true, false);
+  copy.matrix.copy(object.matrixWorld);
+  copy.matrix.decompose(copy.position, copy.quaternion, copy.scale);
+  wrapper.add(copy);
+  wrapper.updateMatrixWorld(true);
   return wrapper;
 }
 
@@ -11807,7 +11823,16 @@ export function renderAssetThumbnail(model, width = 120, height = 90) {
         }
       }
     });
+    /* dispose() releases the programs and buffers this renderer allocated, but
+       the WebGL context itself stays alive until the browser gets around to it,
+       and every thumbnail is a fresh one. On a page that generates and previews
+       repeatedly -- the library renders a card for every saved asset -- that is
+       one context per card, and Chrome's limit is sixteen: past it the browser
+       drops the oldest context and the canvas a person is looking at goes blank.
+       forceContextLoss() hands the context back now, which is the whole point of
+       this renderer being throwaway. */
     renderer.dispose();
+    renderer.forceContextLoss();
     return dataUrl;
   } catch {
     return null;

@@ -222,3 +222,33 @@ test("a review survives being handed from one harness to another", async (t) => 
     );
   }
 });
+
+/* `--flag` is looked up in a table of declared flags, and `flag in TABLE`
+   consults the prototype chain: `--toString`, `--constructor` and `--valueOf`
+   all named a flag that was never declared, so the value they were handed was
+   filed under a method instead of being refused. A caller reading the resulting
+   JSON could not tell a real flag from one the parser invented. */
+test("a flag the prototype would answer for is refused, not invented", () => {
+  for (const flag of ["toString", "constructor", "valueOf", "__proto__"]) {
+    assert.throws(
+      () => parseArgs(["status", `--${flag}`, "x"]),
+      (error) =>
+        error.code === "BAD_USAGE" && /Unknown option/.test(error.message),
+      `--${flag} was accepted as a flag`,
+    );
+    // Nothing was filed under the inherited name either.
+    assert.deepEqual(parseArgs(["status"]), {
+      action: "status",
+      input: {},
+    });
+  }
+  // A declared flag still works, including the boolean spellings.
+  assert.deepEqual(parseArgs(["open", "--no-activate"]), {
+    action: "open",
+    input: { activate: false },
+  });
+  assert.deepEqual(parseArgs(["open", "--resume", "--keep", "3"]), {
+    action: "open",
+    input: { resume: true, keep: 3 },
+  });
+});

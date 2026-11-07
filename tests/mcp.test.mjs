@@ -123,6 +123,58 @@ test("a notification is not answered, and an unknown method is", async (t) => {
   assert.equal(unknown.error.code, -32601);
 });
 
+/* One action list is read in four places -- the CLI's own `ACTIONS`, the MCP
+   tool's `enum`, the adapter's schema and the manager's `run()` -- and they
+   are four copies. A copy that lags does not fail loudly: the host refuses the
+   action with a schema error before the manager ever sees it, and the reader
+   is told the tool cannot do something it can. `retain` is the case that
+   proves the copies can drift: it was added to three of them, and the
+   manager's own list is still the nine it started with. The manager's list is
+   the subset it executes itself -- `inspect` and `precheck` are answered by
+   the CLI and the MCP server before `run()` is reached -- so what has to agree
+   is that every action it will run is one all three surfaces offer, and that
+   the three surfaces offer exactly the same set. The adapter's list is read
+   from source because importing that module needs the host SDK, which is not a
+   dependency of this repository. */
+test("every surface offers the same actions the manager will run", () => {
+  const source = (relative) =>
+    fs.readFileSync(path.join(repo, relative), "utf8");
+  const quoted = (text, start, end) => {
+    const from = text.indexOf(start);
+    assert.notEqual(from, -1, `${start} was not found`);
+    const body = text.slice(from, text.indexOf(end, from));
+    return body.match(/"[a-z]+"/g).map((name) => name.slice(1, -1));
+  };
+  const cli = quoted(source("cli/ai3d.mjs"), "const ACTIONS = [", "\n];");
+  const adapter = quoted(
+    source("adapters/openclaw/index.mjs"),
+    'enum: [\n        "inspect"',
+    "\n      ],",
+  );
+  const manager = quoted(
+    source("integration/manager.mjs"),
+    '![\n        "open"',
+    "\n      ].includes",
+  );
+  // The three surfaces a host reads must offer the same set. Order is
+  // presentation -- each surface puts the actions it uses first -- so the
+  // comparison is on the set, not the sequence.
+  const set = (names) => [...new Set(names)].sort();
+  assert.deepEqual(set(cli), set(adapter), "the CLI and the adapter disagree");
+  assert.deepEqual(
+    set(cli),
+    set(TOOL.inputSchema.properties.action.enum),
+    "the CLI and the MCP schema disagree",
+  );
+  // Every action the manager will actually run has to be one they offer.
+  assert.deepEqual(
+    manager.filter((action) => !cli.includes(action)),
+    [],
+    "the manager runs an action no surface advertises",
+  );
+  assert.ok(cli.includes("retain"), "retain is missing from the shared list");
+});
+
 test("the tool says up front that nothing here will announce a submission", async (t) => {
   const listed = await handlerFor(workspace(t))({
     id: 2,

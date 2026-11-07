@@ -112,6 +112,12 @@ function modelFingerprint(object) {
       [...child.geometry.attributes.position.array],
       [...child.position.toArray(), ...child.rotation.toArray()],
       color ? color.getHexString() : null,
+      // Where the mesh sits in the graph, not just where its own numbers say.
+      // A fingerprint that stopped at the mesh could not tell a model that had
+      // been reparented under an export wrapper from the one the page is
+      // showing, which is exactly what an export that mutates the scene does.
+      child.parent?.name ?? null,
+      [...child.matrixWorld.elements],
     ]);
   });
   return JSON.stringify(parts);
@@ -1159,7 +1165,7 @@ test("buildGamePackFiles records saved scene library assets", () => {
   assert.ok(files["models/town-scene-1/LOD0.glb"]);
 });
 
-test("scene export options wrap without mutating the original", async () => {
+test("scene export options wrap without mutating the original", async (t) => {
   const scene = composeGameKit("camp", { seed: 3 });
   const before = modelFingerprint(scene);
   const glb = await exportGLB(scene, { upAxis: "Z", scale: 2 });
@@ -1170,6 +1176,36 @@ test("scene export options wrap without mutating the original", async () => {
     modelFingerprint(scene),
     before,
     "export leaves the scene alone",
+  );
+
+  /* The wrapper used to be built and then detached before the exporter ran, so
+     it had no world matrix; OBJExporter reads `matrixWorld` and never updates
+     it, which made both the scale and the Z-up rotation vanish from the output
+     while GLTFExporter's local TRS happened to hide the same bug. Compare
+     against a scale-1 export of the same scene rather than against the source:
+     what matters is that the numbers changed, and by the requested factor. */
+  const unit = exportOBJ(scene, { upAxis: "Z", scale: 1 });
+  const vertices = (text) =>
+    text
+      .split("\n")
+      .filter((line) => line.startsWith("v "))
+      .map((line) => line.slice(2).trim().split(/\s+/).map(Number));
+  const scaled = vertices(obj);
+  const unscaled = vertices(unit);
+  assert.equal(scaled.length, unscaled.length);
+  assert.ok(scaled.length > 0, "the OBJ has no vertices");
+  for (let i = 0; i < scaled.length; i++)
+    for (let axis = 0; axis < 3; axis++)
+      assert.ok(
+        Math.abs(scaled[i][axis] - unscaled[i][axis] * 2) < 1e-4,
+        `vertex ${i} axis ${axis} did not take the requested scale`,
+      );
+
+  // A Z-up export is rotated, so the axes cannot be merely scaled: some
+  // coordinate that was zero at unit scale has to be non-zero here.
+  assert.ok(
+    scaled.some((v) => Math.abs(v[2]) > 1e-6),
+    "the Z-up rotation never reached the vertices",
   );
 });
 

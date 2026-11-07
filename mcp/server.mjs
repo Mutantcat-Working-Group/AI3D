@@ -415,8 +415,16 @@ export function createHandler({
   const manager = () =>
     new InstanceManager(context, {
       installRoot: root,
-      serverEntry: path.join(root, "server/index.mjs"),
-      distRoot: path.join(root, "dist"),
+      /* Nothing here overrides the manager's own answer, and that is the
+         point. `InstanceManager` already knows how to find an installation
+         from a root: `runtime/server.mjs` and `web/` when a package was built,
+         `server/` and `dist/` when this file runs out of a clone. Stating both
+         here chose the clone layout unconditionally, so the bundled `ai3d-mcp`
+         asked for `<package>/server/index.mjs` and `<package>/dist` — neither
+         of which exists in the package — and every `open` answered
+         PACKAGE_INCOMPLETE against a server that was sitting on disk. A
+         non-empty `serverEntry` also flips `bundled` to false, so the defaults
+         cost more than one lookup. */
       resolveOrigin: () =>
         normalizeOrigin({
           harness: "mcp",

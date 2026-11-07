@@ -22,6 +22,7 @@ const parameters = {
         "open",
         "status",
         "activate",
+        "retain",
         "read",
         "echo",
         "finish",
@@ -70,6 +71,11 @@ const parameters = {
     submissionId: { type: "string" },
     geometry: { type: "boolean" },
     summary: { type: "string" },
+    keep: {
+      type: "number",
+      description:
+        "retain only: how many most recent version tabs to keep. Hidden versions are never deleted — their draft, marks and file stay, and a larger number brings them back.",
+    },
     annotations: {
       type: "array",
       items: { type: "object" },
@@ -82,7 +88,6 @@ const parameters = {
 const description =
   "Open or continue browser-based 3D model review in the current conversation; publish GLB, STL or STEP drafts (STEP and STL are drawn +Z up with -Y to the front, GLB +Y up; rotate a model built otherwise before publishing), choose which published version the reviewer sees, read submitted annotations, and show understanding before revising a model. Use after creating a first model, including natural modelling requests that do not name AI3D. Model limits are 600000 triangles and 80 MB, and nothing degrades below them: run precheck on a GLB or STL before every open, and when its verdict is reject, simplify the model by the ratio it gives and say so before publishing; a STEP needs no precheck, since open measures it while importing and refuses it the same way. Every published version stays selectable and annotatable, so activate switches the display freely and never discards a draft; status lists versions with their marking counts. A batch with sealed true was closed out on the reviewer's behalf, so confirm what they meant before treating it as a change request, and check whether a marking made against an older version still applies to the current one. inspect, precheck and status are read-only. finish closes a version's round and unlock clears a stale tab: use either only when the user asks.";
 
-const managers = new Map();
 const plugin = defineToolPlugin({
   id: "ai3d",
   name: "AI3D",
@@ -135,15 +140,13 @@ const plugin = defineToolPlugin({
                   clientAddress: config.clientAddress,
                   listenHost: config.listenHost,
                 });
-                try {
-                  // The installed-versus-running comparison now travels with
-                  // the manager, so every harness gets it rather than the one
-                  // that noticed it first.
-                  result = await manager.execute(params);
-                } finally {
-                  for (const runtime of manager.usedProjects.keys())
-                    managers.set(runtime, manager);
-                }
+                // One manager per call, released the moment the call ends. It
+                // used to be kept in a module-level map for the disable sweep,
+                // which grew for the life of the process and retained a manager
+                // — and its registration state — for every project an agent had
+                // ever acted on. The locks it takes are file-based and released
+                // by `locked()` as each call ends, so nothing survives it here.
+                result = await manager.execute(params);
               }
               return {
                 content: [{ type: "text", text: JSON.stringify(result) }],
@@ -220,13 +223,10 @@ plugin.register = (api) => {
       // "restart" means the plugin is still in the next registry, so the
       // instances stay reachable and pausing them would only cost a reload.
       if (reason !== "disable") return;
-      let unavailable = 0;
-      for (const manager of new Set(managers.values()))
-        unavailable += manager.pauseOwned().length;
-      if (unavailable)
-        api.logger?.warn(
-          `AI3D disable: ${unavailable} managed instances could not be paused.`,
-        );
+      /* The registry, not a map of live managers: the disable may run in a
+         process that never served these reviews, so the only complete answer is
+         the durable one. It also covers projects this process did serve, since
+         every open registers them. */
       sweepRegistrations(api, "disable", pauseRegistered);
       // Gateway restart is deliberately not a model-service restart. Reset is
       // handled by each batch's generation CAS, not by deleting browser data.

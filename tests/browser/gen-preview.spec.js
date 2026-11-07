@@ -755,8 +755,115 @@ test("a project template expands and exports a project pack", async ({
   await expect(page.locator("#gen-status")).toContainText(/project\.json/i);
 });
 
-/* Chat is the second door into the same project pipeline. A written brief that
-   names a template must build the project locally and land it in the library,
+/* The library card used to interpolate the prompt and every tag raw, so a
+   sentence containing a tag closed the element early and the remainder became
+   markup -- a saved prompt could inject a node into the page. The prompt is
+   whatever was typed into the description box, which is exactly the input that
+   must be treated as text. */
+test("a saved prompt containing markup is displayed as text", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  // Short enough to escape the 50-character truncation the card applies, so the
+  // assertion is about the whole string and not about where it was cut.
+  const hostile = 'crate <img src=x onerror="window.__pwned=1">';
+  await page.locator("#gen-prompt").fill(hostile);
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+
+  const card = page.locator("#gen-library .gen-asset-card").first();
+  await expect(card).toBeVisible();
+  // The prompt is the first span in the info block; the tags after it are
+  // spans too, and a locator that matches all of them cannot say which one
+  // carried the markup.
+  const prompt = card.locator(".gen-asset-info span").first();
+  await expect(prompt).toContainText(hostile);
+  // The injected node never existed, and the prompt is still the whole string.
+  expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
+  expect(await prompt.evaluate((el) => el.textContent)).toContain(hostile);
+  expect(await prompt.locator("img").count()).toBe(0);
+});
+
+/* Every thumbnail is its own WebGL renderer, so every thumbnail used to leave a
+   context behind until the browser decided to collect it. Chrome keeps sixteen:
+   past that it evicts the oldest, and the canvas a person is actually looking at
+   -- the preview stage, not the thumbnail -- is the one that goes blank. This
+   generates more than that many and asserts the console never says a context was
+   lost, which is the symptom a person would otherwise have reported. */
+test("a long session of thumbnails never loses a WebGL context", async ({
+  page,
+}) => {
+  const lost = [];
+  page.on("console", (message) => {
+    if (/WebGL context lost/i.test(message.text())) lost.push(message.text());
+  });
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  const CHROME_CONTEXTS = 16;
+  for (let i = 0; i < CHROME_CONTEXTS + 4; i++) {
+    await page.locator("#gen-prompt").fill("low-poly crate");
+    await page.locator("#gen-generate").click();
+    await expect(page.locator("#gen-preview")).toBeVisible();
+    await page.locator("#gen-save").click();
+    await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(
+      i + 1,
+    );
+  }
+
+  // The stage still paints, which is what an evicted context would take away.
+  const stats = await canvasLuminance(page);
+  expect(stats.total).toBeGreaterThan(1000);
+  expect(stats.variance).toBeGreaterThan(5);
+  expect(lost).toEqual([]);
+});
+
+/* Every control change replaces the preview model with a clone, and a clone
+   carries its own geometry and materials. Removing the old child used to leave
+   those alive -- only closing the panel ever released them -- so the renderer
+   grew for the life of the page and the browser answered by discarding
+   textures. Replacing a preview many times over and counting what the renderer
+   still holds is the only way to tell a leak in the replacement from one in the
+   panel's lifetime. */
+test("replacing a preview releases what the old one allocated", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+  await page.locator("#gen-prompt").fill("low-poly crate");
+  await page.locator("#gen-generate").click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+
+  const before = await page.evaluate(
+    () => window.__reviewDiagnostics().genPreview,
+  );
+  expect(before).not.toBeNull();
+  for (let i = 0; i < 6; i++) {
+    await page.locator("#gen-prompt").fill(`low-poly crate ${i}`);
+    await page.locator("#gen-generate").click();
+    await expect(page.locator("#gen-preview")).toBeVisible();
+  }
+  await settle(page);
+
+  const after = await page.evaluate(
+    () => window.__reviewDiagnostics().genPreview,
+  );
+  expect(after.meshes).toBe(before.meshes);
+  expect(after.geometries).toBeLessThanOrEqual(before.geometries);
+  expect(after.textures).toBeLessThanOrEqual(before.textures);
+  // The stage still paints with the current model.
+  const stats = await canvasLuminance(page);
+  expect(stats.total).toBeGreaterThan(1000);
+  expect(stats.variance).toBeGreaterThan(5);
+});
+
+/* Chat is the second door into the same project pipeline. A written brief that   names a template must build the project locally and land it in the library,
    even when the page has no return route to an agent conversation. */
 test("a chat project brief generates a project without a host conversation", async ({
   page,

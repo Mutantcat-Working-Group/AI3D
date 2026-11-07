@@ -546,6 +546,28 @@ test("filesystem boundary rejects escaping symlinks and narrow-scope creation be
   );
 });
 
+/* `projects/ai3d-state` is where this workspace keeps its own registry and
+   state, so a project may not be named it -- and the name alone was not the
+   test. `projects/x/../ai3d-state` satisfies the project pattern, does not
+   begin with the reserved name, and resolves to the reserved directory. The
+   guard asks the resolved path, and this is what it looks like when it did
+   not. */
+test("a project that resolves into the reserved state directory is refused", async (t) => {
+  const f = setup(t);
+  fs.mkdirSync(path.join(f.workspace, "projects"), { recursive: true });
+  await assert.rejects(
+    f.open("projects/x/../ai3d-state"),
+    (error) =>
+      error.code === "PROJECT_REQUIRED" &&
+      /separate modelling project/.test(error.message),
+  );
+  assert.equal(
+    fs.existsSync(path.join(f.workspace, "projects/ai3d-state")),
+    false,
+    "the refusal must come before anything is created",
+  );
+});
+
 test("async bridge fences admission to the frozen generation and rejects unavailable host CAS", async () => {
   const bridge = new OpenClawBridge(origin);
   const calls = [];

@@ -39,7 +39,7 @@ def sha(data: bytes) -> str:
 
 
 def read_json(path: Path) -> dict:
-    return json.loads(path.read_text())
+    return json.loads(path.read_bytes())
 
 
 def atomic(path: Path, data: bytes, mode: int = 0o600) -> None:
@@ -51,11 +51,18 @@ def atomic(path: Path, data: bytes, mode: int = 0o600) -> None:
             os.fsync(stream.fileno())
         os.chmod(temporary, mode)
         os.replace(temporary, path)
-        directory = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        # Directory fsync is what makes a rename durable on POSIX, and it has no
+        # Windows equivalent: `os.open(directory, os.O_RDONLY)` is denied there,
+        # so every write through here raised PermissionError before the file it
+        # was replacing could be read back. The file itself is still fsynced
+        # above, which is the part that keeps the content; whether the rename
+        # survives a power cut is what the platform does or does not promise.
+        if os.name == "posix":
+            directory = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
+            finally:
+                os.close(directory)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -151,7 +158,11 @@ def transplant(target: Path, build: Path) -> tuple[str, bytes, dict]:
         check((target / "dist" / relative).is_file(), f"unresolved original graph import: {relative}")
     return "dist/" + old_path.name, candidate.encode(), {
         "built_bundle": str(built_path), "built_sha256": sha(built.encode()),
-        "guard_path": "dist/" + guard_path.name, "guard_sha256": sha(old_guard.encode()),
+        # `sha()` of the file's bytes, not of the text read out of it: the two
+        # differ wherever the file has CRLF, and this hash is checked against
+        # `digest_at()` on the very next line, which hashes the bytes.
+        "guard_path": "dist/" + guard_path.name,
+        "guard_sha256": digest_at(target / "dist", guard_path.name),
     }
 
 
@@ -216,9 +227,10 @@ def stage(args: argparse.Namespace) -> Path:
         records.append({"path": relative, "phase": "backend" if relative == backend else "ui",
                         "before": before_hash, "after": after_hash, "mode": mode, "current": "before"})
     syntax(output / "candidate" / backend)
-    (output / "backend.diff").write_text("".join(difflib.unified_diff(
-        safe(target, backend).read_text().splitlines(True), code.decode().splitlines(True),
-        fromfile=backend, tofile=backend + " (candidate)")))
+    (output / "backend.diff").write_bytes("".join(difflib.unified_diff(
+        safe(target, backend).read_bytes().decode().splitlines(True),
+        code.decode().splitlines(True),
+        fromfile=backend, tofile=backend + " (candidate)")).encode())
     source = {p: sha(safe(build, p).read_bytes()) for p in [*NEW_REGIONS, INDEX]}
     manifest = {"format": 1, "target_root": str(target), "version": version,
                 "backend": backend, "build_root": str(build), "provenance": provenance,

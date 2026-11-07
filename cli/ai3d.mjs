@@ -78,11 +78,15 @@ export function parseArgs(argv) {
     if (!token.startsWith("--"))
       throw new IntegrationError("BAD_USAGE", `Unexpected argument: ${token}`);
     const flag = token.slice(2);
-    if (flag in BOOLEANS) {
+    /* Own properties only. `flag in BOOLEANS` consults the prototype chain,
+       so `--toString`, `--constructor` and `--valueOf` all named a flag that
+       was never declared, and the value they were handed was silently filed
+       under a method instead of being refused. */
+    if (Object.hasOwn(BOOLEANS, flag)) {
       input[BOOLEANS[flag]] = flag !== "no-activate";
       continue;
     }
-    if (!(flag in FLAGS))
+    if (!Object.hasOwn(FLAGS, flag))
       throw new IntegrationError("BAD_USAGE", `Unknown option: --${flag}`);
     const value = rest[++i];
     if (value === undefined || value.startsWith("--"))

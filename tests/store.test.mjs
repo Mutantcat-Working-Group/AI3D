@@ -258,6 +258,46 @@ test("a tiny file claiming an enormous texture is rejected before browser image 
   );
 });
 
+/* Morph targets were accepted at import and refused by the viewer, which throws
+   after the mesh is already in the scene: the page is left with no model, a
+   version id that never clears, and a retry loop that re-reads the same file
+   every two seconds. The service is the only place that can say so before
+   anything is published. Both spellings are refused — the standard `targets`
+   array and the `extras` copy some exporters write beside it. */
+test("a GLB with morph targets is refused at import, in either spelling", () => {
+  const build = (primitive) => {
+    const doc = {
+      asset: { version: "2.0" },
+      nodes: [{ mesh: 0 }],
+      meshes: [{ primitives: [primitive] }],
+      accessors: [{ count: 3 }],
+    };
+    const json = Buffer.from(JSON.stringify(doc)),
+      length = Math.ceil(json.length / 4) * 4,
+      buffer = Buffer.alloc(20 + length, 32);
+    buffer.write("glTF");
+    buffer.writeUInt32LE(2, 4);
+    buffer.writeUInt32LE(buffer.length, 8);
+    buffer.writeUInt32LE(length, 12);
+    buffer.writeUInt32LE(0x4e4f534a, 16);
+    json.copy(buffer, 20);
+    return buffer;
+  };
+  for (const primitive of [
+    { attributes: { POSITION: 0 }, targets: [{}] },
+    { attributes: { POSITION: 0 }, extras: { targets: [{}] } },
+  ])
+    assert.throws(
+      () => inspectModel(build(primitive), "glb"),
+      (error) => error.code === "ANIMATED_MODEL" && /morph/.test(error.message),
+    );
+  // The same mesh without them is still accepted, so the refusal is about the
+  // targets and not about the fixture being unreadable.
+  assert.doesNotThrow(() =>
+    inspectModel(build({ attributes: { POSITION: 0 } }), "glb"),
+  );
+});
+
 test("a lost save response can be retried after restart without duplicating or overwriting edits", (t) => {
   const { dir, store } = fixture(t);
   store.publish(m1);
@@ -817,4 +857,119 @@ test("retention never hides what is on screen, being marked, or unsent", (t) => 
     result.keptVisible.map((m) => `${m.version}: ${m.because}`),
     ["v1: on screen", "v2: being marked"],
   );
+});
+
+/* A version's id is whatever it was published under, which is a string that
+   came off disk or off the wire. The maps holding versions, bindings, drafts,
+   presence and echoes are keyed by that string, and a plain `map[key]` consults
+   the prototype chain first: `models.constructor` and `models.toString` answer
+   with a function, and `models.__proto__` with an object. Every lookup therefore
+   asks for a key that is not there and gets a truthy answer that is not a
+   version, and what follows dies on `.includes` or `.length`. Publishing under
+   such a name used to replace the prototype of the whole map. */
+test("version names that collide with Object.prototype are refused rather than borrowed", (t) => {
+  const { store } = fixture(t);
+  const protoNames = ["constructor", "toString", "__proto__", "valueOf"];
+  for (const name of protoNames) {
+    const model = {
+      id: name,
+      name: "sample",
+      version: name,
+      sha256: "c".repeat(64),
+    };
+    store.publish(model);
+    // It is stored, and it survives a reload as an own property.
+    assert.ok(
+      Object.hasOwn(store.state.models, name),
+      `${name} was not stored`,
+    );
+    const recovered = new ReviewStore(store.dir);
+    assert.ok(
+      Object.hasOwn(recovered.state.models, name),
+      `${name} did not survive a reload`,
+    );
+    assert.equal(recovered.versionInBinding(name), true);
+    assert.equal(
+      recovered.state.models[name].id,
+      name,
+      `${name} lost its own entry`,
+    );
+    // The version is real, so activating it succeeds — and what is on screen
+    // afterwards is that version, not a function borrowed from the prototype.
+    assert.equal(recovered.activate(name).id, name);
+  }
+  // The prototype of every keyed map is still Object.prototype: nothing was
+  // published under `__proto__` changed it.
+  for (const map of [
+    store.state.models,
+    store.state.modelBindings,
+    store.state.modelOrigins,
+    store.state.drafts,
+    store.state.presence,
+  ])
+    assert.equal(Object.getPrototypeOf(map), Object.prototype);
+});
+
+test("a version id the prototype would answer for is not a version", (t) => {
+  const { store } = fixture(t);
+  store.publish(m1);
+  for (const name of [
+    "constructor",
+    "toString",
+    "__proto__",
+    "hasOwnProperty",
+  ]) {
+    assert.equal(store.versionInBinding(name), false, name);
+    assert.throws(
+      () => store.activate(name),
+      (error) => error.code === "UNKNOWN_VERSION",
+      name,
+    );
+    assert.equal(
+      store.state.active.id,
+      m1.id,
+      `${name} changed what is on screen`,
+    );
+  }
+});
+
+/* Schema 1 kept one draft, one lock and one pending slot, so a version that had
+   been published and then superseded had nowhere to record which conversation
+   owned it — it stayed in `models` and was listed nowhere. A migration that only
+   bound the active and pending versions left the rest of the history invisible,
+   which is the state the version tabs exist to show. */
+test("a schema 1 review binds every published version, not just the active one", (t) => {
+  const { dir } = fixture(t);
+  const legacy = {
+    schemaVersion: 1,
+    generation: 0,
+    models: {
+      "model-one": { ...m1, publishedAt: 1000 },
+      "model-two": { ...m2, publishedAt: 1001 },
+      "model-three": {
+        id: "model-three",
+        name: "sample",
+        version: "v3",
+        sha256: "d".repeat(64),
+        publishedAt: 1002,
+      },
+    },
+    draft: { versionId: "model-one", annotations: [], camera: null },
+    lock: { versionId: "model-one", clientId: "client-a", touchedAt: 1 },
+    submissions: [],
+    messages: [],
+  };
+  fs.writeFileSync(path.join(dir, "state.json"), JSON.stringify(legacy));
+  const recovered = new ReviewStore(dir);
+  assert.equal(recovered.state.schemaVersion, 2);
+  assert.deepEqual(
+    recovered.versions("client-a").map((v) => v.id),
+    ["model-one", "model-two", "model-three"],
+    "a superseded version is still listed",
+  );
+  for (const id of ["model-one", "model-two", "model-three"])
+    assert.ok(
+      recovered.versionInBinding(id),
+      `${id} was not bound to this review`,
+    );
 });

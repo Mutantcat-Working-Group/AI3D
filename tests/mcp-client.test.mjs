@@ -146,6 +146,42 @@ test("McpConnections rejects invalid input", async (t) => {
   assert.throws(() => conns.upsert({ command: "ok", args: "not-an-array" }));
 });
 
+/* Every call used to build its own session and its own child process, so a
+   caller that retried a connect -- or two callers that connected at once --
+   started one MCP server each, and the losers were never closed. The saved
+   connection id is the identity a caller holds, so the flight is keyed by it.
+   The fake server records its own pid on the way up, which is the only way to
+   tell two server processes apart from the client side. */
+test("overlapping connects start one MCP server, not one each", async (t) => {
+  const dir = tmpDir(t);
+  const runtime = path.join(dir, "runtime");
+  fs.mkdirSync(runtime);
+  const workspace = path.join(dir, "workspace");
+  fs.mkdirSync(workspace);
+  const pids = path.join(dir, "pids.txt");
+  const script = fakeMcpScript(dir);
+  fs.writeFileSync(
+    script,
+    `require("fs").appendFileSync(${JSON.stringify(pids)}, process.pid + "\\n");\n` +
+      FAKE_MCP,
+  );
+
+  const conns = new McpConnections(runtime, { workspace });
+  const saved = conns.upsert({
+    name: "fake",
+    command: process.execPath,
+    args: [script],
+  });
+  const snapshots = await Promise.all(
+    Array.from({ length: 4 }, () => conns.connect(saved.id)),
+  );
+  assert.ok(snapshots.every((s) => s.connected));
+  assert.equal(conns.list()[0].tools.length, 1);
+  const started = fs.readFileSync(pids, "utf8").split("\n").filter(Boolean);
+  assert.equal(started.length, 1, "four connects spawned more than one server");
+  conns.disconnect(saved.id);
+});
+
 test("McpConnections connect and disconnect lifecycle", async (t) => {
   const dir = tmpDir(t);
   const runtime = path.join(dir, "runtime");

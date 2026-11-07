@@ -230,7 +230,7 @@ export function scopedPath(
   const parts = path.relative(root, target).split(path.sep).filter(Boolean);
   for (let i = 0; i < parts.length; i++) {
     current = path.join(current, parts[i]);
-    if (
+    const seen =
       fs.existsSync(current) ||
       (() => {
         try {
@@ -239,9 +239,26 @@ export function scopedPath(
         } catch {
           return false;
         }
-      })()
-    ) {
-      const real = fs.realpathSync(current);
+      })();
+    if (seen) {
+      let real;
+      try {
+        real = fs.realpathSync(current);
+      } catch (error) {
+        /* A symlink whose target is gone: `existsSync` follows the link and
+           says no, but `lstat` sees the link itself, so the two disagree and
+           the only way to answer was `realpath` — which threw. That reached
+           the caller as a bare ENOENT with no code, so a path the workspace
+           cannot resolve was reported as a failure of the tool rather than as
+           a refusal about the path. A link that leads nowhere is outside the
+           workspace for the same reason a link that leads out of it is. */
+        if (error.code === "ENOENT")
+          fail(
+            "PATH_SCOPE",
+            "A symlink in that path points outside the workspace.",
+          );
+        throw error;
+      }
       if (!within(root, real))
         fail("PATH_SCOPE", "A symlink points outside the workspace.");
       current = real;

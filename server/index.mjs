@@ -396,8 +396,9 @@ const annotation = z.discriminatedUnion("type", [
                  stroke was — measured at 530 corners for a quarter of one
                  coarse face. The ceiling that matters is the round's total,
                  counted below; this one only has to sit past anything a single
-                 boundary reaches. `MAX_POLYGON_VERTICES` in
-                 `src/polygon-union.js` holds the client to the same number. */
+                 boundary reaches. `src/planar-fill.js` builds the polygons
+                 without a ceiling of its own, so this `.max` is the only
+                 limit there is on one boundary. */
               vertices: z.array(vec3).min(3).max(4096),
             })
             .strict(),
@@ -493,9 +494,7 @@ function validateAnnotations(versionId, annotations) {
     ]),
   );
   const usedIds = new Set();
-  let faceCount = 0,
-    patchCount = 0,
-    markCost = 0;
+  let markCost = 0;
   for (const a of annotations) {
     if (usedIds.has(a.id))
       throw new ReviewError("Duplicate annotation id.", 400);
@@ -518,7 +517,6 @@ function validateAnnotations(versionId, annotations) {
           400,
           "BAD_GEOMETRY",
         );
-      faceCount += faces.length;
     }
     if (
       a.type === "pin" &&
@@ -580,7 +578,6 @@ function validateAnnotations(versionId, annotations) {
        The ceiling here sits above the page's so that a reviewer meets the
        toast that tells them to submit, and never this. A round that arrives
        over it did not come from our page. */
-    patchCount += a.surfacePatches?.length || 0;
     const patches = a.surfacePatches || [];
     const claimed =
       a.type === "pin"
@@ -791,15 +788,27 @@ app.post("/api/review/finish", async (req, res) => {
   res.json({ ...state, sealed: sealed.id });
 });
 const feedbackFlights = new Map();
+/* The parts list is derived from the manifest the page saved at `/api/ready`,
+   not from the batch: a submission is a frozen snapshot, and writing a field
+   onto it here rewrote the immutable per-submission file on every delivery
+   attempt. Reading it at the boundary keeps the copy the Agent receives and
+   leaves the stored record exactly as it was sealed. */
 function attachManifest(item) {
   if (item.meshManifest) return item;
-  item.meshManifest = JSON.parse(
-    fs.readFileSync(
-      path.join(runtime, "manifests", `${item.versionId}.json`),
-      "utf8",
-    ),
-  );
-  store.submissionStatus(item.id, item.status);
+  try {
+    item.meshManifest = JSON.parse(
+      fs.readFileSync(
+        path.join(runtime, "manifests", `${item.versionId}.json`),
+        "utf8",
+      ),
+    );
+  } catch (error) {
+    log.warn("review", "the parts list for a batch could not be read", {
+      submissionId: item.id,
+      versionId: item.versionId,
+      ...errorDetail(error),
+    });
+  }
   return item;
 }
 app.post("/api/feedback", async (req, res) => {
@@ -879,9 +888,19 @@ function deliverFeedback(item) {
         // an attempt here would start a retry curve against nothing and, past
         // the stall mark, raise an alarm on a page where nothing is wrong.
         if (!notifier?.send) {
+          /* Waiting is not an attempt, so it counts towards nothing -- but it
+             still has to be out of the outbox's reach. This branch left
+             `nextAttemptAt` unset, and the outbox's test is
+             `(item.nextAttemptAt || 0) <= Date.now()`, so a batch that had
+             nowhere to go was re-selected on every tick and rewritten to
+             `state.json` and to its frozen submission file for as long as the
+             review lived. Far enough in the future that no tick reaches it; a
+             host that appears is found by the next open or the next submission,
+             both of which deliver what is already waiting. */
           store.submissionStatus(item.id, "waiting", {
             lastError: null,
             stalledAt: null,
+            nextAttemptAt: Number.MAX_SAFE_INTEGER,
           });
           const { annotations: _held, ...waiting } = item;
           return waiting;
@@ -1703,6 +1722,17 @@ app.use(
   express.static(
     path.resolve(process.env.REVIEW_DIST_DIR || path.join(repo, "dist")),
   ),
+);
+/* The SPA fallback answers every other GET with index.html, which is right for
+   a client-side route and wrong for an API one: a typo in `/api/draf` returned
+   the whole application shell with a 200, and the caller's `response.json()`
+   then failed on HTML with a parse error that named neither the route nor the
+   spelling. An unknown `/api/*` is a client mistake, and it is answered as one. */
+app.get("/api/{*path}", (req, res) =>
+  res.status(404).json({
+    error: `No such API route: ${req.method} ${req.originalUrl}`,
+    code: "NOT_FOUND",
+  }),
 );
 app.get("/{*path}", (req, res) =>
   res.sendFile("index.html", {

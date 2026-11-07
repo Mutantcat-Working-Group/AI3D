@@ -319,6 +319,7 @@ export class McpConnections {
     this.clientVersion = clientVersion;
     this.connections = new Map();
     this.sessions = new Map();
+    this.flights = new Map();
     this.load();
   }
 
@@ -394,22 +395,37 @@ export class McpConnections {
     this.save();
   }
 
+  /* One flight per connection, not per session object. `McpSession.connect`
+     is already single-flight, but it cannot help here: every call built its
+     own session and its own child process, so four overlapping `connect`s
+     spawned four servers for one saved connection. The in-flight promise is
+     held by connection id, which is the identity the caller holds. */
   async connect(id) {
     const connection = this.connections.get(id);
     if (!connection) throw new Error("No such MCP connection; save it first.");
-    await this.disconnect(id);
-    const session = new McpSession(connection, {
-      cwd: this.workspace,
-      clientName: this.clientName,
-      clientVersion: this.clientVersion,
-    });
-    this.sessions.set(id, session);
-    try {
-      return await session.connect();
-    } catch (error) {
-      if (this.sessions.get(id) === session) this.sessions.delete(id);
-      throw error;
-    }
+    const flying = this.flights.get(id);
+    if (flying) return flying;
+    const flight = (async () => {
+      const previous = this.sessions.get(id);
+      if (previous) {
+        this.sessions.delete(id);
+        previous.close();
+      }
+      const session = new McpSession(connection, {
+        cwd: this.workspace,
+        clientName: this.clientName,
+        clientVersion: this.clientVersion,
+      });
+      this.sessions.set(id, session);
+      try {
+        return await session.connect();
+      } catch (error) {
+        if (this.sessions.get(id) === session) this.sessions.delete(id);
+        throw error;
+      }
+    })().finally(() => this.flights.delete(id));
+    this.flights.set(id, flight);
+    return flight;
   }
 
   disconnect(id) {

@@ -13,6 +13,19 @@ export function within(root, target) {
   );
 }
 
+/* Whether a project name resolves to one this workspace keeps for itself.
+ *
+ * The project registry and the application's own state live in
+ * `projects/ai3d-state`, so a project may not name it. Judging the name alone
+ * was not enough: `projects/x/../ai3d-state` satisfies the project pattern and
+ * does not begin with `projects/ai3d-state`, yet it *is* that directory. Asking
+ * the resolved path is the only form that cannot be spelled around. */
+export function isReservedProjectPath(root, project) {
+  const reserved = path.resolve(root, `projects${path.sep}ai3d-state`);
+  const target = path.resolve(root, project);
+  return within(reserved, target) && within(target, reserved);
+}
+
 // Any path that leaves this process — a tool's own output, a registry entry,
 // a stored filename — is written with forward slashes, because that is the
 // spelling those inputs are defined in. `path.relative` answers in the platform

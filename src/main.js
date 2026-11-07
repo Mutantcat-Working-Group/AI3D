@@ -6619,14 +6619,14 @@ function renderAssetLibrary() {
       <div class="gen-asset-preview" data-preview="${a.id}"></div>
       <div class="gen-asset-info">
         <strong>${esc(a.name || a.type)}</strong>
-        <span>${a.prompt.slice(0, 50)}${a.prompt.length > 50 ? "..." : ""}</span>
+        <span>${esc(a.prompt.slice(0, 50))}${a.prompt.length > 50 ? "..." : ""}</span>
         ${
           a.stats
             ? `<small class="gen-asset-budget">${a.stats.triangles ?? 0} ${t("gen.triangles")} · ${a.stats.vertices ?? 0} ${t("gen.vertices")} · ${a.stats.parts ?? 0} ${t("gen.parts")} · ${a.stats.drawCalls ?? 0} ${t("gen.drawCalls")}</small>`
             : ""
         }
         <small>${new Date(a.createdAt).toLocaleDateString()}</small>
-        <div class="gen-asset-tags">${(a.tags || []).map((tag) => `<span class="gen-tag">${tag}</span>`).join("")}</div>
+        <div class="gen-asset-tags">${(a.tags || []).map((tag) => `<span class="gen-tag">${esc(tag)}</span>`).join("")}</div>
       </div>
       <div class="gen-asset-actions">
         <button class="gen-asset-fav${a.favorite ? " active" : ""}" data-id="${a.id}" title="${t(a.favorite ? "gen.unfavorite" : "gen.favorite")}" aria-label="${t(a.favorite ? "gen.unfavorite" : "gen.favorite")}">${icon("star")}</button>
@@ -7296,6 +7296,11 @@ window.__reviewDiagnostics = () => ({
   cameraUp: viewer.camera.up.toArray(),
   screenUp: viewer.screenUp(),
   viewer: viewer.stats(),
+  // The generated-asset preview is a second renderer in the same page, so its
+  // memory is not part of the viewer's. Replacing a preview is the common case
+  // and closing the panel the rare one, which is exactly the difference a leak
+  // in the replacement would hide.
+  genPreview: genPreview ? genPreview.stats() : null,
   locked: state?.locked,
   owned: state?.owned,
   viewing: viewingId,

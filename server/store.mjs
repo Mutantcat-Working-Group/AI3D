@@ -97,6 +97,26 @@ export class ReviewStore {
             : null,
         ]),
     );
+    /* Every published model is bound, not just the two the queue could hold.
+       Schema 1 kept one draft, one lock and one pending slot, so a version
+       that had been published and then superseded had nowhere to record which
+       conversation owned it; it stayed in `models` and was listed nowhere.
+       Binding each one as it is found restores what the version tabs need to
+       show it, and a version whose submission came from another conversation
+       keeps a binding of its own rather than inheriting this review's. */
+    const submissionBinding = new Map(
+      this.state.submissions.map((item) => [
+        item.versionId,
+        item.bindingId ?? this.state.legacySubmissionBindings[item.id] ?? null,
+      ]),
+    );
+    for (const model of Object.values(this.state.models)) {
+      if (!model?.id) continue;
+      this.registerModelBinding(
+        model.id,
+        submissionBinding.get(model.id) ?? this.state.bindingId,
+      );
+    }
     if (this.state.active)
       this.registerModelBinding(this.state.active.id, this.state.bindingId);
     if (this.state.pending) {
@@ -159,8 +179,35 @@ export class ReviewStore {
     });
   }
   registerModelBinding(modelId, bindingId) {
-    const bindings = (this.state.modelBindings[modelId] ||= []);
+    /* An own array or nothing. `map[key] ||= []` reads the prototype chain
+       before it writes, so a version named `constructor` or `toString` found
+       `Object` or a function already there and died on `.includes` — while a
+       version named `__proto__` would have replaced the prototype of the whole
+       map instead of adding a key. */
+    const bindings = Object.hasOwn(this.state.modelBindings, modelId)
+      ? this.state.modelBindings[modelId]
+      : [];
+    if (!Array.isArray(bindings))
+      throw new ReviewError(
+        "This review's stored bindings are not readable; nothing was published.",
+        409,
+        "STATE_VERSION",
+      );
     if (!bindings.includes(bindingId)) bindings.push(bindingId);
+    this.put(this.state.modelBindings, modelId, bindings);
+  }
+  /* A key that is a plain property, not an assignment. `map[key] = value` runs
+     the `__proto__` setter when the key spells it, so a version published under
+     that name changed the prototype of the map instead of adding an entry —
+     and the version, its origin and its file all silently disappeared on the
+     next load. */
+  put(map, key, value) {
+    Object.defineProperty(map, key, {
+      value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   modelInBinding(filename) {
     return Object.values(this.state.models).some(
@@ -235,9 +282,16 @@ export class ReviewStore {
     return receipts[clientId];
   }
   versionInBinding(versionId) {
-    return !!(
-      this.state.models[versionId] &&
-      this.state.modelBindings[versionId]?.includes(this.state.bindingId)
+    /* Own property or nothing. These two maps are keyed by whatever a version
+       was published under, and a plain `map[key]` consults the prototype chain
+       first: `models.constructor`, `models.toString` and `models.__proto__` all
+       answer with something truthy that is not a version, and the lookup that
+       follows then calls `.includes` on `Object` or reads `.length` off a
+       function. A name that reaches this code came off disk or off the wire,
+       so it is not allowed to borrow meaning from `Object.prototype`. */
+    return (
+      Object.hasOwn(this.state.models, versionId) &&
+      !!this.state.modelBindings[versionId]?.includes(this.state.bindingId)
     );
   }
   // Every version this review has published, oldest first. The workstation
@@ -293,7 +347,12 @@ export class ReviewStore {
   versions(clientId) {
     const s = this.state;
     return this.retained(this.inBindingOrder()).map((model) => {
-      const draft = s.drafts[model.id];
+      // Own property, for the same reason `versionInBinding` asks: a version
+      // named `constructor` or `toString` would otherwise read the prototype's
+      // function and die on `.length` before the page ever saw the list.
+      const draft = Object.hasOwn(s.drafts, model.id)
+        ? s.drafts[model.id]
+        : null;
       const presence = this.livePresence(model.id);
       return {
         id: model.id,
@@ -315,7 +374,9 @@ export class ReviewStore {
     });
   }
   livePresence(versionId, within = 30000) {
-    const p = this.state.presence[versionId];
+    const p = Object.hasOwn(this.state.presence, versionId)
+      ? this.state.presence[versionId]
+      : null;
     return p && Date.now() - p.touchedAt < within ? p : null;
   }
   // Rebinding this project to another conversation is the one act that really
@@ -333,7 +394,9 @@ export class ReviewStore {
     return null;
   }
   hasUnsubmitted(versionId) {
-    const d = this.state.drafts[versionId];
+    const d = Object.hasOwn(this.state.drafts, versionId)
+      ? this.state.drafts[versionId]
+      : null;
     return !!(
       d &&
       (d.annotations.length || d.submittedRevision != null) &&
@@ -345,7 +408,9 @@ export class ReviewStore {
   // the server would have allowed it, with no way for the reviewer to see why.
   capabilities(clientId, versionId) {
     const known = this.versionInBinding(versionId);
-    const draft = this.state.drafts[versionId];
+    const draft = Object.hasOwn(this.state.drafts, versionId)
+      ? this.state.drafts[versionId]
+      : null;
     const marked = !!(
       draft &&
       (draft.annotations.length || draft.submittedRevision != null)
@@ -373,7 +438,14 @@ export class ReviewStore {
     const viewing = this.versionInBinding(requested)
       ? requested
       : (s.active?.id ?? null);
-    const echo = viewing ? s.echoes[viewing] : null;
+    /* Own properties only, everywhere a version id indexes a map. `versionId`
+       may be `constructor` or `toString` — both are legal version names under
+       the route's own pattern — and a prototype read there returns a function
+       or a `null`-prototype object rather than "nothing", which is how a
+       name like that turned one bad request into a 500. */
+    const own = (map, key) =>
+      viewing && Object.hasOwn(map, key) ? map[key] : null;
+    const echo = own(s.echoes, viewing);
     const presence = viewing ? this.livePresence(viewing) : null;
     return {
       generation: s.generation,
@@ -381,9 +453,9 @@ export class ReviewStore {
       legacyDraftCache: s.legacyDraftReviewId === s.reviewId,
       active: s.active,
       viewing,
-      // The complete record for the version being looked at, which is not
-      // always the one the Agent is showing. The page loads this one.
-      model: viewing ? s.models[viewing] : null,
+      /* The complete record for the version being looked at, which is not
+         always the one the Agent is showing. The page loads this one. */
+      model: viewing ? (s.models[viewing] ?? null) : null,
       versions: this.versions(clientId),
       // Who is here, not who may act: capabilities answer that now.
       locked: !!presence && presence.clientId !== clientId,
@@ -445,8 +517,27 @@ export class ReviewStore {
     this.assertVersion(versionId);
     const s = this.state;
     // The Agent acts without a tab. It must not be recorded as one.
-    if (clientId) s.presence[versionId] = { clientId, touchedAt: Date.now() };
-    s.drafts[versionId] ||= this.freshDraft(versionId);
+    // Own-property writes: assigning `presence["__proto__"]` would set the
+    // prototype instead of adding a key, and the review would silently lose
+    // track of whoever was marking.
+    if (clientId) {
+      const entry = { clientId, touchedAt: Date.now() };
+      if (Object.hasOwn(s.presence, versionId)) s.presence[versionId] = entry;
+      else
+        Object.defineProperty(s.presence, versionId, {
+          value: entry,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+    }
+    if (!Object.hasOwn(s.drafts, versionId))
+      Object.defineProperty(s.drafts, versionId, {
+        value: this.freshDraft(versionId),
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     return s.drafts[versionId];
   }
   acquire(versionId, clientId) {
@@ -560,25 +651,36 @@ export class ReviewStore {
   // is why publishing no longer queues behind the reviewer.
   applyActive(versionId) {
     const s = this.state;
-    const origin = s.modelOrigins[versionId] ?? s.reviewOrigin;
+    const origin = Object.hasOwn(s.modelOrigins, versionId)
+      ? s.modelOrigins[versionId]
+      : s.reviewOrigin;
     s.active = s.models[versionId];
     if (isDeepStrictEqual(origin, s.reviewOrigin)) return;
     // A different conversation owning this model is a different review: rebind
     // so its batches, drafts and echoes never mix with the previous one.
     s.reviewOrigin = origin;
-    s.bindingId = s.modelBindings[versionId].at(-1);
+    // `at(-1)` on a missing entry was a TypeError thrown after `active` had
+    // already been replaced, leaving the in-memory review pointing at a model
+    // that was never saved. Read the same own map the guard above read, and
+    // fall back to the review's own binding when there is nothing to take.
+    const bound = Object.hasOwn(s.modelBindings, versionId)
+      ? s.modelBindings[versionId]
+      : null;
+    s.bindingId = bound?.at(-1) ?? s.bindingId;
     s.reviewId = crypto.randomUUID();
     s.generation += 1;
   }
   activate(versionId) {
-    if (!this.state.models[versionId])
+    if (!Object.hasOwn(this.state.models, versionId))
       throw new ReviewError(
         "That model version is not published.",
         409,
         "UNKNOWN_VERSION",
       );
     const foreign = !isDeepStrictEqual(
-      this.state.modelOrigins[versionId] ?? this.state.reviewOrigin,
+      Object.hasOwn(this.state.modelOrigins, versionId)
+        ? this.state.modelOrigins[versionId]
+        : this.state.reviewOrigin,
       this.state.reviewOrigin,
     );
     if (foreign && this.busyReason())
@@ -597,10 +699,15 @@ export class ReviewStore {
   publish(model, value = this.state.reviewOrigin, { activate = true } = {}) {
     const s = this.state;
     const origin = normalizeOrigin(value);
-    const known = s.models[model.id];
+    const known = Object.hasOwn(s.models, model.id) ? s.models[model.id] : null;
     if (known) {
       if (
-        !isDeepStrictEqual(origin, s.modelOrigins[model.id] ?? s.reviewOrigin)
+        !isDeepStrictEqual(
+          Object.hasOwn(s.modelOrigins, model.id)
+            ? s.modelOrigins[model.id]
+            : s.reviewOrigin,
+          origin,
+        )
       )
         throw new ReviewError(
           "This model already belongs to a session; finish that round first.",
@@ -614,8 +721,11 @@ export class ReviewStore {
       };
     }
     const mine = isDeepStrictEqual(origin, s.reviewOrigin);
-    s.models[model.id] = structuredClone(model);
-    s.modelOrigins[model.id] = origin;
+    // Own-property writes, for the same reason `registerModelBinding` defines
+    // them: `models["__proto__"] = …` would replace the prototype of the map
+    // that every version lives in, and the version would never be listed.
+    this.put(s.models, model.id, structuredClone(model));
+    this.put(s.modelOrigins, model.id, origin);
     this.registerModelBinding(
       model.id,
       mine ? s.bindingId : crypto.randomUUID(),
