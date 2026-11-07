@@ -788,6 +788,89 @@ test("a saved prompt containing markup is displayed as text", async ({
   expect(await prompt.locator("img").count()).toBe(0);
 });
 
+/* A save adds one card, and a card is only correct in the list it is displayed
+   in. Two things decide that list besides the assets themselves: the search box
+   and the tag filter, which narrow it, and the favourites-first order, which
+   reorders it. A card appended without asking those questions is a card in a
+   list it does not belong to -- the filter says "weapons" and the list shows a
+   bookshelf -- and one appended at the end of a favourites-first list sits below
+   the favourites it belongs above. Neither is visible in a fresh library, which
+   is the only state a save used to be exercised in. */
+test("a saved card obeys the filter it was saved under, and the order", async ({
+  page,
+}) => {
+  await page.goto(url);
+  await page.locator("#ai-button").click();
+  await page.locator('[data-ai-tab="gen"]').click();
+
+  // One asset of each tag family, so a filter has something to exclude. A chip
+  // generates on click, so there is no separate click to make.
+  await page.locator('#gen-types [data-type="sword"]').click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator('#gen-types [data-type="bookshelf"]').click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(2);
+
+  // Saved under a tag filter that excludes it: the card must not appear. A full
+  // render would have drawn an empty list, which is what the filter asked for.
+  await page.locator("#gen-tag-filter").selectOption("weapon");
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator('#gen-types [data-type="gem"]').click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+
+  // Clearing the filter shows all three, and the one just saved is among them.
+  await page.locator("#gen-tag-filter").selectOption("");
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(3);
+
+  // The same question with the search box: a card that does not match the text
+  // is not in the list, whatever was added to the library.
+  await page.locator("#gen-search").fill("sword");
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator('#gen-types [data-type="wagon"]').click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator("#gen-search").fill("");
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(4);
+
+  /* Favourites first, and a new card is never one -- so it belongs directly
+     below the favourite one. The favourite is made from the card that is already
+     at the top, so a full render and an append agree on everything except where
+     the new card lands: the render puts it at index 1, the append at the end.
+     Which one happened is the assertion, and the prompt each card shows is what
+     tells them apart -- the last one generated was a chair. */
+  await page
+    .locator("#gen-library .gen-asset-card")
+    .first()
+    .locator(".gen-asset-fav")
+    .click();
+  await expect(page.locator("#gen-library .gen-asset-fav.active")).toHaveCount(
+    1,
+  );
+  await page.locator('#gen-types [data-type="chair"]').click();
+  await expect(page.locator("#gen-preview")).toBeVisible();
+  await page.locator("#gen-save").click();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(5);
+
+  const prompts = await page
+    .locator(
+      "#gen-library .gen-asset-card .gen-asset-info > span:first-of-type",
+    )
+    .evaluateAll((spans) => spans.map((s) => s.textContent || ""));
+  expect(prompts[1]?.toLowerCase()).toContain("chair");
+
+  // Favourites-only narrows to the one that is, whatever else was saved since.
+  await page.locator("#gen-favorites-only").check();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(1);
+  await page.locator("#gen-favorites-only").uncheck();
+  await expect(page.locator("#gen-library .gen-asset-card")).toHaveCount(5);
+});
+
 /* Every thumbnail is its own WebGL renderer, so every thumbnail used to leave a
    context behind until the browser decided to collect it. Chrome keeps sixteen:
    past that it evicts the oldest, and the canvas a person is actually looking at

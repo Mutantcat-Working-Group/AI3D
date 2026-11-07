@@ -6663,14 +6663,34 @@ function assetCardMarkup(a) {
 function appendAssetCard(a) {
   const container = $("#gen-library");
   if (!container) return;
+  // A searched or filtered list is not simply this card's list: the card may not
+  // match it, and deciding that is `renderAssetLibrary`'s job. Only the plain
+  // view -- the whole library, favourites first -- can be added to by hand.
+  const narrowed =
+    $("#gen-search").value.trim() ||
+    $("#gen-tag-filter")?.value ||
+    $("#gen-favorites-only")?.checked;
+  if (narrowed) {
+    renderAssetLibrary();
+    return;
+  }
   const empty = container.querySelector(".gen-library-empty");
   if (empty) empty.remove();
   const wrapper = document.createElement("div");
   wrapper.innerHTML = assetCardMarkup(a);
   const card = wrapper.firstElementChild;
   if (!card) return;
-  container.appendChild(card);
+  // The library is drawn favourites first, so a card that is not one -- and a
+  // new card never is -- belongs above the first card that is not one either,
+  // which is where a full render would have put it.
+  const firstPlain = [...container.querySelectorAll(".gen-asset-card")].find(
+    (existing) => !existing.querySelector(".gen-asset-fav.active"),
+  );
+  container.insertBefore(card, firstPlain ?? null);
   renderAssetPreview(a);
+  // A new asset can carry a tag no filter offers yet, and the filter is the one
+  // part of the library a save used to leave behind on every other control.
+  populateTagFilter();
 }
 
 function populateTagFilter() {
