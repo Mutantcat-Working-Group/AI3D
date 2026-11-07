@@ -797,6 +797,13 @@ test("a saved prompt containing markup is displayed as text", async ({
 test("a long session of thumbnails never loses a WebGL context", async ({
   page,
 }) => {
+  // Twenty generations and twenty saved thumbnails, on a shared runner that is
+  // roughly two and a half times slower than a workstation: this ran 39.7s here
+  // and 1.1m there, against a 60s default. The number being asked for is the
+  // same -- more than Chrome's sixteen contexts -- so the loop count is what
+  // costs, and a test that cannot afford its own loop on a runner is not
+  // checking the browser's limit, only the runner's speed.
+  test.setTimeout(180000);
   const lost = [];
   page.on("console", (message) => {
     if (/WebGL context lost/i.test(message.text())) lost.push(message.text());
