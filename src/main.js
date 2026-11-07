@@ -3562,12 +3562,18 @@ const assetLibrary = {
     }
   },
   add(asset) {
-    this.assets.unshift({
+    // The id and the timestamp belong to the library, not to the caller, so the
+    // record as it was stored is returned rather than the one as it arrived. A
+    // caller that needs to show what it just added -- a new card in the library
+    // -- has no other way to learn the id it now has.
+    const stored = {
       ...asset,
       id: crypto.randomUUID(),
       createdAt: Date.now(),
-    });
+    };
+    this.assets.unshift(stored);
     this.save();
+    return stored;
   },
   remove(id) {
     this.assets = this.assets.filter((a) => a.id !== id);
@@ -6612,9 +6618,16 @@ function renderAssetLibrary() {
     container.innerHTML = `<div class="gen-library-empty">${t("gen.empty")}</div>`;
     return;
   }
-  container.innerHTML = assets
-    .map(
-      (a) => `
+  container.innerHTML = assets.map((a) => assetCardMarkup(a)).join("");
+  // Render thumbnails for each asset
+  assets.forEach((a) => renderAssetPreview(a));
+}
+
+/* One card, as the markup the library was already building. The preview slot is
+   left empty and filled by `renderAssetPreview`, because a thumbnail is a WebGL
+   render and not a string. */
+function assetCardMarkup(a) {
+  return `
     <div class="gen-asset-card" data-id="${a.id}">
       <div class="gen-asset-preview" data-preview="${a.id}"></div>
       <div class="gen-asset-info">
@@ -6635,11 +6648,29 @@ function renderAssetLibrary() {
         <button class="gen-asset-delete" data-id="${a.id}">${t("mcp.remove")}</button>
       </div>
     </div>
-  `,
-    )
-    .join("");
-  // Render thumbnails for each asset
-  assets.forEach((a) => renderAssetPreview(a));
+  `;
+}
+
+/* Add one card to a library that has already been rendered, instead of rendering
+   the library again.
+
+   Every save used to call `renderAssetLibrary()`, which rewrote the list and
+   then rendered a thumbnail for *every* asset in it -- each thumbnail a fresh
+   WebGL renderer, because that is what `renderAssetThumbnail` is. Saving a
+   twentieth asset therefore cost 1+2+...+20 = 210 contexts and grew from 0.6s
+   to 5.9s, where it should cost one: nothing about the older cards changes when
+   a new one is added, so they are not rebuilt -- only the card just written. */
+function appendAssetCard(a) {
+  const container = $("#gen-library");
+  if (!container) return;
+  const empty = container.querySelector(".gen-library-empty");
+  if (empty) empty.remove();
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = assetCardMarkup(a);
+  const card = wrapper.firstElementChild;
+  if (!card) return;
+  container.appendChild(card);
+  renderAssetPreview(a);
 }
 
 function populateTagFilter() {
@@ -6690,12 +6721,17 @@ function saveCurrentAsset() {
     setGenStatus(t("gen.noModel"), "warn");
     return;
   }
-  assetLibrary.add({
+  // `add` returns the record as it was stored, which is the only copy that
+  // carries the id the library gave it.
+  const record = assetLibrary.add({
     ...genState.model,
     stats: getAssetStats(genState.model.threeObject),
     threeObject: null, // Don't serialize Three.js objects
   });
-  renderAssetLibrary();
+  // One card, not the whole library: a save used to re-render a thumbnail for
+  // every asset already listed, which is a WebGL renderer each time and cost
+  // the sum of the whole list on every save.
+  appendAssetCard(record);
   setGenStatus(t("gen.applied"), "ok");
 }
 

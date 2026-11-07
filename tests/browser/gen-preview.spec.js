@@ -797,16 +797,14 @@ test("a saved prompt containing markup is displayed as text", async ({
 test("a long session of thumbnails never loses a WebGL context", async ({
   page,
 }) => {
-  // Twenty generations and twenty saved thumbnails, on a shared runner that
-  // runs roughly three times slower than a workstation: this measured 62s here
-  // and hit a 180s ceiling there twice, because each saved card re-renders
-  // every earlier thumbnail too -- 210 WebGL renderers, not 20. The number
-  // being asked for is the same -- more than Chrome's sixteen contexts -- so
-  // the loop count is what costs, and a test that cannot afford its own loop
-  // on a runner is not checking the browser's limit, only the runner's speed.
-  // Five minutes is what the third of that loop the runner already proved it
-  // needs is allowed to take.
-  test.setTimeout(300000);
+  // Twenty generations and twenty saved thumbnails, which is more than Chrome's
+  // sixteen contexts -- the number being asked for, and the loop count is what
+  // costs. It used to cost the whole library every save, because a card was
+  // re-rendered along with the one that was added, so the loop measured 62s here
+  // and did not finish on a shared runner at all. Each save now draws one
+  // thumbnail and the loop is flat, so this is back to being an allowance for a
+  // slower machine rather than a bill for work that should not have been done.
+  test.setTimeout(120000);
   const lost = [];
   page.on("console", (message) => {
     if (/WebGL context lost/i.test(message.text())) lost.push(message.text());
