@@ -146,7 +146,7 @@ The built-in service's HTTP API listens on loopback only by default; LAN mode bi
 npm ci
 npm run samples      # generates the parametric sample models
 npm test             # 431 unit and integration tests
-npm run test:browser # 98 real-Chromium tests
+npm run test:browser # 99 real-Chromium tests
 ```
 
 #### Documents
